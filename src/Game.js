@@ -538,7 +538,7 @@ export class Game {
             building.syncId = data.id;
             building.isBuilding = false;
             building.hp = data.hp;
-            building.multiplayerTeam = data.team;
+            building.multiplayerTeam = data.senderTeam || data.team;
             this.buildings.push(building);
             this.particles.spawnBuild(localX * this.cellSize + this.cellSize / 2, data.y * this.cellSize + this.cellSize / 2);
         }
@@ -562,7 +562,7 @@ export class Game {
         if (unit) {
             unit.syncId = data.id;
             unit.hp = data.hp;
-            unit.multiplayerTeam = data.team;
+            unit.multiplayerTeam = data.senderTeam || data.team;
             this.units.push(unit);
         }
     }

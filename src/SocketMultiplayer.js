@@ -181,25 +181,35 @@ export class SocketMultiplayer {
 
     // Send building placement
     sendBuildingPlaced(building) {
+        // Convert local coordinates to world coordinates
+        // Team 1: x stays same (their left = world left)
+        // Team 2: x is flipped (their left = world right)
+        const worldX = this.team === 1 ? building.x : (this.game.cols - 1 - building.x);
+
         this.socket.emit('buildingPlaced', {
             id: Date.now() + '_' + this.socket.id,
             type: building.type,
-            x: building.x,
+            x: worldX,
             y: building.y,
             hp: building.hp,
-            maxHp: building.maxHp
+            maxHp: building.maxHp,
+            senderTeam: this.team
         });
     }
 
     // Send unit spawn
     sendUnitSpawned(unit) {
+        // Convert local coordinates to world coordinates
+        const worldX = this.team === 1 ? unit.realX : (this.game.cols - 1 - unit.realX);
+
         this.socket.emit('unitSpawned', {
             id: Date.now() + '_' + this.socket.id,
             type: unit.type,
-            x: unit.realX,
+            x: worldX,
             y: unit.realY,
             hp: unit.hp,
-            maxHp: unit.maxHp
+            maxHp: unit.maxHp,
+            senderTeam: this.team
         });
     }
 
