@@ -113,7 +113,7 @@ export class Game {
 
         // Single Player button
         document.getElementById('single-player-btn')?.addEventListener('click', () => {
-            this.startGame();
+            this.showScreen('single-player-screen');
         });
 
         // Create Room button
@@ -133,6 +133,20 @@ export class Game {
 
         document.getElementById('back-from-join')?.addEventListener('click', () => {
             this.showScreen('main-menu');
+        });
+
+        document.getElementById('back-from-sp')?.addEventListener('click', () => {
+            this.showScreen('main-menu');
+        });
+
+        // Single Player mode buttons (1v1, 2v2, 3v3 AI)
+        document.querySelectorAll('.sp-mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mode = btn.dataset.spMode;
+                this.singlePlayerMode = mode;
+                // TODO: Configure AI count based on mode (2v2 = 3 AI, 3v3 = 5 AI)
+                this.startGame();
+            });
         });
 
         // Mode selector
@@ -435,7 +449,6 @@ export class Game {
 
                 switch (sb.type) {
                     case 'mine': building = new Mine(localX, sb.y, team); break;
-                    case 'farm': building = new Farm(localX, sb.y, team); break;
                     case 'barracks': building = new Barracks(localX, sb.y, team); break;
                     case 'archery': building = new ArcheryRange(localX, sb.y, team); break;
                     case 'stable': building = new Stable(localX, sb.y, team); break;
@@ -520,7 +533,6 @@ export class Game {
 
         switch (data.type) {
             case 'mine': building = new Mine(localX, data.y, team); break;
-            case 'farm': building = new Farm(localX, data.y, team); break;
             case 'barracks': building = new Barracks(localX, data.y, team); break;
             case 'archery': building = new ArcheryRange(localX, data.y, team); break;
             case 'stable': building = new Stable(localX, data.y, team); break;
@@ -1031,9 +1043,6 @@ export class Game {
             case 'mine':
                 building = new Mine(x, y, 'player');
                 this.resourceRate += 1;
-                break;
-            case 'farm':
-                building = new Farm(x, y, 'player');
                 break;
             case 'barracks':
                 building = new Barracks(x, y, 'player');
