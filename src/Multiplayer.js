@@ -14,7 +14,7 @@ export class Multiplayer {
         this.listeners = [];
         this.syncInterval = null;
         this.lastSyncTime = 0;
-        this.SYNC_RATE = 100; // Sync every 100ms for smoother updates
+        this.SYNC_RATE = 50; // Sync every 50ms for smoother updates
     }
 
     // Generate 6-character room code
