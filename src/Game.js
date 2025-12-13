@@ -3,6 +3,7 @@ import { ParticleSystem } from './Particles.js';
 import { SoundManager } from './SoundManager.js';
 import { AI } from './AI.js';
 import { Multiplayer } from './Multiplayer.js';
+import { SocketMultiplayer } from './SocketMultiplayer.js';
 import {
     Castle, Mine, Farm, Barracks, ArcheryRange, Stable, Tower, Wall, Forge,
     SiegeWorkshop, MageTower, Hospital, ResearchCenter,
@@ -62,8 +63,9 @@ export class Game {
         this.ai = new AI(this);
         this.renderer = new Renderer(this.ctx, this);
 
-        // Multiplayer
-        this.multiplayer = new Multiplayer(this);
+        // Multiplayer - Use WebSocket for better sync
+        this.useWebSocket = true; // Set to false to use Firebase
+        this.multiplayer = this.useWebSocket ? new SocketMultiplayer(this) : new Multiplayer(this);
         this.isMultiplayer = false;
         this.team = 1; // Player's team in multiplayer
 
@@ -339,55 +341,65 @@ export class Game {
         this.enemyCastle.multiplayerTeam = this.team === 1 ? 2 : 1;
         this.buildings.push(this.enemyCastle);
 
-        // Setup multiplayer callbacks
-        this.multiplayer.onBuildingsUpdate = (buildings) => {
-            // Only non-host clients apply building updates from server
-            if (!this.multiplayer.isHost) {
-                this.syncBuildingsFromServer(buildings);
-            }
-        };
+        // Setup multiplayer callbacks (works for both Firebase and WebSocket)
+        if (this.useWebSocket) {
+            // WebSocket (SocketMultiplayer) callbacks
+            this.multiplayer.onBuildingReceived = (data) => {
+                this.handleRemoteBuildingPlaced(data);
+            };
 
-        this.multiplayer.onUnitsUpdate = (units) => {
-            // Only non-host clients apply unit updates from server
-            if (!this.multiplayer.isHost) {
-                this.syncUnitsFromServer(units);
-            }
-        };
+            this.multiplayer.onUnitReceived = (data) => {
+                this.handleRemoteUnitSpawned(data);
+            };
 
-        this.multiplayer.onTeamsUpdate = (teams) => {
-            // Update resources from other team's data
-        };
+            this.multiplayer.onGameStateReceived = (gameState) => {
+                this.syncFromHostState(gameState);
+            };
 
-        this.multiplayer.onCastlesUpdate = (castles) => {
-            // Non-host clients update castle HP from server
-            if (!this.multiplayer.isHost && castles) {
-                const myCastle = this.team === 1 ? castles.team1 : castles.team2;
-                const enemyCastle = this.team === 1 ? castles.team2 : castles.team1;
-
-                if (myCastle) {
-                    this.playerCastle.hp = myCastle.hp;
-                    this.playerCastle.alive = myCastle.alive;
+            this.multiplayer.onGameOver = (data) => {
+                if (!this.gameOver) {
+                    const isPlayerWin = data.winner === this.team;
+                    this.endGame(isPlayerWin);
                 }
-                if (enemyCastle) {
-                    this.enemyCastle.hp = enemyCastle.hp;
-                    this.enemyCastle.alive = enemyCastle.alive;
+            };
+        } else {
+            // Firebase (Multiplayer) callbacks
+            this.multiplayer.onBuildingsUpdate = (buildings) => {
+                if (!this.multiplayer.isHost) {
+                    this.syncBuildingsFromServer(buildings);
                 }
-            }
-        };
+            };
 
-        this.multiplayer.onWinner = (winner) => {
-            if (winner !== null && !this.gameOver) {
-                const isPlayerWin = winner === this.team;
-                this.endGame(isPlayerWin);
-            }
-        };
+            this.multiplayer.onUnitsUpdate = (units) => {
+                if (!this.multiplayer.isHost) {
+                    this.syncUnitsFromServer(units);
+                }
+            };
 
-        this.multiplayer.onGameEnd = () => {
-            // Handle game end from server
-        };
+            this.multiplayer.onCastlesUpdate = (castles) => {
+                if (!this.multiplayer.isHost && castles) {
+                    const myCastle = this.team === 1 ? castles.team1 : castles.team2;
+                    const enemyCastle = this.team === 1 ? castles.team2 : castles.team1;
+                    if (myCastle) {
+                        this.playerCastle.hp = myCastle.hp;
+                        this.playerCastle.alive = myCastle.alive;
+                    }
+                    if (enemyCastle) {
+                        this.enemyCastle.hp = enemyCastle.hp;
+                        this.enemyCastle.alive = enemyCastle.alive;
+                    }
+                }
+            };
 
-        // Start listening to game state
-        this.multiplayer.listenToGameState();
+            this.multiplayer.onWinner = (winner) => {
+                if (winner !== null && !this.gameOver) {
+                    const isPlayerWin = winner === this.team;
+                    this.endGame(isPlayerWin);
+                }
+            };
+
+            this.multiplayer.listenToGameState();
+        }
 
         // Host starts syncing game state
         if (this.multiplayer.isHost) {
@@ -497,6 +509,118 @@ export class Game {
 
         // Remove dead units
         this.units = this.units.filter(u => u.alive);
+    }
+
+    // WebSocket: Handle remote building placed
+    handleRemoteBuildingPlaced(data) {
+        // Convert world coordinates to local (flip for team 2)
+        const localX = this.team === 1 ? data.x : (this.cols - 1 - data.x);
+
+        let building = null;
+        const team = 'enemy';
+
+        switch (data.type) {
+            case 'mine': building = new Mine(localX, data.y, team); break;
+            case 'farm': building = new Farm(localX, data.y, team); break;
+            case 'barracks': building = new Barracks(localX, data.y, team); break;
+            case 'archery': building = new ArcheryRange(localX, data.y, team); break;
+            case 'stable': building = new Stable(localX, data.y, team); break;
+            case 'siege': building = new SiegeWorkshop(localX, data.y, team); break;
+            case 'mage': building = new MageTower(localX, data.y, team); break;
+            case 'tower': building = new Tower(localX, data.y, team); break;
+            case 'wall': building = new Wall(localX, data.y, team); break;
+            case 'forge': building = new Forge(localX, data.y, team); break;
+            case 'hospital': building = new Hospital(localX, data.y, team); break;
+            case 'research': building = new ResearchCenter(localX, data.y, team); break;
+        }
+
+        if (building) {
+            building.syncId = data.id;
+            building.isBuilding = false;
+            building.hp = data.hp;
+            building.multiplayerTeam = data.team;
+            this.buildings.push(building);
+            this.particles.spawnBuild(localX * this.cellSize + this.cellSize / 2, data.y * this.cellSize + this.cellSize / 2);
+        }
+    }
+
+    // WebSocket: Handle remote unit spawned
+    handleRemoteUnitSpawned(data) {
+        const localX = this.team === 1 ? data.x : (this.cols - 1 - data.x);
+
+        let unit = null;
+        const team = 'enemy';
+
+        switch (data.type) {
+            case 'knight': unit = new Knight(localX, data.y, team); break;
+            case 'archer': unit = new Archer(localX, data.y, team); break;
+            case 'cavalry': unit = new Cavalry(localX, data.y, team); break;
+            case 'catapult': unit = new Catapult(localX, data.y, team); break;
+            case 'mage': unit = new Mage(localX, data.y, team); break;
+        }
+
+        if (unit) {
+            unit.syncId = data.id;
+            unit.hp = data.hp;
+            unit.multiplayerTeam = data.team;
+            this.units.push(unit);
+        }
+    }
+
+    // WebSocket: Sync from host state (for non-host clients)
+    syncFromHostState(gameState) {
+        if (this.multiplayer.isHost) return;
+
+        // Update castles
+        if (gameState.castles) {
+            const myCastle = this.team === 1 ? gameState.castles.team1 : gameState.castles.team2;
+            const enemyCastle = this.team === 1 ? gameState.castles.team2 : gameState.castles.team1;
+
+            if (myCastle) {
+                this.playerCastle.hp = myCastle.hp;
+                this.playerCastle.alive = myCastle.alive;
+            }
+            if (enemyCastle) {
+                this.enemyCastle.hp = enemyCastle.hp;
+                this.enemyCastle.alive = enemyCastle.alive;
+            }
+        }
+
+        // Sync enemy units (position and HP updates)
+        if (gameState.units) {
+            gameState.units.forEach(su => {
+                if (su.team === this.team) return;
+
+                const localX = this.team === 1 ? su.x : (this.cols - 1 - su.x);
+                const existingUnit = this.units.find(u => u.syncId === su.id);
+
+                if (existingUnit) {
+                    existingUnit.realX = localX;
+                    existingUnit.realY = su.y;
+                    existingUnit.hp = su.hp;
+                    existingUnit.alive = su.alive;
+                }
+            });
+        }
+
+        // Remove dead units
+        this.units = this.units.filter(u => u.alive);
+
+        // Sync enemy buildings
+        if (gameState.buildings) {
+            gameState.buildings.forEach(sb => {
+                if (sb.team === this.team) return;
+
+                const existingBuilding = this.buildings.find(b => b.syncId === sb.id);
+                if (existingBuilding) {
+                    existingBuilding.hp = sb.hp;
+                    existingBuilding.alive = sb.alive;
+                }
+            });
+        }
+
+        // Remove dead buildings
+        this.buildings = this.buildings.filter(b => b.alive);
     }
 
     switchTab(tab) {
@@ -930,7 +1054,12 @@ export class Game {
             // Sync to multiplayer
             if (this.isMultiplayer) {
                 building.multiplayerTeam = this.team;
-                this.multiplayer.syncBuildingPlaced(building);
+                building.syncId = `${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+                if (this.useWebSocket) {
+                    this.multiplayer.sendBuildingPlaced(building);
+                } else {
+                    this.multiplayer.syncBuildingPlaced(building);
+                }
             }
         }
     }
@@ -991,7 +1120,12 @@ export class Game {
                 // Sync to multiplayer
                 if (this.isMultiplayer) {
                     unit.multiplayerTeam = this.team;
-                    this.multiplayer.syncUnitSpawned(unit);
+                    unit.syncId = `${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+                    if (this.useWebSocket) {
+                        this.multiplayer.sendUnitSpawned(unit);
+                    } else {
+                        this.multiplayer.syncUnitSpawned(unit);
+                    }
                 }
             }
         }
