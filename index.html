@@ -20,6 +20,7 @@
         <div id="ui-layer">
             <!-- Sound Controls -->
             <div id="sound-controls">
+                <button class="sound-btn" id="exit-game-btn" title="Exit to Menu">🚪</button>
                 <button class="sound-btn" id="music-btn" title="Toggle Music">🎵</button>
                 <button class="sound-btn" id="sfx-btn" title="Toggle SFX">🔊</button>
             </div>
@@ -204,6 +205,7 @@
                 <div class="form-group">
                     <label>Game Mode</label>
                     <div class="mode-selector">
+                        <button class="mode-btn" data-mode="ffa">FFA</button>
                         <button class="mode-btn selected" data-mode="1v1">1v1</button>
                         <button class="mode-btn" data-mode="2v2">2v2</button>
                         <button class="mode-btn" data-mode="3v3">3v3</button>
@@ -250,16 +252,12 @@
                     </div>
                 </div>
 
-                <div class="lobby-actions">
-                    <div class="team-switch">
-                        <button class="team-btn" id="switch-team-btn">↔️ Switch Team</button>
-                    </div>
-                    <div class="ready-section">
-                        <button class="menu-btn" id="ready-btn">Ready</button>
-                    </div>
+                <div class="lobby-bottom">
+                    <button class="team-btn" id="switch-team-btn">↔️ Switch Team</button>
+                    <button class="ready-btn" id="ready-btn">✓ Ready</button>
                 </div>
 
-                <div class="menu-buttons">
+                <div class="menu-buttons lobby-menu">
                     <button class="menu-btn" id="leave-room-btn">← Leave</button>
                     <button class="menu-btn primary" id="start-game-btn">Start Game ▶</button>
                 </div>

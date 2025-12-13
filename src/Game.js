@@ -236,6 +236,17 @@ export class Game {
             e.target.classList.toggle('muted', !enabled);
         });
 
+        // Exit to menu button
+        document.getElementById('exit-game-btn')?.addEventListener('click', () => {
+            if (confirm('Are you sure you want to exit to menu?')) {
+                if (this.isMultiplayer) {
+                    this.multiplayer.stopHostSync();
+                    this.multiplayer.leaveRoom();
+                }
+                location.reload();
+            }
+        });
+
         // Restart button
         document.getElementById('restart-btn')?.addEventListener('click', () => {
             location.reload();
@@ -445,13 +456,13 @@ export class Game {
     }
 
     syncUnitsFromServer(serverUnits) {
-        // Client receives ALL units from host
+        // Process server units
         serverUnits.forEach(su => {
+            // Skip if from our team
+            if (su.team === this.team) return;
+
             // Convert world coordinates to local coordinates
             const localX = this.team === 1 ? su.x : (this.cols - 1 - su.x);
-
-            // Determine local team representation
-            const team = su.team === this.team ? 'player' : 'enemy';
 
             // Check if we already have this unit
             const existingUnit = this.units.find(u => u.syncId === su.id);
@@ -465,6 +476,7 @@ export class Game {
             } else if (su.alive) {
                 // Create new unit only if alive
                 let unit = null;
+                const team = 'enemy';
 
                 switch (su.type) {
                     case 'knight': unit = new Knight(localX, su.y, team); break;
@@ -687,15 +699,6 @@ export class Game {
     update(dt) {
         // Update game time
         this.gameTime += dt;
-
-        // In multiplayer, only host runs full simulation
-        // Client just receives and renders state from host
-        if (this.isMultiplayer && !this.multiplayer.isHost) {
-            // Client only updates UI and checks win condition from synced data
-            this.updateUI();
-            this.updateCardStates();
-            return;
-        }
 
         // Update AI (only in single player)
         if (this.ai) {
@@ -960,14 +963,6 @@ export class Game {
     }
 
     spawnUnit(x, y, team, type) {
-        // In multiplayer, only host can spawn enemy units
-        // Client spawns player units, host handles enemy sync
-        if (this.isMultiplayer && !this.multiplayer.isHost && team === 'enemy') {
-            // Non-host clients don't spawn enemy units locally
-            // They will receive them via sync
-            return;
-        }
-
         let unit = null;
 
         switch (type) {
@@ -989,15 +984,15 @@ export class Game {
         }
 
         if (unit) {
-            // Assign syncId immediately for multiplayer
-            if (this.isMultiplayer) {
-                unit.syncId = `unit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-                unit.multiplayerTeam = team === 'player' ? this.team : (this.team === 1 ? 2 : 1);
-            }
-
             this.units.push(unit);
             if (team === 'player') {
                 this.sound.playSound('spawn');
+
+                // Sync to multiplayer
+                if (this.isMultiplayer) {
+                    unit.multiplayerTeam = this.team;
+                    this.multiplayer.syncUnitSpawned(unit);
+                }
             }
         }
     }

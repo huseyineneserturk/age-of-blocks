@@ -14,7 +14,7 @@ export class Multiplayer {
         this.listeners = [];
         this.syncInterval = null;
         this.lastSyncTime = 0;
-        this.SYNC_RATE = 50; // Sync every 50ms for smoother updates
+        this.SYNC_RATE = 100; // Sync every 100ms for smoother updates
     }
 
     // Generate 6-character room code
@@ -307,41 +307,29 @@ export class Multiplayer {
 
         const game = this.game;
 
-        // Serialize all buildings - ensure stable IDs
-        const buildings = game.buildings.map(b => {
-            // Assign stable syncId if not exists
-            if (!b.syncId) {
-                b.syncId = `bld_${b.x}_${b.y}_${b.type}`;
-            }
-            return {
-                id: b.syncId,
-                type: b.type,
-                x: b.x,
-                y: b.y,
-                hp: b.hp,
-                maxHp: b.maxHp,
-                alive: b.alive,
-                team: b.multiplayerTeam || (b.team === 'player' ? 1 : 2)
-            };
-        });
+        // Serialize all buildings
+        const buildings = game.buildings.map(b => ({
+            id: b.syncId || `${b.x}_${b.y}_${b.type}`,
+            type: b.type,
+            x: b.x,
+            y: b.y,
+            hp: b.hp,
+            maxHp: b.maxHp,
+            alive: b.alive,
+            team: b.multiplayerTeam || (b.team === 'player' ? 1 : 2)
+        }));
 
-        // Serialize all units - ensure stable IDs
-        const units = game.units.map(u => {
-            // Assign stable syncId if not exists
-            if (!u.syncId) {
-                u.syncId = `unit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            }
-            return {
-                id: u.syncId,
-                type: u.type,
-                x: u.realX,
-                y: u.realY,
-                hp: u.hp,
-                maxHp: u.maxHp,
-                alive: u.alive,
-                team: u.multiplayerTeam || (u.team === 'player' ? 1 : 2)
-            };
-        });
+        // Serialize all units
+        const units = game.units.map(u => ({
+            id: u.syncId || `${Date.now()}_${Math.random()}`,
+            type: u.type,
+            x: u.realX,
+            y: u.realY,
+            hp: u.hp,
+            maxHp: u.maxHp,
+            alive: u.alive,
+            team: u.multiplayerTeam || (u.team === 'player' ? 1 : 2)
+        }));
 
         // Castle health
         const castles = {
@@ -389,6 +377,7 @@ export class Multiplayer {
     // Get max players for mode
     getMaxPlayers(mode) {
         switch (mode) {
+            case 'ffa': return 4; // Free For All - up to 4 players
             case '1v1': return 2;
             case '2v2': return 4;
             case '3v3': return 6;
@@ -398,7 +387,8 @@ export class Multiplayer {
 
     // Get team count for mode
     getTeamCount(mode) {
-        return 2; // Always 2 teams
+        if (mode === 'ffa') return 4; // Each player is their own team
+        return 2; // 2 teams for 1v1, 2v2, 3v3
     }
 
     // Listen to game state changes
