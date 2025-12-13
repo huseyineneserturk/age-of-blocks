@@ -136,26 +136,6 @@ export class Game {
             this.showScreen('main-menu');
         });
 
-        // LAN Mode button
-        document.getElementById('lan-btn')?.addEventListener('click', () => {
-            this.showScreen('lan-screen');
-        });
-
-        document.getElementById('back-from-lan')?.addEventListener('click', () => {
-            this.showScreen('main-menu');
-        });
-
-        document.getElementById('apply-lan-btn')?.addEventListener('click', () => {
-            const serverIp = document.getElementById('lan-server-ip').value || 'localhost:3001';
-            // Set the server URL
-            const protocol = serverIp.includes('localhost') ? 'http://' : 'http://';
-            this.multiplayer.serverUrl = protocol + serverIp;
-            console.log('LAN Server set to:', this.multiplayer.serverUrl);
-            this.showScreen('main-menu');
-            // Show notification
-            this.showNotification(`Server: ${serverIp}`, 'success');
-        });
-
         // Mode selector
         document.querySelectorAll('.mode-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -1146,6 +1126,15 @@ export class Game {
     }
 
     spawnUnit(x, y, team, type) {
+        // MULTIPLAYER: On non-host client, don't spawn enemy units from buildings
+        // Enemy units will come from host via syncFromHostState
+        if (this.isMultiplayer && this.useWebSocket && !this.multiplayer.isHost) {
+            if (team === 'enemy') {
+                // Don't spawn enemy units locally on non-host
+                return;
+            }
+        }
+
         let unit = null;
 
         switch (type) {

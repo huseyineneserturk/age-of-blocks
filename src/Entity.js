@@ -450,6 +450,17 @@ export class Unit extends Entity {
             }
         }
 
+        // MULTIPLAYER: Skip simulation for enemy units on non-host client
+        // Host runs full simulation, non-host only simulates their own units
+        // Enemy unit positions come from host via syncFromHostState
+        if (game.isMultiplayer && game.useWebSocket && !game.multiplayer.isHost) {
+            // Non-host client: only simulate player's own units
+            if (this.team === 'enemy') {
+                // Don't simulate enemy units - their state comes from host
+                return;
+            }
+        }
+
         // Find target
         const target = this.findTarget(game);
 

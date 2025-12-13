@@ -315,10 +315,6 @@ app.get('/', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3001;
-const HOST = '0.0.0.0'; // Listen on all network interfaces for LAN access
-
-httpServer.listen(PORT, HOST, () => {
+httpServer.listen(PORT, () => {
     console.log(`🎮 Medieval Lego Wars Server running on port ${PORT}`);
-    console.log(`📡 LAN: http://YOUR_IP:${PORT}`);
-    console.log(`💡 Find your IP with: ipconfig (Windows) or ifconfig (Mac/Linux)`);
 });
