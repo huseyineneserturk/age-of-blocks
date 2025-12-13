@@ -13,8 +13,8 @@ export class SocketMultiplayer {
         this.syncInterval = null;
         this.SYNC_RATE = 50; // 50ms for smooth sync
 
-        // Server URL - DigitalOcean Droplet
-        this.serverUrl = 'http://206.81.25.78:3001';
+        // Server URL - DigitalOcean with SSL
+        this.serverUrl = 'https://server.ageofblocks.games';
     }
 
     // Connect to server
