@@ -13,8 +13,8 @@ export class SocketMultiplayer {
         this.syncInterval = null;
         this.SYNC_RATE = 50; // 50ms for smooth sync
 
-        // Server URL - will be updated for production
-        this.serverUrl = 'http://localhost:3001';
+        // Server URL - Render.com deployed server
+        this.serverUrl = 'https://medieval-lego-wars.onrender.com';
     }
 
     // Connect to server
