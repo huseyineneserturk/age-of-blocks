@@ -2,7 +2,6 @@ import { Renderer } from './Renderer.js';
 import { ParticleSystem } from './Particles.js';
 import { SoundManager } from './SoundManager.js';
 import { AI } from './AI.js';
-import { Multiplayer } from './Multiplayer.js';
 import { SocketMultiplayer } from './SocketMultiplayer.js';
 import {
     Castle, Mine, Farm, Barracks, ArcheryRange, Stable, Tower, Wall, Forge,
@@ -63,9 +62,9 @@ export class Game {
         this.ai = new AI(this);
         this.renderer = new Renderer(this.ctx, this);
 
-        // Multiplayer - Use WebSocket for better sync
-        this.useWebSocket = true; // Set to false to use Firebase
-        this.multiplayer = this.useWebSocket ? new SocketMultiplayer(this) : new Multiplayer(this);
+        // Multiplayer - WebSocket only (Firebase removed)
+        this.useWebSocket = true; // Always true now
+        this.multiplayer = new SocketMultiplayer(this);
         this.isMultiplayer = false;
         this.team = 1; // Player's team in multiplayer
 
