@@ -316,5 +316,5 @@ app.get('/', (req, res) => {
 
 const PORT = process.env.PORT || 3001;
 httpServer.listen(PORT, () => {
-    console.log(`🎮 Medieval Lego Wars Server running on port ${PORT}`);
+    console.log(`🎮 Age of Blocks Server running on port ${PORT}`);
 });

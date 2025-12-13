@@ -7,7 +7,7 @@ window.addEventListener('DOMContentLoaded', () => {
     // Expose game for debugging
     window.game = game;
 
-    console.log('🏰 Medieval Lego Wars loaded!');
+    console.log('🏰 Age of Blocks loaded!');
     console.log('📖 Controls:');
     console.log('   1-8: Select building');
     console.log('   Click: Place building on your side');

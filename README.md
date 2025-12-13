@@ -1,31 +1,39 @@
-# Medieval Lego Wars
+# Age of Blocks
 
-A real-time strategy game with Lego-themed medieval warfare. Build castles, train units, and conquer your enemies!
+🏰 **A strategic multiplayer tower defense game with block-style building mechanics.**
+
+Build. Defend. Conquer!
+
+## 🎮 Play Now
+
+🎮 **[Play Age of Blocks](https://ageofblocks.games)**
 
 ## Features
 
-- 🏰 **Building System**: Mines, Farms, Barracks, Towers, and more
-- ⚔️ **Multiple Unit Types**: Knights, Archers, Cavalry, Mages, Catapults
-- 🔬 **Research System**: Upgrade your army with powerful bonuses
-- 🌐 **Multiplayer**: Play 1v1, 2v2, or 3v3 with friends
-- 🎮 **Single Player**: Battle against AI
+- 🏗️ Build structures to generate resources and spawn units
+- ⚔️ Strategic combat with multiple unit types
+- 🎯 Upgrade system for enhanced capabilities
+- 🌐 Real-time multiplayer battles
+- 🎨 Pixel art style graphics
 
-## Play Online
+## Game Modes
 
-🎮 **[Play Medieval Lego Wars](https://block-wars.onrender.com/)**
+- **Single Player** - Battle against AI
+- **Multiplayer** - 1v1, 2v2, 3v3, and FFA modes
 
-## Local Development
+## Controls
 
-```bash
-npx http-server -p 8080 -o
-```
+- **1-8**: Select building
+- **Click**: Place building
+- **ESC**: Deselect / Pause
+- **P**: Pause/Resume
 
 ## Tech Stack
 
 - HTML5 Canvas
-- JavaScript (ES6 Modules)
-- Firebase Realtime Database
-- Web Audio API for procedural sounds
+- Vanilla JavaScript
+- Socket.IO (WebSocket)
+- Node.js + Express
 
 ## License
 
