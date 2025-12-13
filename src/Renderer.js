@@ -204,6 +204,38 @@ export class Renderer {
                 ctx.arc(x + w / 2, y + h / 2, b.range * gs, 0, Math.PI * 2);
                 ctx.stroke();
             }
+
+            // Hospital heal range indicator (always visible, green circle)
+            if (b.type === 'hospital' && !b.isBuilding) {
+                const healRadius = (b.healRadius || 4) * gs;
+                // Outer glow
+                ctx.strokeStyle = 'rgba(50, 205, 50, 0.4)';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(x + w / 2, y + h / 2, healRadius, 0, Math.PI * 2);
+                ctx.stroke();
+                // Inner fill
+                ctx.fillStyle = 'rgba(50, 205, 50, 0.1)';
+                ctx.beginPath();
+                ctx.arc(x + w / 2, y + h / 2, healRadius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Forge buff range indicator (always visible, orange circle)
+            if (b.type === 'forge' && !b.isBuilding) {
+                const buffRadius = (b.buffRadius || 4) * gs;
+                // Outer glow
+                ctx.strokeStyle = 'rgba(255, 140, 0, 0.4)';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(x + w / 2, y + h / 2, buffRadius, 0, Math.PI * 2);
+                ctx.stroke();
+                // Inner fill
+                ctx.fillStyle = 'rgba(255, 140, 0, 0.1)';
+                ctx.beginPath();
+                ctx.arc(x + w / 2, y + h / 2, buffRadius, 0, Math.PI * 2);
+                ctx.fill();
+            }
         });
     }
 

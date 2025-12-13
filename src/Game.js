@@ -4,7 +4,7 @@ import { SoundManager } from './SoundManager.js';
 import { AI } from './AI.js';
 import { SocketMultiplayer } from './SocketMultiplayer.js';
 import {
-    Castle, Mine, Farm, Barracks, ArcheryRange, Stable, Tower, Wall, Forge,
+    Castle, Mine, Barracks, ArcheryRange, Stable, Tower, Wall, Forge,
     SiegeWorkshop, MageTower, Hospital, ResearchCenter,
     Knight, Archer, Cavalry, Catapult, Mage,
     BUILDING_COSTS, BUILDING_INFO, UPGRADES
@@ -841,14 +841,6 @@ export class Game {
         }
 
         this.renderer.render();
-
-        // Update minimap
-        const minimapCanvas = document.getElementById('minimapCanvas');
-        if (minimapCanvas) {
-            minimapCanvas.width = 180;
-            minimapCanvas.height = 120;
-            this.renderer.renderMinimap(minimapCanvas);
-        }
 
         requestAnimationFrame((t) => this.gameLoop(t));
     }
