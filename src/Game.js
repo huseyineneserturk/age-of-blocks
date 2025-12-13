@@ -330,17 +330,45 @@ export class Game {
 
         // Setup multiplayer callbacks
         this.multiplayer.onBuildingsUpdate = (buildings) => {
-            this.syncBuildingsFromServer(buildings);
+            // Only non-host clients apply building updates from server
+            if (!this.multiplayer.isHost) {
+                this.syncBuildingsFromServer(buildings);
+            }
         };
 
         this.multiplayer.onUnitsUpdate = (units) => {
-            this.syncUnitsFromServer(units);
+            // Only non-host clients apply unit updates from server
+            if (!this.multiplayer.isHost) {
+                this.syncUnitsFromServer(units);
+            }
         };
 
         this.multiplayer.onTeamsUpdate = (teams) => {
             // Update resources from other team's data
-            const enemyTeam = this.team === 1 ? 2 : 1;
-            // We don't directly update enemy resources, just display
+        };
+
+        this.multiplayer.onCastlesUpdate = (castles) => {
+            // Non-host clients update castle HP from server
+            if (!this.multiplayer.isHost && castles) {
+                const myCastle = this.team === 1 ? castles.team1 : castles.team2;
+                const enemyCastle = this.team === 1 ? castles.team2 : castles.team1;
+
+                if (myCastle) {
+                    this.playerCastle.hp = myCastle.hp;
+                    this.playerCastle.alive = myCastle.alive;
+                }
+                if (enemyCastle) {
+                    this.enemyCastle.hp = enemyCastle.hp;
+                    this.enemyCastle.alive = enemyCastle.alive;
+                }
+            }
+        };
+
+        this.multiplayer.onWinner = (winner) => {
+            if (winner !== null && !this.gameOver) {
+                const isPlayerWin = winner === this.team;
+                this.endGame(isPlayerWin);
+            }
         };
 
         this.multiplayer.onGameEnd = () => {
@@ -350,82 +378,114 @@ export class Game {
         // Start listening to game state
         this.multiplayer.listenToGameState();
 
+        // Host starts syncing game state
+        if (this.multiplayer.isHost) {
+            this.multiplayer.startHostSync();
+        }
+
         requestAnimationFrame((t) => this.gameLoop(t));
     }
 
     syncBuildingsFromServer(serverBuildings) {
-        // Add new buildings from server that we don't have locally
+        // Process server buildings
         serverBuildings.forEach(sb => {
-            // Skip if it's from our team (we already have it)
-            if (sb.team === this.team) return;
-
-            // Check if we already have this building
-            const exists = this.buildings.some(b => b.syncId === sb.id);
-            if (exists) return;
+            // Skip castles (handled separately)
+            if (sb.type === 'castle') return;
 
             // Convert world coordinates to local coordinates
-            // If we're team 2, we need to flip the x coordinate to see enemy on the right
             const localX = this.team === 1 ? sb.x : (this.cols - 1 - sb.x);
 
-            // Create the building
-            let building = null;
-            const team = 'enemy'; // Other team's buildings are always "enemy"
+            // Check if building is from enemy team
+            const isEnemy = sb.team !== this.team;
+            if (!isEnemy) return;
 
-            switch (sb.type) {
-                case 'mine': building = new Mine(localX, sb.y, team); break;
-                case 'farm': building = new Farm(localX, sb.y, team); break;
-                case 'barracks': building = new Barracks(localX, sb.y, team); break;
-                case 'archery': building = new ArcheryRange(localX, sb.y, team); break;
-                case 'stable': building = new Stable(localX, sb.y, team); break;
-                case 'siege': building = new SiegeWorkshop(localX, sb.y, team); break;
-                case 'mage': building = new MageTower(localX, sb.y, team); break;
-                case 'tower': building = new Tower(localX, sb.y, team); break;
-                case 'wall': building = new Wall(localX, sb.y, team); break;
-                case 'forge': building = new Forge(localX, sb.y, team); break;
-                case 'hospital': building = new Hospital(localX, sb.y, team); break;
-                case 'research': building = new ResearchCenter(localX, sb.y, team); break;
-            }
+            // Check if we already have this building
+            const existingBuilding = this.buildings.find(b => b.syncId === sb.id);
 
-            if (building) {
-                building.syncId = sb.id;
-                building.isBuilding = false; // Already built
-                building.multiplayerTeam = sb.team;
-                this.buildings.push(building);
+            if (existingBuilding) {
+                // Update existing building HP and alive status
+                existingBuilding.hp = sb.hp;
+                existingBuilding.alive = sb.alive;
+            } else {
+                // Create new building
+                let building = null;
+                const team = 'enemy';
+
+                switch (sb.type) {
+                    case 'mine': building = new Mine(localX, sb.y, team); break;
+                    case 'farm': building = new Farm(localX, sb.y, team); break;
+                    case 'barracks': building = new Barracks(localX, sb.y, team); break;
+                    case 'archery': building = new ArcheryRange(localX, sb.y, team); break;
+                    case 'stable': building = new Stable(localX, sb.y, team); break;
+                    case 'siege': building = new SiegeWorkshop(localX, sb.y, team); break;
+                    case 'mage': building = new MageTower(localX, sb.y, team); break;
+                    case 'tower': building = new Tower(localX, sb.y, team); break;
+                    case 'wall': building = new Wall(localX, sb.y, team); break;
+                    case 'forge': building = new Forge(localX, sb.y, team); break;
+                    case 'hospital': building = new Hospital(localX, sb.y, team); break;
+                    case 'research': building = new ResearchCenter(localX, sb.y, team); break;
+                }
+
+                if (building) {
+                    building.syncId = sb.id;
+                    building.isBuilding = false;
+                    building.hp = sb.hp;
+                    building.alive = sb.alive;
+                    building.multiplayerTeam = sb.team;
+                    this.buildings.push(building);
+                }
             }
+        });
+
+        // Remove buildings that are dead on server
+        this.buildings = this.buildings.filter(b => {
+            if (b.syncId && !b.alive) return false;
+            return true;
         });
     }
 
     syncUnitsFromServer(serverUnits) {
-        // Add new units from server that we don't have locally
+        // Process server units
         serverUnits.forEach(su => {
-            // Skip if it's from our team (we already have it)
+            // Skip if from our team
             if (su.team === this.team) return;
-
-            // Check if we already have this unit
-            const exists = this.units.some(u => u.syncId === su.id);
-            if (exists) return;
 
             // Convert world coordinates to local coordinates
             const localX = this.team === 1 ? su.x : (this.cols - 1 - su.x);
 
-            // Create the unit
-            let unit = null;
-            const team = 'enemy'; // Other team's units are always "enemy"
+            // Check if we already have this unit
+            const existingUnit = this.units.find(u => u.syncId === su.id);
 
-            switch (su.type) {
-                case 'knight': unit = new Knight(localX, su.y, team); break;
-                case 'archer': unit = new Archer(localX, su.y, team); break;
-                case 'cavalry': unit = new Cavalry(localX, su.y, team); break;
-                case 'catapult': unit = new Catapult(localX, su.y, team); break;
-                case 'mage': unit = new Mage(localX, su.y, team); break;
-            }
+            if (existingUnit) {
+                // Update existing unit - position and HP
+                existingUnit.realX = localX;
+                existingUnit.realY = su.y;
+                existingUnit.hp = su.hp;
+                existingUnit.alive = su.alive;
+            } else if (su.alive) {
+                // Create new unit only if alive
+                let unit = null;
+                const team = 'enemy';
 
-            if (unit) {
-                unit.syncId = su.id;
-                unit.multiplayerTeam = su.team;
-                this.units.push(unit);
+                switch (su.type) {
+                    case 'knight': unit = new Knight(localX, su.y, team); break;
+                    case 'archer': unit = new Archer(localX, su.y, team); break;
+                    case 'cavalry': unit = new Cavalry(localX, su.y, team); break;
+                    case 'catapult': unit = new Catapult(localX, su.y, team); break;
+                    case 'mage': unit = new Mage(localX, su.y, team); break;
+                }
+
+                if (unit) {
+                    unit.syncId = su.id;
+                    unit.hp = su.hp;
+                    unit.multiplayerTeam = su.team;
+                    this.units.push(unit);
+                }
             }
         });
+
+        // Remove dead units
+        this.units = this.units.filter(u => u.alive);
     }
 
     switchTab(tab) {

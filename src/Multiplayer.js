@@ -12,6 +12,9 @@ export class Multiplayer {
         this.players = {};
         this.gameMode = '1v1'; // 1v1, 2v2, 3v3
         this.listeners = [];
+        this.syncInterval = null;
+        this.lastSyncTime = 0;
+        this.SYNC_RATE = 100; // Sync every 100ms for smoother updates
     }
 
     // Generate 6-character room code
@@ -281,6 +284,80 @@ export class Multiplayer {
         await update(teamRef, { resources, resourceRate });
     }
 
+    // Start host sync loop - Host periodically syncs full game state
+    startHostSync() {
+        if (!this.isHost) return;
+
+        this.syncInterval = setInterval(() => {
+            this.syncFullGameState();
+        }, this.SYNC_RATE);
+    }
+
+    // Stop sync loop
+    stopHostSync() {
+        if (this.syncInterval) {
+            clearInterval(this.syncInterval);
+            this.syncInterval = null;
+        }
+    }
+
+    // Sync full game state (Host only)
+    async syncFullGameState() {
+        if (!this.isHost || !this.roomCode || !this.game.gameStarted) return;
+
+        const game = this.game;
+
+        // Serialize all buildings
+        const buildings = game.buildings.map(b => ({
+            id: b.syncId || `${b.x}_${b.y}_${b.type}`,
+            type: b.type,
+            x: b.x,
+            y: b.y,
+            hp: b.hp,
+            maxHp: b.maxHp,
+            alive: b.alive,
+            team: b.multiplayerTeam || (b.team === 'player' ? 1 : 2)
+        }));
+
+        // Serialize all units
+        const units = game.units.map(u => ({
+            id: u.syncId || `${Date.now()}_${Math.random()}`,
+            type: u.type,
+            x: u.realX,
+            y: u.realY,
+            hp: u.hp,
+            maxHp: u.maxHp,
+            alive: u.alive,
+            team: u.multiplayerTeam || (u.team === 'player' ? 1 : 2)
+        }));
+
+        // Castle health
+        const castles = {
+            team1: {
+                hp: game.team === 1 ? game.playerCastle.hp : game.enemyCastle.hp,
+                alive: game.team === 1 ? game.playerCastle.alive : game.enemyCastle.alive
+            },
+            team2: {
+                hp: game.team === 1 ? game.enemyCastle.hp : game.playerCastle.hp,
+                alive: game.team === 1 ? game.enemyCastle.alive : game.playerCastle.alive
+            }
+        };
+
+        // Check for game end
+        let winner = null;
+        if (!castles.team1.alive) winner = 2;
+        if (!castles.team2.alive) winner = 1;
+
+        const stateRef = ref(database, `rooms/${this.roomCode}/gameState`);
+        await update(stateRef, {
+            buildings,
+            units,
+            castles,
+            winner,
+            timestamp: Date.now()
+        });
+    }
+
     // Leave room
     async leaveRoom() {
         if (!this.roomCode) return;
@@ -375,5 +452,7 @@ export class Multiplayer {
     onBuildingsUpdate = null;
     onUnitsUpdate = null;
     onTeamsUpdate = null;
+    onCastlesUpdate = null;
+    onWinner = null;
     onGameEnd = null;
 }
