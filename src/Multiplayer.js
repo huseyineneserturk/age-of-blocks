@@ -232,10 +232,14 @@ export class Multiplayer {
         const snapshot = await get(buildingsRef);
         const buildings = snapshot.val() || [];
 
+        // Convert local coordinates to world coordinates
+        // Team 1: x stays same, Team 2: x is flipped
+        const worldX = this.team === 1 ? building.x : (this.game.cols - 1 - building.x);
+
         buildings.push({
             id: Date.now() + '_' + playerId,
             type: building.type,
-            x: building.x,
+            x: worldX,
             y: building.y,
             team: this.team,
             hp: building.hp,
@@ -253,10 +257,13 @@ export class Multiplayer {
         const snapshot = await get(unitsRef);
         const units = snapshot.val() || [];
 
+        // Convert local coordinates to world coordinates
+        const worldX = this.team === 1 ? unit.realX : (this.game.cols - 1 - unit.realX);
+
         units.push({
             id: Date.now() + '_' + playerId,
             type: unit.type,
-            x: unit.realX,
+            x: worldX,
             y: unit.realY,
             team: this.team,
             hp: unit.hp,

@@ -315,27 +315,18 @@ export class Game {
         this.buildings = [];
         this.units = [];
 
-        // Setup castles based on team
+        // Setup castles - Each player sees themselves on the LEFT
         const rows = this.rows;
 
-        // Team 1 castle on left
-        const team1Castle = new Castle(1, Math.floor(rows / 2) - 1, 'player');
-        team1Castle.multiplayerTeam = 1;
-        this.buildings.push(team1Castle);
+        // Player's castle is always on the left (from their perspective)
+        this.playerCastle = new Castle(1, Math.floor(rows / 2) - 1, 'player');
+        this.playerCastle.multiplayerTeam = this.team;
+        this.buildings.push(this.playerCastle);
 
-        // Team 2 castle on right  
-        const team2Castle = new Castle(this.cols - 3, Math.floor(rows / 2) - 1, 'enemy');
-        team2Castle.multiplayerTeam = 2;
-        this.buildings.push(team2Castle);
-
-        // Set correct reference based on player's team
-        if (this.team === 1) {
-            this.playerCastle = team1Castle;
-            this.enemyCastle = team2Castle;
-        } else {
-            this.playerCastle = team2Castle;
-            this.enemyCastle = team1Castle;
-        }
+        // Enemy castle is always on the right (from their perspective)
+        this.enemyCastle = new Castle(this.cols - 3, Math.floor(rows / 2) - 1, 'enemy');
+        this.enemyCastle.multiplayerTeam = this.team === 1 ? 2 : 1;
+        this.buildings.push(this.enemyCastle);
 
         // Setup multiplayer callbacks
         this.multiplayer.onBuildingsUpdate = (buildings) => {
@@ -372,23 +363,27 @@ export class Game {
             const exists = this.buildings.some(b => b.syncId === sb.id);
             if (exists) return;
 
+            // Convert world coordinates to local coordinates
+            // If we're team 2, we need to flip the x coordinate to see enemy on the right
+            const localX = this.team === 1 ? sb.x : (this.cols - 1 - sb.x);
+
             // Create the building
             let building = null;
-            const team = sb.team === this.team ? 'player' : 'enemy';
+            const team = 'enemy'; // Other team's buildings are always "enemy"
 
             switch (sb.type) {
-                case 'mine': building = new Mine(sb.x, sb.y, team); break;
-                case 'farm': building = new Farm(sb.x, sb.y, team); break;
-                case 'barracks': building = new Barracks(sb.x, sb.y, team); break;
-                case 'archery': building = new ArcheryRange(sb.x, sb.y, team); break;
-                case 'stable': building = new Stable(sb.x, sb.y, team); break;
-                case 'siege': building = new SiegeWorkshop(sb.x, sb.y, team); break;
-                case 'mage': building = new MageTower(sb.x, sb.y, team); break;
-                case 'tower': building = new Tower(sb.x, sb.y, team); break;
-                case 'wall': building = new Wall(sb.x, sb.y, team); break;
-                case 'forge': building = new Forge(sb.x, sb.y, team); break;
-                case 'hospital': building = new Hospital(sb.x, sb.y, team); break;
-                case 'research': building = new ResearchCenter(sb.x, sb.y, team); break;
+                case 'mine': building = new Mine(localX, sb.y, team); break;
+                case 'farm': building = new Farm(localX, sb.y, team); break;
+                case 'barracks': building = new Barracks(localX, sb.y, team); break;
+                case 'archery': building = new ArcheryRange(localX, sb.y, team); break;
+                case 'stable': building = new Stable(localX, sb.y, team); break;
+                case 'siege': building = new SiegeWorkshop(localX, sb.y, team); break;
+                case 'mage': building = new MageTower(localX, sb.y, team); break;
+                case 'tower': building = new Tower(localX, sb.y, team); break;
+                case 'wall': building = new Wall(localX, sb.y, team); break;
+                case 'forge': building = new Forge(localX, sb.y, team); break;
+                case 'hospital': building = new Hospital(localX, sb.y, team); break;
+                case 'research': building = new ResearchCenter(localX, sb.y, team); break;
             }
 
             if (building) {
@@ -410,16 +405,19 @@ export class Game {
             const exists = this.units.some(u => u.syncId === su.id);
             if (exists) return;
 
+            // Convert world coordinates to local coordinates
+            const localX = this.team === 1 ? su.x : (this.cols - 1 - su.x);
+
             // Create the unit
             let unit = null;
-            const team = su.team === this.team ? 'player' : 'enemy';
+            const team = 'enemy'; // Other team's units are always "enemy"
 
             switch (su.type) {
-                case 'knight': unit = new Knight(su.x, su.y, team); break;
-                case 'archer': unit = new Archer(su.x, su.y, team); break;
-                case 'cavalry': unit = new Cavalry(su.x, su.y, team); break;
-                case 'catapult': unit = new Catapult(su.x, su.y, team); break;
-                case 'mage': unit = new Mage(su.x, su.y, team); break;
+                case 'knight': unit = new Knight(localX, su.y, team); break;
+                case 'archer': unit = new Archer(localX, su.y, team); break;
+                case 'cavalry': unit = new Cavalry(localX, su.y, team); break;
+                case 'catapult': unit = new Catapult(localX, su.y, team); break;
+                case 'mage': unit = new Mage(localX, su.y, team); break;
             }
 
             if (unit) {
