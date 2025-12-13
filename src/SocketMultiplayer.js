@@ -233,30 +233,51 @@ export class SocketMultiplayer {
         if (!this.isHost || !this.game.gameStarted) return;
 
         const game = this.game;
+        const cols = game.cols;
 
-        // Minimal state for sync
+        // Convert coordinates to world space
+        // Host perspective: player buildings/units are on Team 1 if host is Team 1
         const gameState = {
-            units: game.units.map(u => ({
-                id: u.syncId,
-                x: u.realX,
-                y: u.realY,
-                hp: u.hp,
-                alive: u.alive,
-                type: u.type,
-                team: u.multiplayerTeam || (u.team === 'player' ? this.team : (this.team === 1 ? 2 : 1))
-            })),
-            buildings: game.buildings.map(b => ({
-                id: b.syncId || `${b.x}_${b.y}`,
-                x: b.x,
-                y: b.y,
-                hp: b.hp,
-                alive: b.alive,
-                type: b.type,
-                team: b.multiplayerTeam || (b.team === 'player' ? this.team : (this.team === 1 ? 2 : 1))
-            })),
+            units: game.units.map(u => {
+                // Determine unit's actual team
+                const unitTeam = u.multiplayerTeam || (u.team === 'player' ? this.team : (this.team === 1 ? 2 : 1));
+                // Convert to world coordinates (Team 2 units need flip)
+                const worldX = this.team === 1 ? u.realX : (cols - 1 - u.realX);
+
+                return {
+                    id: u.syncId,
+                    x: worldX,
+                    y: u.realY,
+                    hp: u.hp,
+                    alive: u.alive,
+                    type: u.type,
+                    team: unitTeam
+                };
+            }),
+            buildings: game.buildings.map(b => {
+                const buildingTeam = b.multiplayerTeam || (b.team === 'player' ? this.team : (this.team === 1 ? 2 : 1));
+                const worldX = this.team === 1 ? b.x : (cols - 1 - b.x);
+
+                return {
+                    id: b.syncId || `${b.x}_${b.y}`,
+                    x: worldX,
+                    y: b.y,
+                    hp: b.hp,
+                    alive: b.alive,
+                    type: b.type,
+                    team: buildingTeam
+                };
+            }),
             castles: {
-                team1: { hp: game.playerCastle.hp, alive: game.playerCastle.alive },
-                team2: { hp: game.enemyCastle.hp, alive: game.enemyCastle.alive }
+                // Map correctly based on host's team
+                team1: {
+                    hp: this.team === 1 ? game.playerCastle.hp : game.enemyCastle.hp,
+                    alive: this.team === 1 ? game.playerCastle.alive : game.enemyCastle.alive
+                },
+                team2: {
+                    hp: this.team === 1 ? game.enemyCastle.hp : game.playerCastle.hp,
+                    alive: this.team === 1 ? game.enemyCastle.alive : game.playerCastle.alive
+                }
             },
             timestamp: Date.now()
         };

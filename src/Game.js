@@ -586,41 +586,75 @@ export class Game {
             }
         }
 
-        // Sync enemy units (position and HP updates)
+        // Sync ALL units from host (both player and enemy)
         if (gameState.units) {
-            gameState.units.forEach(su => {
-                if (su.team === this.team) return;
+            // Create a set of server unit IDs for cleanup
+            const serverUnitIds = new Set(gameState.units.map(u => u.id));
 
+            gameState.units.forEach(su => {
+                // Convert world coordinates to local
                 const localX = this.team === 1 ? su.x : (this.cols - 1 - su.x);
+                const isMyTeam = su.team === this.team;
                 const existingUnit = this.units.find(u => u.syncId === su.id);
 
                 if (existingUnit) {
+                    // Update existing unit position and HP
                     existingUnit.realX = localX;
                     existingUnit.realY = su.y;
                     existingUnit.hp = su.hp;
                     existingUnit.alive = su.alive;
+                } else if (su.alive) {
+                    // Create missing unit
+                    let unit = null;
+                    const team = isMyTeam ? 'player' : 'enemy';
+
+                    switch (su.type) {
+                        case 'knight': unit = new Knight(localX, su.y, team); break;
+                        case 'archer': unit = new Archer(localX, su.y, team); break;
+                        case 'cavalry': unit = new Cavalry(localX, su.y, team); break;
+                        case 'catapult': unit = new Catapult(localX, su.y, team); break;
+                        case 'mage': unit = new Mage(localX, su.y, team); break;
+                    }
+
+                    if (unit) {
+                        unit.syncId = su.id;
+                        unit.hp = su.hp;
+                        unit.multiplayerTeam = su.team;
+                        this.units.push(unit);
+                    }
                 }
+            });
+
+            // Remove units that don't exist on server anymore
+            this.units = this.units.filter(u => {
+                if (!u.syncId) return true; // Keep local units without syncId
+                return serverUnitIds.has(u.syncId) && u.alive;
             });
         }
 
-        // Remove dead units
-        this.units = this.units.filter(u => u.alive);
-
-        // Sync enemy buildings
+        // Sync ALL buildings from host
         if (gameState.buildings) {
-            gameState.buildings.forEach(sb => {
-                if (sb.team === this.team) return;
+            const serverBuildingIds = new Set(gameState.buildings.map(b => b.id));
 
+            gameState.buildings.forEach(sb => {
+                if (sb.type === 'castle') return; // Skip castles
+
+                const localX = this.team === 1 ? sb.x : (this.cols - 1 - sb.x);
                 const existingBuilding = this.buildings.find(b => b.syncId === sb.id);
+
                 if (existingBuilding) {
                     existingBuilding.hp = sb.hp;
                     existingBuilding.alive = sb.alive;
                 }
             });
-        }
 
-        // Remove dead buildings
-        this.buildings = this.buildings.filter(b => b.alive);
+            // Remove dead buildings
+            this.buildings = this.buildings.filter(b => {
+                if (b.type === 'castle') return true; // Never remove castles
+                if (!b.syncId) return true;
+                return b.alive;
+            });
+        }
     }
 
     switchTab(tab) {
