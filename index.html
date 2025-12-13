@@ -192,6 +192,24 @@
                     <button class="menu-btn" id="single-player-btn">🎮 Single Player</button>
                     <button class="menu-btn primary" id="create-room-btn">🏰 Create Room</button>
                     <button class="menu-btn" id="join-room-btn">🚪 Join Room</button>
+                    <button class="menu-btn" id="lan-btn">🔌 LAN Mode</button>
+                </div>
+            </div>
+
+            <!-- LAN Settings Screen -->
+            <div id="lan-screen" class="menu-section hidden">
+                <h2>🔌 LAN Mode</h2>
+                <div class="form-group">
+                    <label>Server IP Address</label>
+                    <input type="text" id="lan-server-ip" placeholder="192.168.1.x:3001" value="localhost:3001">
+                </div>
+                <div class="lan-info">
+                    <p>💡 Yerel test için: <code>localhost:3001</code></p>
+                    <p>📡 LAN için: <code>192.168.x.x:3001</code></p>
+                </div>
+                <div class="menu-buttons">
+                    <button class="menu-btn" id="back-from-lan">← Back</button>
+                    <button class="menu-btn primary" id="apply-lan-btn">Apply & Continue ➜</button>
                 </div>
             </div>
 

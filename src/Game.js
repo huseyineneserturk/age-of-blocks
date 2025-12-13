@@ -136,6 +136,26 @@ export class Game {
             this.showScreen('main-menu');
         });
 
+        // LAN Mode button
+        document.getElementById('lan-btn')?.addEventListener('click', () => {
+            this.showScreen('lan-screen');
+        });
+
+        document.getElementById('back-from-lan')?.addEventListener('click', () => {
+            this.showScreen('main-menu');
+        });
+
+        document.getElementById('apply-lan-btn')?.addEventListener('click', () => {
+            const serverIp = document.getElementById('lan-server-ip').value || 'localhost:3001';
+            // Set the server URL
+            const protocol = serverIp.includes('localhost') ? 'http://' : 'http://';
+            this.multiplayer.serverUrl = protocol + serverIp;
+            console.log('LAN Server set to:', this.multiplayer.serverUrl);
+            this.showScreen('main-menu');
+            // Show notification
+            this.showNotification(`Server: ${serverIp}`, 'success');
+        });
+
         // Mode selector
         document.querySelectorAll('.mode-btn').forEach(btn => {
             btn.addEventListener('click', () => {
