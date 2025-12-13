@@ -307,29 +307,41 @@ export class Multiplayer {
 
         const game = this.game;
 
-        // Serialize all buildings
-        const buildings = game.buildings.map(b => ({
-            id: b.syncId || `${b.x}_${b.y}_${b.type}`,
-            type: b.type,
-            x: b.x,
-            y: b.y,
-            hp: b.hp,
-            maxHp: b.maxHp,
-            alive: b.alive,
-            team: b.multiplayerTeam || (b.team === 'player' ? 1 : 2)
-        }));
+        // Serialize all buildings - ensure stable IDs
+        const buildings = game.buildings.map(b => {
+            // Assign stable syncId if not exists
+            if (!b.syncId) {
+                b.syncId = `bld_${b.x}_${b.y}_${b.type}`;
+            }
+            return {
+                id: b.syncId,
+                type: b.type,
+                x: b.x,
+                y: b.y,
+                hp: b.hp,
+                maxHp: b.maxHp,
+                alive: b.alive,
+                team: b.multiplayerTeam || (b.team === 'player' ? 1 : 2)
+            };
+        });
 
-        // Serialize all units
-        const units = game.units.map(u => ({
-            id: u.syncId || `${Date.now()}_${Math.random()}`,
-            type: u.type,
-            x: u.realX,
-            y: u.realY,
-            hp: u.hp,
-            maxHp: u.maxHp,
-            alive: u.alive,
-            team: u.multiplayerTeam || (u.team === 'player' ? 1 : 2)
-        }));
+        // Serialize all units - ensure stable IDs
+        const units = game.units.map(u => {
+            // Assign stable syncId if not exists
+            if (!u.syncId) {
+                u.syncId = `unit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            }
+            return {
+                id: u.syncId,
+                type: u.type,
+                x: u.realX,
+                y: u.realY,
+                hp: u.hp,
+                maxHp: u.maxHp,
+                alive: u.alive,
+                team: u.multiplayerTeam || (u.team === 'player' ? 1 : 2)
+            };
+        });
 
         // Castle health
         const castles = {
