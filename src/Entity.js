@@ -141,6 +141,13 @@ export class Barracks extends Building {
     update(dt, game) {
         super.update(dt, game);
         if (!this.isBuilding) {
+            // In multiplayer, only the owner's client spawns units
+            // syncId means this building came from sync (other player)
+            if (game.isMultiplayer && this.syncId) {
+                // This building came from sync, don't spawn locally
+                return;
+            }
+
             this.spawnTimer += dt;
             if (this.spawnTimer >= this.spawnRate) {
                 this.spawnTimer = 0;
@@ -170,6 +177,9 @@ export class ArcheryRange extends Building {
     update(dt, game) {
         super.update(dt, game);
         if (!this.isBuilding) {
+            // In multiplayer, only the owner's client spawns units
+            if (game.isMultiplayer && this.syncId) return;
+
             this.spawnTimer += dt;
             if (this.spawnTimer >= this.spawnRate) {
                 this.spawnTimer = 0;
@@ -199,6 +209,9 @@ export class Stable extends Building {
     update(dt, game) {
         super.update(dt, game);
         if (!this.isBuilding) {
+            // In multiplayer, only the owner's client spawns units
+            if (game.isMultiplayer && this.syncId) return;
+
             this.spawnTimer += dt;
             if (this.spawnTimer >= this.spawnRate) {
                 this.spawnTimer = 0;
@@ -319,6 +332,9 @@ export class SiegeWorkshop extends Building {
     update(dt, game) {
         super.update(dt, game);
         if (!this.isBuilding) {
+            // In multiplayer, only the owner's client spawns units
+            if (game.isMultiplayer && this.syncId) return;
+
             this.spawnTimer += dt;
             const rate = this.spawnRate * (1 - (game.upgrades?.spawnrate || 0));
             if (this.spawnTimer >= rate) {
@@ -349,6 +365,9 @@ export class MageTower extends Building {
     update(dt, game) {
         super.update(dt, game);
         if (!this.isBuilding) {
+            // In multiplayer, only the owner's client spawns units
+            if (game.isMultiplayer && this.syncId) return;
+
             this.spawnTimer += dt;
             const rate = this.spawnRate * (1 - (game.upgrades?.spawnrate || 0));
             if (this.spawnTimer >= rate) {
