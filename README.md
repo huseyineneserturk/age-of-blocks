@@ -12,7 +12,7 @@ A real-time strategy game with Lego-themed medieval warfare. Build castles, trai
 
 ## Play Online
 
-[Play Medieval Lego Wars](https://your-render-url.onrender.com)
+🎮 **[Play Medieval Lego Wars](https://block-wars.onrender.com/)**
 
 ## Local Development
 
