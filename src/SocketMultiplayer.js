@@ -187,7 +187,7 @@ export class SocketMultiplayer {
         const worldX = this.team === 1 ? building.x : (this.game.cols - 1 - building.x);
 
         this.socket.emit('buildingPlaced', {
-            id: Date.now() + '_' + this.socket.id,
+            id: building.syncId, // Use the syncId from Game.js
             type: building.type,
             x: worldX,
             y: building.y,
@@ -203,7 +203,7 @@ export class SocketMultiplayer {
         const worldX = this.team === 1 ? unit.realX : (this.game.cols - 1 - unit.realX);
 
         this.socket.emit('unitSpawned', {
-            id: Date.now() + '_' + this.socket.id,
+            id: unit.syncId, // Use the syncId from Game.js
             type: unit.type,
             x: worldX,
             y: unit.realY,
