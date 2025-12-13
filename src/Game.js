@@ -952,6 +952,14 @@ export class Game {
     }
 
     spawnUnit(x, y, team, type) {
+        // In multiplayer, only host can spawn enemy units
+        // Client spawns player units, host handles enemy sync
+        if (this.isMultiplayer && !this.multiplayer.isHost && team === 'enemy') {
+            // Non-host clients don't spawn enemy units locally
+            // They will receive them via sync
+            return;
+        }
+
         let unit = null;
 
         switch (type) {
@@ -973,15 +981,15 @@ export class Game {
         }
 
         if (unit) {
+            // Assign syncId immediately for multiplayer
+            if (this.isMultiplayer) {
+                unit.syncId = `unit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                unit.multiplayerTeam = team === 'player' ? this.team : (this.team === 1 ? 2 : 1);
+            }
+
             this.units.push(unit);
             if (team === 'player') {
                 this.sound.playSound('spawn');
-
-                // Sync to multiplayer
-                if (this.isMultiplayer) {
-                    unit.multiplayerTeam = this.team;
-                    this.multiplayer.syncUnitSpawned(unit);
-                }
             }
         }
     }
