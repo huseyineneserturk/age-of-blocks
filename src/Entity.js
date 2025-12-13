@@ -10,16 +10,6 @@ export class Entity {
     }
 
     takeDamage(amount, game) {
-        // In multiplayer, only host calculates damage
-        // Clients will receive HP updates from server
-        if (game && game.isMultiplayer && !game.multiplayer.isHost) {
-            // Client only shows particles, no damage calculation
-            if (game.particles) {
-                game.particles.spawnDamage(this.x, this.y, amount, this.team === 'player');
-            }
-            return;
-        }
-
         this.hp -= amount;
         if (game && game.particles) {
             game.particles.spawnDamage(this.x, this.y, amount, this.team === 'player');
@@ -141,13 +131,6 @@ export class Barracks extends Building {
     update(dt, game) {
         super.update(dt, game);
         if (!this.isBuilding) {
-            // In multiplayer, only the owner's client spawns units
-            // syncId means this building came from sync (other player)
-            if (game.isMultiplayer && this.syncId) {
-                // This building came from sync, don't spawn locally
-                return;
-            }
-
             this.spawnTimer += dt;
             if (this.spawnTimer >= this.spawnRate) {
                 this.spawnTimer = 0;

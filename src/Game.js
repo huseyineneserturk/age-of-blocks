@@ -445,13 +445,13 @@ export class Game {
     }
 
     syncUnitsFromServer(serverUnits) {
-        // Process server units
+        // Client receives ALL units from host
         serverUnits.forEach(su => {
-            // Skip if from our team
-            if (su.team === this.team) return;
-
             // Convert world coordinates to local coordinates
             const localX = this.team === 1 ? su.x : (this.cols - 1 - su.x);
+
+            // Determine local team representation
+            const team = su.team === this.team ? 'player' : 'enemy';
 
             // Check if we already have this unit
             const existingUnit = this.units.find(u => u.syncId === su.id);
@@ -465,7 +465,6 @@ export class Game {
             } else if (su.alive) {
                 // Create new unit only if alive
                 let unit = null;
-                const team = 'enemy';
 
                 switch (su.type) {
                     case 'knight': unit = new Knight(localX, su.y, team); break;
@@ -688,6 +687,15 @@ export class Game {
     update(dt) {
         // Update game time
         this.gameTime += dt;
+
+        // In multiplayer, only host runs full simulation
+        // Client just receives and renders state from host
+        if (this.isMultiplayer && !this.multiplayer.isHost) {
+            // Client only updates UI and checks win condition from synced data
+            this.updateUI();
+            this.updateCardStates();
+            return;
+        }
 
         // Update AI (only in single player)
         if (this.ai) {
