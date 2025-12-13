@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Medieval Lego Wars - Build, Defend, Conquer! A strategic tower defense game with Lego-style building mechanics.">
+    <title>Medieval Lego Wars</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!-- Background Particles -->
+    <div id="bg-particles"></div>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+
+        <div id="ui-layer">
+            <!-- Sound Controls -->
+            <div id="sound-controls">
+                <button class="sound-btn" id="music-btn" title="Toggle Music">🎵</button>
+                <button class="sound-btn" id="sfx-btn" title="Toggle SFX">🔊</button>
+            </div>
+
+            <!-- Top HUD - Resources -->
+            <div id="top-hud">
+                <div class="resource-panel" id="lego-panel">
+                    <span class="resource-icon">🧱</span>
+                    <span class="resource-value" id="lego-count">100</span>
+                    <span class="resource-rate">(+<span id="lego-rate">1</span>/s)</span>
+                </div>
+            </div>
+
+            <!-- Score Panel -->
+            <div id="score-panel">
+                <div class="label">Score</div>
+                <div class="value" id="score-value">0</div>
+            </div>
+
+            <!-- Castle Health Bars -->
+            <div id="castle-health">
+                <div class="castle-hp player">
+                    <span class="label">Your Castle</span>
+                    <div class="hp-bar-container">
+                        <div class="hp-bar" id="player-hp-bar" style="width: 100%"></div>
+                    </div>
+                    <span class="hp-text"><span id="player-hp">1000</span> / 1000</span>
+                </div>
+                <div class="castle-hp enemy">
+                    <span class="label">Enemy Castle</span>
+                    <div class="hp-bar-container">
+                        <div class="hp-bar" id="enemy-hp-bar" style="width: 100%"></div>
+                    </div>
+                    <span class="hp-text"><span id="enemy-hp">1000</span> / 1000</span>
+                </div>
+            </div>
+
+            <!-- Notifications -->
+            <div id="notifications"></div>
+
+            <!-- Building Cards - Scroll Style -->
+            <div id="controls-wrapper">
+                <div id="controls" class="panel-content active">
+                    <!-- Resource Buildings -->
+                    <div class="card" data-type="building" data-id="mine">
+                        <span class="hotkey">1</span>
+                        <div class="icon">⛏️</div>
+                        <div class="name">Mine</div>
+                        <div class="cost"><span class="cost-icon">🧱</span>50</div>
+                    </div>
+                    <div class="card" data-type="building" data-id="farm">
+                        <span class="hotkey">2</span>
+                        <div class="icon">🌾</div>
+                        <div class="name">Farm</div>
+                        <div class="cost"><span class="cost-icon">🧱</span>40</div>
+                    </div>
+
+                    <!-- Military Buildings -->
+                    <div class="card" data-type="building" data-id="barracks">
+                        <span class="hotkey">3</span>
+                        <div class="icon">⚔️</div>
+                        <div class="name">Barracks</div>
+                        <div class="cost"><span class="cost-icon">🧱</span>100</div>
+                    </div>
+                    <div class="card" data-type="building" data-id="archery">
+                        <span class="hotkey">4</span>
+                        <div class="icon">🏹</div>
+                        <div class="name">Archery</div>
+                        <div class="cost"><span class="cost-icon">🧱</span>120</div>
+                    </div>
+                    <div class="card" data-type="building" data-id="stable">
+                        <span class="hotkey">5</span>
+                        <div class="icon">🐴</div>
+                        <div class="name">Stable</div>
+                        <div class="cost"><span class="cost-icon">🧱</span>150</div>
+                    </div>
+                    <div class="card" data-type="building" data-id="siege">
+                        <span class="hotkey">6</span>
+                        <div class="icon">💣</div>
+                        <div class="name">Siege</div>
+                        <div class="cost"><span class="cost-icon">🧱</span>200</div>
+                    </div>
+                    <div class="card" data-type="building" data-id="mage">
+                        <span class="hotkey">7</span>
+                        <div class="icon">🔮</div>
+                        <div class="name">Mage Tower</div>
+                        <div class="cost"><span class="cost-icon">🧱</span>180</div>
+                    </div>
+
+                    <!-- Defense Buildings -->
+                    <div class="card" data-type="building" data-id="tower">
+                        <span class="hotkey">8</span>
+                        <div class="icon">🗼</div>
+                        <div class="name">Tower</div>
+                        <div class="cost"><span class="cost-icon">🧱</span>80</div>
+                    </div>
+                    <div class="card" data-type="building" data-id="wall">
+                        <span class="hotkey">9</span>
+                        <div class="icon">🧱</div>
+                        <div class="name">Wall</div>
+                        <div class="cost"><span class="cost-icon">🧱</span>30</div>
+                    </div>
+
+                    <!-- Support Buildings -->
+                    <div class="card" data-type="building" data-id="forge">
+                        <span class="hotkey">Q</span>
+                        <div class="icon">🔥</div>
+                        <div class="name">Forge</div>
+                        <div class="cost"><span class="cost-icon">🧱</span>200</div>
+                    </div>
+                    <div class="card" data-type="building" data-id="hospital">
+                        <span class="hotkey">W</span>
+                        <div class="icon">🏥</div>
+                        <div class="name">Hospital</div>
+                        <div class="cost"><span class="cost-icon">🧱</span>150</div>
+                    </div>
+                    <div class="card" data-type="building" data-id="research">
+                        <span class="hotkey">E</span>
+                        <div class="icon">📚</div>
+                        <div class="name">Research</div>
+                        <div class="cost"><span class="cost-icon">🧱</span>250</div>
+                    </div>
+                </div>
+
+                <!-- Research Panel -->
+                <div id="research-panel" class="panel-content">
+                    <div class="no-research">
+                        <div>🔬 No upgrades available</div>
+                        <div class="hint">Build a Research Center to unlock upgrades!</div>
+                    </div>
+                </div>
+
+                <!-- Panel Tabs -->
+                <div id="panel-tabs">
+                    <button class="panel-tab active" data-panel="controls">
+                        <span class="tab-icon">⚔️</span>
+                        BUILDINGS
+                    </button>
+                    <button class="panel-tab" data-panel="research-panel" id="research-tab">
+                        <span class="tab-icon">🔬</span>
+                        RESEARCHES
+                    </button>
+                </div>
+            </div>
+
+            <!-- Minimap -->
+            <div id="minimap">
+                <canvas id="minimapCanvas"></canvas>
+            </div>
+
+            <!-- Tooltip -->
+            <div class="tooltip" id="tooltip">
+                <div class="tooltip-title">Building Name</div>
+                <div class="tooltip-desc">Description goes here.</div>
+                <div class="tooltip-stats">
+                    <div class="tooltip-stat"><span class="key">HP:</span><span class="val">100</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Start Screen / Lobby -->
+        <div id="start-screen">
+            <h1 class="game-title">Medieval Lego Wars</h1>
+            <p class="game-subtitle">Build • Defend • Conquer</p>
+
+            <!-- Main Menu -->
+            <div id="main-menu" class="menu-section">
+                <div class="menu-buttons">
+                    <button class="menu-btn" id="single-player-btn">🎮 Single Player</button>
+                    <button class="menu-btn primary" id="create-room-btn">🏰 Create Room</button>
+                    <button class="menu-btn" id="join-room-btn">🚪 Join Room</button>
+                </div>
+            </div>
+
+            <!-- Create Room Screen -->
+            <div id="create-room-screen" class="menu-section hidden">
+                <h2>Create Room</h2>
+                <div class="form-group">
+                    <label>Your Name</label>
+                    <input type="text" id="create-player-name" placeholder="Enter name..." maxlength="12">
+                </div>
+                <div class="form-group">
+                    <label>Game Mode</label>
+                    <div class="mode-selector">
+                        <button class="mode-btn selected" data-mode="1v1">1v1</button>
+                        <button class="mode-btn" data-mode="2v2">2v2</button>
+                        <button class="mode-btn" data-mode="3v3">3v3</button>
+                    </div>
+                </div>
+                <div class="menu-buttons">
+                    <button class="menu-btn" id="back-from-create">← Back</button>
+                    <button class="menu-btn primary" id="confirm-create-btn">Create ➜</button>
+                </div>
+            </div>
+
+            <!-- Join Room Screen -->
+            <div id="join-room-screen" class="menu-section hidden">
+                <h2>Join Room</h2>
+                <div class="form-group">
+                    <label>Your Name</label>
+                    <input type="text" id="join-player-name" placeholder="Enter name..." maxlength="12">
+                </div>
+                <div class="form-group">
+                    <label>Room Code</label>
+                    <input type="text" id="room-code-input" placeholder="ABC123" maxlength="6"
+                        style="text-transform: uppercase;">
+                </div>
+                <div class="menu-buttons">
+                    <button class="menu-btn" id="back-from-join">← Back</button>
+                    <button class="menu-btn primary" id="confirm-join-btn">Join ➜</button>
+                </div>
+                <div id="join-error" class="error-msg hidden"></div>
+            </div>
+
+            <!-- Lobby Screen -->
+            <div id="lobby-screen" class="menu-section hidden">
+                <h2>Room: <span id="lobby-room-code">ABC123</span></h2>
+                <div class="lobby-mode" id="lobby-mode">1v1</div>
+
+                <div class="teams-container">
+                    <div class="team-column" id="team1-column">
+                        <h3 class="team-header player">Team 1</h3>
+                        <div class="player-list" id="team1-players"></div>
+                    </div>
+                    <div class="team-column" id="team2-column">
+                        <h3 class="team-header enemy">Team 2</h3>
+                        <div class="player-list" id="team2-players"></div>
+                    </div>
+                </div>
+
+                <div class="lobby-actions">
+                    <div class="team-switch">
+                        <button class="team-btn" id="switch-team-btn">↔️ Switch Team</button>
+                    </div>
+                    <div class="ready-section">
+                        <button class="menu-btn" id="ready-btn">Ready</button>
+                    </div>
+                </div>
+
+                <div class="menu-buttons">
+                    <button class="menu-btn" id="leave-room-btn">← Leave</button>
+                    <button class="menu-btn primary" id="start-game-btn">Start Game ▶</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="game-over-screen" class="hidden">
+            <h1 id="winner-text" class="victory">Victory!</h1>
+            <div id="final-stats">
+                <div class="stat-item">
+                    <div class="label">Score</div>
+                    <div class="value" id="final-score">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Time</div>
+                    <div class="value" id="final-time">0:00</div>
+                </div>
+                <div class="stat-item">
+                    <div class="label">Kills</div>
+                    <div class="value" id="final-kills">0</div>
+                </div>
+            </div>
+            <button id="restart-btn">Play Again</button>
+        </div>
+
+        <!-- Pause Overlay -->
+        <div id="pause-overlay" class="hidden">
+            <h2>Paused</h2>
+            <button class="menu-btn" id="resume-btn">Resume</button>
+        </div>
+    </div>
+
+    <script type="module" src="src/main.js"></script>
+</body>
+
+</html>
