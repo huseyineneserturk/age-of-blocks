@@ -6,7 +6,7 @@ Build. Defend. Conquer!
 
 ## 🎮 Play Now
 
-🎮 **[Play Age of Blocks](https://ageofblocks.games)**
+🎮 **[Play Age of Blocks](https://www.ageofblocks.games/)**
 
 ## Features
 
