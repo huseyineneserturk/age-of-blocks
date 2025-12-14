@@ -847,14 +847,6 @@ export class Game {
 
         this.renderer.render();
 
-        // Update minimap
-        const minimapCanvas = document.getElementById('minimapCanvas');
-        if (minimapCanvas) {
-            minimapCanvas.width = 180;
-            minimapCanvas.height = 120;
-            this.renderer.renderMinimap(minimapCanvas);
-        }
-
         requestAnimationFrame((t) => this.gameLoop(t));
     }
 
