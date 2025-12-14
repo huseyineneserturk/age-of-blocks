@@ -459,7 +459,6 @@ export class Renderer {
         const icons = {
             castle: '🏰',
             mine: '⛏️',
-            farm: '🌾',
             barracks: '⚔️',
             archery: '🏹',
             stable: '🐴',

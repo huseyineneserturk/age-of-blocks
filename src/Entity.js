@@ -96,27 +96,6 @@ export class Mine extends Building {
     }
 }
 
-// Farm - Increases resource cap and provides small income
-export class Farm extends Building {
-    constructor(x, y, team) {
-        super(x, y, team, 'farm');
-        this.hp = 150;
-        this.maxHp = 150;
-        this.productionTimer = 0;
-    }
-
-    update(dt, game) {
-        super.update(dt, game);
-        if (!this.isBuilding && this.team === 'player') {
-            this.productionTimer += dt;
-            if (this.productionTimer >= 8) {
-                this.productionTimer = 0;
-                game.addResources(3);
-            }
-        }
-    }
-}
-
 // Barracks - Spawns Knight units
 export class Barracks extends Building {
     constructor(x, y, team) {
@@ -788,7 +767,6 @@ export class Mage extends Unit {
 // Building costs configuration
 export const BUILDING_COSTS = {
     mine: 50,
-    farm: 40,
     barracks: 100,
     archery: 120,
     stable: 150,
@@ -807,11 +785,6 @@ export const BUILDING_INFO = {
         name: 'Lego Mine',
         desc: 'Produces +5 Lego every 5 seconds. Also increases passive income.',
         stats: { 'HP': 200, 'Production': '+5/5s' }
-    },
-    farm: {
-        name: 'Farm',
-        desc: 'Produces +3 Lego every 8 seconds.',
-        stats: { 'HP': 150, 'Production': '+3/8s' }
     },
     barracks: {
         name: 'Barracks',

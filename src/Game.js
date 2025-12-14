@@ -4,7 +4,7 @@ import { SoundManager } from './SoundManager.js';
 import { AI } from './AI.js';
 import { SocketMultiplayer } from './SocketMultiplayer.js';
 import {
-    Castle, Mine, Farm, Barracks, ArcheryRange, Stable, Tower, Wall, Forge,
+    Castle, Mine, Barracks, ArcheryRange, Stable, Tower, Wall, Forge,
     SiegeWorkshop, MageTower, Hospital, ResearchCenter,
     Knight, Archer, Cavalry, Catapult, Mage,
     BUILDING_COSTS, BUILDING_INFO, UPGRADES
@@ -440,7 +440,6 @@ export class Game {
 
                 switch (sb.type) {
                     case 'mine': building = new Mine(localX, sb.y, team); break;
-                    case 'farm': building = new Farm(localX, sb.y, team); break;
                     case 'barracks': building = new Barracks(localX, sb.y, team); break;
                     case 'archery': building = new ArcheryRange(localX, sb.y, team); break;
                     case 'stable': building = new Stable(localX, sb.y, team); break;
@@ -525,7 +524,6 @@ export class Game {
 
         switch (data.type) {
             case 'mine': building = new Mine(localX, data.y, team); break;
-            case 'farm': building = new Farm(localX, data.y, team); break;
             case 'barracks': building = new Barracks(localX, data.y, team); break;
             case 'archery': building = new ArcheryRange(localX, data.y, team); break;
             case 'stable': building = new Stable(localX, data.y, team); break;
@@ -1036,9 +1034,6 @@ export class Game {
             case 'mine':
                 building = new Mine(x, y, 'player');
                 this.resourceRate += 1;
-                break;
-            case 'farm':
-                building = new Farm(x, y, 'player');
                 break;
             case 'barracks':
                 building = new Barracks(x, y, 'player');
