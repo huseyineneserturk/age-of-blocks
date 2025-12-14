@@ -130,6 +130,10 @@ export class Barracks extends Building {
 
     update(dt, game) {
         super.update(dt, game);
+        // In multiplayer, only player's buildings spawn units locally
+        // Enemy units come from host sync
+        if (this.team === 'enemy' && game.isMultiplayer) return;
+
         if (!this.isBuilding) {
             this.spawnTimer += dt;
             if (this.spawnTimer >= this.spawnRate) {
@@ -159,6 +163,9 @@ export class ArcheryRange extends Building {
 
     update(dt, game) {
         super.update(dt, game);
+        // In multiplayer, only player's buildings spawn units locally
+        if (this.team === 'enemy' && game.isMultiplayer) return;
+
         if (!this.isBuilding) {
             this.spawnTimer += dt;
             if (this.spawnTimer >= this.spawnRate) {
@@ -188,6 +195,9 @@ export class Stable extends Building {
 
     update(dt, game) {
         super.update(dt, game);
+        // In multiplayer, only player's buildings spawn units locally
+        if (this.team === 'enemy' && game.isMultiplayer) return;
+
         if (!this.isBuilding) {
             this.spawnTimer += dt;
             if (this.spawnTimer >= this.spawnRate) {
@@ -308,6 +318,9 @@ export class SiegeWorkshop extends Building {
 
     update(dt, game) {
         super.update(dt, game);
+        // In multiplayer, only player's buildings spawn units locally
+        if (this.team === 'enemy' && game.isMultiplayer) return;
+
         if (!this.isBuilding) {
             this.spawnTimer += dt;
             const rate = this.spawnRate * (1 - (game.upgrades?.spawnrate || 0));
@@ -338,6 +351,9 @@ export class MageTower extends Building {
 
     update(dt, game) {
         super.update(dt, game);
+        // In multiplayer, only player's buildings spawn units locally
+        if (this.team === 'enemy' && game.isMultiplayer) return;
+
         if (!this.isBuilding) {
             this.spawnTimer += dt;
             const rate = this.spawnRate * (1 - (game.upgrades?.spawnrate || 0));
