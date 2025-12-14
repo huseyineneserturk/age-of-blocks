@@ -71,34 +71,40 @@
                         <div class="name">Mine</div>
                         <div class="cost"><span class="cost-icon">🧱</span>50</div>
                     </div>
+                    <div class="card" data-type="building" data-id="farm">
+                        <span class="hotkey">2</span>
+                        <div class="icon">🌾</div>
+                        <div class="name">Farm</div>
+                        <div class="cost"><span class="cost-icon">🧱</span>40</div>
+                    </div>
 
                     <!-- Military Buildings -->
                     <div class="card" data-type="building" data-id="barracks">
-                        <span class="hotkey">2</span>
+                        <span class="hotkey">3</span>
                         <div class="icon">⚔️</div>
                         <div class="name">Barracks</div>
                         <div class="cost"><span class="cost-icon">🧱</span>100</div>
                     </div>
                     <div class="card" data-type="building" data-id="archery">
-                        <span class="hotkey">3</span>
+                        <span class="hotkey">4</span>
                         <div class="icon">🏹</div>
                         <div class="name">Archery</div>
                         <div class="cost"><span class="cost-icon">🧱</span>120</div>
                     </div>
                     <div class="card" data-type="building" data-id="stable">
-                        <span class="hotkey">4</span>
+                        <span class="hotkey">5</span>
                         <div class="icon">🐴</div>
                         <div class="name">Stable</div>
                         <div class="cost"><span class="cost-icon">🧱</span>150</div>
                     </div>
                     <div class="card" data-type="building" data-id="siege">
-                        <span class="hotkey">5</span>
+                        <span class="hotkey">6</span>
                         <div class="icon">💣</div>
                         <div class="name">Siege</div>
                         <div class="cost"><span class="cost-icon">🧱</span>200</div>
                     </div>
                     <div class="card" data-type="building" data-id="mage">
-                        <span class="hotkey">6</span>
+                        <span class="hotkey">7</span>
                         <div class="icon">🔮</div>
                         <div class="name">Mage Tower</div>
                         <div class="cost"><span class="cost-icon">🧱</span>180</div>
@@ -106,13 +112,13 @@
 
                     <!-- Defense Buildings -->
                     <div class="card" data-type="building" data-id="tower">
-                        <span class="hotkey">7</span>
+                        <span class="hotkey">8</span>
                         <div class="icon">🗼</div>
                         <div class="name">Tower</div>
                         <div class="cost"><span class="cost-icon">🧱</span>80</div>
                     </div>
                     <div class="card" data-type="building" data-id="wall">
-                        <span class="hotkey">8</span>
+                        <span class="hotkey">9</span>
                         <div class="icon">🧱</div>
                         <div class="name">Wall</div>
                         <div class="cost"><span class="cost-icon">🧱</span>30</div>
@@ -160,6 +166,11 @@
                 </div>
             </div>
 
+            <!-- Minimap -->
+            <div id="minimap">
+                <canvas id="minimapCanvas"></canvas>
+            </div>
+
             <!-- Tooltip -->
             <div class="tooltip" id="tooltip">
                 <div class="tooltip-title">Building Name</div>
@@ -184,34 +195,6 @@
                 </div>
             </div>
 
-            <!-- Single Player Mode Selection -->
-            <div id="single-player-screen" class="menu-section hidden">
-                <h2>Single Player</h2>
-
-                <div class="form-group">
-                    <label>Game Mode</label>
-                    <div class="mode-selector" style="flex-wrap: wrap; gap: 8px;">
-                        <button class="mode-btn sp-mode-btn selected" data-sp-mode="1v1">1v1</button>
-                        <button class="mode-btn sp-mode-btn" data-sp-mode="2v2">2v2</button>
-                        <button class="mode-btn sp-mode-btn" data-sp-mode="ffa">FFA</button>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label>Map Size</label>
-                    <div class="mode-selector" style="gap: 8px;">
-                        <button class="mode-btn map-size-btn" data-map-size="small">Small</button>
-                        <button class="mode-btn map-size-btn selected" data-map-size="medium">Medium</button>
-                        <button class="mode-btn map-size-btn" data-map-size="large">Large</button>
-                    </div>
-                </div>
-
-                <div class="menu-buttons" style="margin-top: 20px;">
-                    <button class="menu-btn" id="back-from-sp">← Back</button>
-                    <button class="menu-btn primary" id="start-sp-btn">Start Game ➜</button>
-                </div>
-            </div>
-
             <!-- Create Room Screen -->
             <div id="create-room-screen" class="menu-section hidden">
                 <h2>Create Room</h2>
@@ -221,10 +204,11 @@
                 </div>
                 <div class="form-group">
                     <label>Game Mode</label>
-                    <div class="mode-selector mp-mode-selector">
-                        <button class="mode-btn mp-mode-btn" data-mode="ffa">FFA</button>
-                        <button class="mode-btn mp-mode-btn selected" data-mode="1v1">1v1</button>
-                        <button class="mode-btn mp-mode-btn" data-mode="2v2">2v2</button>
+                    <div class="mode-selector">
+                        <button class="mode-btn" data-mode="ffa">FFA</button>
+                        <button class="mode-btn selected" data-mode="1v1">1v1</button>
+                        <button class="mode-btn" data-mode="2v2">2v2</button>
+                        <button class="mode-btn" data-mode="3v3">3v3</button>
                     </div>
                 </div>
                 <div class="menu-buttons">

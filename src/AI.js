@@ -11,6 +11,7 @@ export class AI {
 
         this.costs = {
             mine: 50,
+            farm: 40,
             barracks: 100,
             archery: 120,
             stable: 150,

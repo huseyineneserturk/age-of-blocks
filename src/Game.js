@@ -4,7 +4,7 @@ import { SoundManager } from './SoundManager.js';
 import { AI } from './AI.js';
 import { SocketMultiplayer } from './SocketMultiplayer.js';
 import {
-    Castle, Mine, Barracks, ArcheryRange, Stable, Tower, Wall, Forge,
+    Castle, Mine, Farm, Barracks, ArcheryRange, Stable, Tower, Wall, Forge,
     SiegeWorkshop, MageTower, Hospital, ResearchCenter,
     Knight, Archer, Cavalry, Catapult, Mage,
     BUILDING_COSTS, BUILDING_INFO, UPGRADES
@@ -40,8 +40,7 @@ export class Game {
         this.availableUpgrades = []; // 3 random upgrades when research center is built
         this.usedUpgradeIds = []; // Track used upgrades
 
-        // Grid System - Configurable map size
-        this.mapSize = 'medium'; // 'small', 'medium', 'large'
+        // Grid System - Larger map
         this.gridSize = 32;
         this.cols = 30;
         this.rows = 20;
@@ -57,15 +56,10 @@ export class Game {
         this.selectedBuilding = null;
         this.mousePos = null;
 
-        // Single Player Mode
-        this.singlePlayerMode = '1v1'; // '1v1', '2v2', 'ffa'
-        this.aiPlayers = []; // Array of AI instances for multi-AI modes
-        this.is4PlayerMode = false; // 4-corner map layout for 2v2/FFA
-
         // Systems
         this.particles = new ParticleSystem();
         this.sound = new SoundManager();
-        this.ai = new AI(this); // Main enemy AI
+        this.ai = new AI(this);
         this.renderer = new Renderer(this.ctx, this);
 
         // Multiplayer - WebSocket only (Firebase removed)
@@ -119,7 +113,7 @@ export class Game {
 
         // Single Player button
         document.getElementById('single-player-btn')?.addEventListener('click', () => {
-            this.showScreen('single-player-screen');
+            this.startGame();
         });
 
         // Create Room button
@@ -141,38 +135,10 @@ export class Game {
             this.showScreen('main-menu');
         });
 
-        document.getElementById('back-from-sp')?.addEventListener('click', () => {
-            this.showScreen('main-menu');
-        });
-
-        // Single Player mode buttons (1v1, 2v2, 3v3, FFA)
-        document.querySelectorAll('.sp-mode-btn').forEach(btn => {
+        // Mode selector
+        document.querySelectorAll('.mode-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                document.querySelectorAll('.sp-mode-btn').forEach(b => b.classList.remove('selected'));
-                btn.classList.add('selected');
-                this.singlePlayerMode = btn.dataset.spMode;
-            });
-        });
-
-        // Map size buttons
-        document.querySelectorAll('.map-size-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.map-size-btn').forEach(b => b.classList.remove('selected'));
-                btn.classList.add('selected');
-                this.mapSize = btn.dataset.mapSize;
-            });
-        });
-
-        // Start Single Player game button
-        document.getElementById('start-sp-btn')?.addEventListener('click', () => {
-            this.setupGameForMode();
-            this.startGame();
-        });
-
-        // Mode selector (for multiplayer) - separate from single player
-        document.querySelectorAll('.mp-mode-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.mp-mode-btn').forEach(b => b.classList.remove('selected'));
+                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
                 btn.classList.add('selected');
             });
         });
@@ -180,7 +146,7 @@ export class Game {
         // Confirm Create Room
         document.getElementById('confirm-create-btn')?.addEventListener('click', async () => {
             const name = document.getElementById('create-player-name').value || 'Player';
-            const mode = document.querySelector('.mp-mode-btn.selected')?.dataset.mode || '1v1';
+            const mode = document.querySelector('.mode-btn.selected')?.dataset.mode || '1v1';
 
             try {
                 const roomCode = await this.multiplayer.createRoom(mode, name);
@@ -469,6 +435,7 @@ export class Game {
 
                 switch (sb.type) {
                     case 'mine': building = new Mine(localX, sb.y, team); break;
+                    case 'farm': building = new Farm(localX, sb.y, team); break;
                     case 'barracks': building = new Barracks(localX, sb.y, team); break;
                     case 'archery': building = new ArcheryRange(localX, sb.y, team); break;
                     case 'stable': building = new Stable(localX, sb.y, team); break;
@@ -553,6 +520,7 @@ export class Game {
 
         switch (data.type) {
             case 'mine': building = new Mine(localX, data.y, team); break;
+            case 'farm': building = new Farm(localX, data.y, team); break;
             case 'barracks': building = new Barracks(localX, data.y, team); break;
             case 'archery': building = new ArcheryRange(localX, data.y, team); break;
             case 'stable': building = new Stable(localX, data.y, team); break;
@@ -844,79 +812,6 @@ export class Game {
         setTimeout(() => notification.remove(), 3000);
     }
 
-    // Setup game based on selected mode and map size
-    setupGameForMode() {
-        // Set map size
-        switch (this.mapSize) {
-            case 'small':
-                this.cols = 20;
-                this.rows = 14;
-                break;
-            case 'medium':
-                this.cols = 30;
-                this.rows = 20;
-                break;
-            case 'large':
-                this.cols = 40;
-                this.rows = 26;
-                break;
-        }
-        this.width = this.cols * this.gridSize;
-        this.height = this.rows * this.gridSize;
-        this.canvas.width = this.width;
-        this.canvas.height = this.height;
-
-        // Regenerate terrain for new size
-        this.renderer.generateTerrainNoise();
-
-        // Reset game state for new map
-        this.buildings = [];
-        this.units = [];
-        this.projectiles = [];
-        this.gameOver = false;
-        this.gameTime = 0;
-        this.resources = 150;
-        this.resourceRate = 1;
-
-        // Recreate castles for new map size
-        this.playerCastle = new Castle(1, Math.floor(this.rows / 2) - 1, 'player');
-        this.buildings.push(this.playerCastle);
-        this.enemyCastle = new Castle(this.cols - 3, Math.floor(this.rows / 2) - 1, 'enemy');
-        this.buildings.push(this.enemyCastle);
-
-        // Reset main AI
-        this.ai.reset();
-
-        // Setup AI count based on mode
-        this.aiPlayers = [];
-        let aiCount = 1;
-
-        // Set is4PlayerMode for 2v2 and FFA (requires 4-corner map layout)
-        this.is4PlayerMode = false;
-
-        switch (this.singlePlayerMode) {
-            case '1v1':
-                aiCount = 1;
-                this.is4PlayerMode = false;
-                break;
-            case '2v2':
-                aiCount = 3; // Player + 1 ally vs 2 enemies (4 total)
-                this.is4PlayerMode = true;
-                break;
-            case 'ffa':
-                aiCount = 3; // Player vs 3 enemies (4 total)
-                this.is4PlayerMode = true;
-                break;
-        }
-
-        // Create additional AI players
-        for (let i = 1; i < aiCount; i++) {
-            this.aiPlayers.push(new AI(this));
-        }
-
-        console.log(`🎮 Mode: ${this.singlePlayerMode}, Map: ${this.mapSize} (${this.cols}x${this.rows}), AIs: ${aiCount}, 4-Player: ${this.is4PlayerMode}`);
-    }
-
     startGame() {
         document.getElementById('start-screen').classList.add('hidden');
         this.gameStarted = true;
@@ -947,6 +842,14 @@ export class Game {
 
         this.renderer.render();
 
+        // Update minimap
+        const minimapCanvas = document.getElementById('minimapCanvas');
+        if (minimapCanvas) {
+            minimapCanvas.width = 180;
+            minimapCanvas.height = 120;
+            this.renderer.renderMinimap(minimapCanvas);
+        }
+
         requestAnimationFrame((t) => this.gameLoop(t));
     }
 
@@ -955,10 +858,8 @@ export class Game {
         this.gameTime += dt;
 
         // Update AI (only in single player)
-        if (this.ai && !this.isMultiplayer) {
+        if (this.ai) {
             this.ai.update(dt);
-            // Update additional AIs for 2v2, 3v3, FFA modes
-            this.aiPlayers.forEach(ai => ai.update(dt));
         }
 
         // Update Buildings
@@ -1138,6 +1039,9 @@ export class Game {
             case 'mine':
                 building = new Mine(x, y, 'player');
                 this.resourceRate += 1;
+                break;
+            case 'farm':
+                building = new Farm(x, y, 'player');
                 break;
             case 'barracks':
                 building = new Barracks(x, y, 'player');

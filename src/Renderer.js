@@ -67,52 +67,14 @@ export class Renderer {
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, game.width, game.height);
 
-        // Territory coloring based on game mode
-        if (game.is4PlayerMode) {
-            // 4-player mode: 4 corners (NW, NE, SE, SW) with neutral center
-            const halfW = game.width / 2;
-            const halfH = game.height / 2;
-            const cornerSize = Math.min(halfW, halfH) * 0.7;
+        // Territory coloring
+        // Player side (blue tint)
+        ctx.fillStyle = 'rgba(74, 158, 255, 0.05)';
+        ctx.fillRect(0, 0, game.width / 2, game.height);
 
-            // Player (SW - Blue)
-            ctx.fillStyle = 'rgba(74, 158, 255, 0.08)';
-            ctx.fillRect(0, halfH, halfW, halfH);
-
-            // Enemy 1 (NE - Red)
-            ctx.fillStyle = 'rgba(255, 74, 74, 0.08)';
-            ctx.fillRect(halfW, 0, halfW, halfH);
-
-            // Enemy 2/Ally (NW - Green)
-            ctx.fillStyle = 'rgba(74, 255, 74, 0.08)';
-            ctx.fillRect(0, 0, halfW, halfH);
-
-            // Enemy 3 (SE - Yellow)
-            ctx.fillStyle = 'rgba(255, 255, 74, 0.08)';
-            ctx.fillRect(halfW, halfH, halfW, halfH);
-
-            // Neutral center zone
-            const centerSize = Math.min(game.width, game.height) * 0.25;
-            const centerX = (game.width - centerSize) / 2;
-            const centerY = (game.height - centerSize) / 2;
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-            ctx.fillRect(centerX, centerY, centerSize, centerSize);
-
-            // Center zone border
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([5, 5]);
-            ctx.strokeRect(centerX, centerY, centerSize, centerSize);
-            ctx.setLineDash([]);
-        } else {
-            // Standard 1v1: left/right split
-            // Player side (blue tint)
-            ctx.fillStyle = 'rgba(74, 158, 255, 0.05)';
-            ctx.fillRect(0, 0, game.width / 2, game.height);
-
-            // Enemy side (red tint)
-            ctx.fillStyle = 'rgba(255, 74, 74, 0.05)';
-            ctx.fillRect(game.width / 2, 0, game.width / 2, game.height);
-        }
+        // Enemy side (red tint)
+        ctx.fillStyle = 'rgba(255, 74, 74, 0.05)';
+        ctx.fillRect(game.width / 2, 0, game.width / 2, game.height);
 
         // Draw subtle terrain details
         ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
@@ -241,38 +203,6 @@ export class Renderer {
                 ctx.beginPath();
                 ctx.arc(x + w / 2, y + h / 2, b.range * gs, 0, Math.PI * 2);
                 ctx.stroke();
-            }
-
-            // Hospital heal range indicator (always visible, green circle)
-            if (b.type === 'hospital' && !b.isBuilding) {
-                const healRadius = (b.healRadius || 4) * gs;
-                // Outer glow
-                ctx.strokeStyle = 'rgba(50, 205, 50, 0.4)';
-                ctx.lineWidth = 3;
-                ctx.beginPath();
-                ctx.arc(x + w / 2, y + h / 2, healRadius, 0, Math.PI * 2);
-                ctx.stroke();
-                // Inner fill
-                ctx.fillStyle = 'rgba(50, 205, 50, 0.1)';
-                ctx.beginPath();
-                ctx.arc(x + w / 2, y + h / 2, healRadius, 0, Math.PI * 2);
-                ctx.fill();
-            }
-
-            // Forge buff range indicator (always visible, orange circle)
-            if (b.type === 'forge' && !b.isBuilding) {
-                const buffRadius = (b.buffRadius || 4) * gs;
-                // Outer glow
-                ctx.strokeStyle = 'rgba(255, 140, 0, 0.4)';
-                ctx.lineWidth = 3;
-                ctx.beginPath();
-                ctx.arc(x + w / 2, y + h / 2, buffRadius, 0, Math.PI * 2);
-                ctx.stroke();
-                // Inner fill
-                ctx.fillStyle = 'rgba(255, 140, 0, 0.1)';
-                ctx.beginPath();
-                ctx.arc(x + w / 2, y + h / 2, buffRadius, 0, Math.PI * 2);
-                ctx.fill();
             }
         });
     }
@@ -529,6 +459,7 @@ export class Renderer {
         const icons = {
             castle: '🏰',
             mine: '⛏️',
+            farm: '🌾',
             barracks: '⚔️',
             archery: '🏹',
             stable: '🐴',
