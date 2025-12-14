@@ -403,6 +403,13 @@ export class Game {
             this.multiplayer.startHostSync();
         }
 
+        // Start passive income loop for multiplayer
+        setInterval(() => {
+            if (!this.gameOver && !this.isPaused && this.gameStarted) {
+                this.addResources(this.resourceRate);
+            }
+        }, 1000);
+
         requestAnimationFrame((t) => this.gameLoop(t));
     }
 
