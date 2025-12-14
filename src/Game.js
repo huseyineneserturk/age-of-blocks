@@ -168,10 +168,10 @@ export class Game {
             this.startGame();
         });
 
-        // Mode selector (for multiplayer)
-        document.querySelectorAll('.mode-btn').forEach(btn => {
+        // Mode selector (for multiplayer) - separate from single player
+        document.querySelectorAll('.mp-mode-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
+                document.querySelectorAll('.mp-mode-btn').forEach(b => b.classList.remove('selected'));
                 btn.classList.add('selected');
             });
         });
@@ -179,7 +179,7 @@ export class Game {
         // Confirm Create Room
         document.getElementById('confirm-create-btn')?.addEventListener('click', async () => {
             const name = document.getElementById('create-player-name').value || 'Player';
-            const mode = document.querySelector('.mode-btn.selected')?.dataset.mode || '1v1';
+            const mode = document.querySelector('.mp-mode-btn.selected')?.dataset.mode || '1v1';
 
             try {
                 const roomCode = await this.multiplayer.createRoom(mode, name);
@@ -872,18 +872,21 @@ export class Game {
         this.aiPlayers = [];
         let aiCount = 1;
 
+        // Set is4PlayerMode for 2v2 and FFA (requires 4-corner map layout)
+        this.is4PlayerMode = false;
+
         switch (this.singlePlayerMode) {
             case '1v1':
                 aiCount = 1;
+                this.is4PlayerMode = false;
                 break;
             case '2v2':
-                aiCount = 3; // 1 ally AI + 2 enemy AI
-                break;
-            case '3v3':
-                aiCount = 5; // 2 ally AI + 3 enemy AI
+                aiCount = 3; // Player + 1 ally vs 2 enemies (4 total)
+                this.is4PlayerMode = true;
                 break;
             case 'ffa':
-                aiCount = 3; // 3 enemy AIs
+                aiCount = 3; // Player vs 3 enemies (4 total)
+                this.is4PlayerMode = true;
                 break;
         }
 
@@ -892,7 +895,7 @@ export class Game {
             this.aiPlayers.push(new AI(this));
         }
 
-        console.log(`🎮 Mode: ${this.singlePlayerMode}, Map: ${this.mapSize} (${this.cols}x${this.rows}), AIs: ${aiCount}`);
+        console.log(`🎮 Mode: ${this.singlePlayerMode}, Map: ${this.mapSize} (${this.cols}x${this.rows}), AIs: ${aiCount}, 4-Player: ${this.is4PlayerMode}`);
     }
 
     startGame() {
