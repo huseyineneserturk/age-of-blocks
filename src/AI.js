@@ -1,16 +1,20 @@
-// AI System for enemy behavior - Dynamic and Adaptive
+// AI System for enemy behavior - Aggressive and Strategic
 export class AI {
     constructor(game) {
         this.game = game;
-        this.resources = 150;
-        this.resourceRate = 1;
+        this.resources = 150; // Start with more resources
+        this.resourceRate = 2; // Faster base income
         this.buildTimer = 0;
         this.resourceTimer = 0;
         this.gameTime = 0;
         this.aggressionLevel = 1;
+        this.difficulty = 'hard';
 
-        // Random personality for variety
-        this.personality = this.randomPersonality();
+        // Bonus multipliers
+        this.incomeMultiplier = 1.5;
+        this.buildSpeedMultiplier = 0.6;
+
+        this.threatLevel = 0;
 
         this.costs = {
             mine: 50,
@@ -22,14 +26,8 @@ export class AI {
             mage: 180,
             tower: 80,
             forge: 200,
-            hospital: 150,
-            research: 250
+            hospital: 150
         };
-    }
-
-    randomPersonality() {
-        const types = ['aggressive', 'balanced', 'defensive', 'economic'];
-        return types[Math.floor(Math.random() * types.length)];
     }
 
     update(dt) {
@@ -37,154 +35,137 @@ export class AI {
         this.resourceTimer += dt;
         this.gameTime += dt;
 
-        // Normal passive income
-        if (this.resourceTimer >= 1) {
+        // Faster passive income
+        if (this.resourceTimer >= 0.5) {
             this.resourceTimer = 0;
-            this.resources += this.resourceRate;
+            this.resources += (this.resourceRate * this.incomeMultiplier) * 0.5;
         }
 
         // Faster aggression scaling
         if (this.gameTime > 30) this.aggressionLevel = 2;
         if (this.gameTime > 60) this.aggressionLevel = 3;
-        if (this.gameTime > 100) this.aggressionLevel = 4;
-        if (this.gameTime > 150) this.aggressionLevel = 5;
+        if (this.gameTime > 90) this.aggressionLevel = 4;
+        if (this.gameTime > 120) this.aggressionLevel = 5;
+        if (this.gameTime > 150) this.aggressionLevel = 6;
+        if (this.gameTime > 180) this.aggressionLevel = 7;
 
-        // Faster build interval - don't wait too long
-        const buildInterval = Math.max(2.5, 5 - this.aggressionLevel * 0.5);
+        // Calculate threat level
+        const playerUnits = this.game.units.filter(u => u.team === 'player');
+        const enemyUnits = this.game.units.filter(u => u.team === 'enemy');
+        this.threatLevel = Math.max(0, playerUnits.length - enemyUnits.length);
+
+        // Much faster build interval
+        const baseBuildInterval = 4;
+        const buildInterval = Math.max(1.5, (baseBuildInterval - this.aggressionLevel * 0.5) * this.buildSpeedMultiplier);
 
         if (this.buildTimer >= buildInterval) {
             this.buildTimer = 0;
             this.makeDecision();
-        }
 
-        // Extra decision if hoarding too many resources
-        if (this.resources > 200 && this.buildTimer > 1) {
-            this.buildTimer = 0;
-            this.makeDecision();
+            // Multiple decisions in late game
+            if (this.aggressionLevel >= 4 && this.resources > 200) {
+                this.makeDecision();
+            }
+            if (this.aggressionLevel >= 6 && this.resources > 300) {
+                this.makeDecision();
+            }
         }
     }
 
     makeDecision() {
         const enemyBuildings = this.game.buildings.filter(b => b.team === 'enemy');
-        const playerBuildings = this.game.buildings.filter(b => b.team === 'player');
         const playerUnits = this.game.units.filter(u => u.team === 'player');
         const enemyUnits = this.game.units.filter(u => u.team === 'enemy');
 
-        // Count all building types
-        const counts = {};
-        ['mine', 'farm', 'barracks', 'archery', 'stable', 'tower', 'siege', 'mage', 'forge', 'hospital', 'research'].forEach(type => {
-            counts[type] = enemyBuildings.filter(b => b.type === type).length;
-        });
+        const counts = {
+            mines: enemyBuildings.filter(b => b.type === 'mine').length,
+            barracks: enemyBuildings.filter(b => b.type === 'barracks').length,
+            archery: enemyBuildings.filter(b => b.type === 'archery').length,
+            stables: enemyBuildings.filter(b => b.type === 'stable').length,
+            towers: enemyBuildings.filter(b => b.type === 'tower').length,
+            siege: enemyBuildings.filter(b => b.type === 'siege').length,
+            mage: enemyBuildings.filter(b => b.type === 'mage').length,
+            forge: enemyBuildings.filter(b => b.type === 'forge').length,
+            hospital: enemyBuildings.filter(b => b.type === 'hospital').length
+        };
 
-        // Analyze game state
-        const totalEnemyBuildings = enemyBuildings.length;
-        const unitDifference = playerUnits.length - enemyUnits.length;
-        const isLosing = unitDifference > 4;
-        const isWinning = unitDifference < -3;
-        const needsEconomy = counts.mine < 2;
-        const hasGoodEconomy = counts.mine >= 3;
+        const needsDefense = this.threatLevel > 3;
 
-        // Build options based on current state
-        let options = [];
+        let buildType = null;
+        let cost = 0;
 
-        // ALWAYS consider economy if lacking
-        if (counts.mine < 3) {
-            options.push({ type: 'mine', weight: needsEconomy ? 30 : 10 });
-        }
-
-        // MILITARY - always needed
-        if (counts.barracks < 4 + this.aggressionLevel) {
-            options.push({ type: 'barracks', weight: 25 });
-        }
-        if (counts.archery < 3) {
-            options.push({ type: 'archery', weight: 20 });
-        }
-        if (counts.stable < 2) {
-            options.push({ type: 'stable', weight: 15 });
-        }
-
-        // DEFENSE - when under pressure
-        if (isLosing && counts.tower < 3) {
-            options.push({ type: 'tower', weight: 35 });
-        } else if (counts.tower < 2) {
-            options.push({ type: 'tower', weight: 10 });
-        }
-
-        // ADVANCED UNITS - mid to late game
-        if (this.aggressionLevel >= 2) {
-            if (counts.mage < 2) {
-                options.push({ type: 'mage', weight: 18 });
-            }
-            if (counts.siege < 2) {
-                options.push({ type: 'siege', weight: 15 });
+        // PHASE 1: Early Game (0-30s)
+        if (this.gameTime < 30) {
+            if (counts.mines < 2 && this.resources >= this.costs.mine) {
+                buildType = 'mine'; cost = this.costs.mine;
+            } else if (counts.barracks < 1 && this.resources >= this.costs.barracks) {
+                buildType = 'barracks'; cost = this.costs.barracks;
+            } else if (counts.archery < 1 && this.resources >= this.costs.archery) {
+                buildType = 'archery'; cost = this.costs.archery;
             }
         }
-
-        // SUPPORT BUILDINGS - strategic timing
-        if (hasGoodEconomy) {
-            if (counts.forge < 1) {
-                options.push({ type: 'forge', weight: 20 });
-            }
-            if (counts.hospital < 1 && enemyUnits.length > 5) {
-                options.push({ type: 'hospital', weight: 18 });
-            }
-            if (counts.research < 1 && this.aggressionLevel >= 2) {
-                options.push({ type: 'research', weight: 15 });
+        // PHASE 2: Mid Game (30-90s)
+        else if (this.gameTime < 90) {
+            if (needsDefense && counts.towers < 3 && this.resources >= this.costs.tower) {
+                buildType = 'tower'; cost = this.costs.tower;
+            } else if (counts.mines < 3 && this.resources >= this.costs.mine) {
+                buildType = 'mine'; cost = this.costs.mine;
+            } else if (counts.barracks < 3 && this.resources >= this.costs.barracks) {
+                buildType = 'barracks'; cost = this.costs.barracks;
+            } else if (counts.archery < 2 && this.resources >= this.costs.archery) {
+                buildType = 'archery'; cost = this.costs.archery;
+            } else if (counts.stables < 1 && this.resources >= this.costs.stable) {
+                buildType = 'stable'; cost = this.costs.stable;
+            } else if (counts.forge < 1 && this.resources >= this.costs.forge) {
+                buildType = 'forge'; cost = this.costs.forge;
             }
         }
-
-        // Late game extras
-        if (this.aggressionLevel >= 4) {
-            if (counts.forge < 2) options.push({ type: 'forge', weight: 12 });
-            if (counts.hospital < 2) options.push({ type: 'hospital', weight: 12 });
-        }
-
-        // Personality modifiers
-        switch (this.personality) {
-            case 'aggressive':
-                options.forEach(o => {
-                    if (['barracks', 'stable', 'siege'].includes(o.type)) o.weight *= 1.5;
-                });
-                break;
-            case 'defensive':
-                options.forEach(o => {
-                    if (['tower', 'hospital'].includes(o.type)) o.weight *= 1.5;
-                });
-                break;
-            case 'economic':
-                options.forEach(o => {
-                    if (['mine', 'forge', 'research'].includes(o.type)) o.weight *= 1.5;
-                });
-                break;
-            // balanced stays as is
-        }
-
-        // Filter affordable options
-        options = options.filter(o => this.resources >= this.costs[o.type]);
-
-        if (options.length === 0) return;
-
-        // Weighted random selection
-        const totalWeight = options.reduce((sum, o) => sum + o.weight, 0);
-        let random = Math.random() * totalWeight;
-
-        let selectedType = options[0].type;
-        for (const option of options) {
-            random -= option.weight;
-            if (random <= 0) {
-                selectedType = option.type;
-                break;
+        // PHASE 3: Late Game (90s+)
+        else {
+            if (counts.mines < 4 + Math.floor(this.aggressionLevel / 2) && this.resources >= this.costs.mine) {
+                buildType = 'mine'; cost = this.costs.mine;
+            } else if (needsDefense && counts.towers < 4 && this.resources >= this.costs.tower) {
+                buildType = 'tower'; cost = this.costs.tower;
+            } else if (counts.hospital < 1 && this.resources >= this.costs.hospital) {
+                buildType = 'hospital'; cost = this.costs.hospital;
+            } else if (counts.siege < 2 && this.resources >= this.costs.siege) {
+                buildType = 'siege'; cost = this.costs.siege;
+            } else if (counts.mage < 2 && this.resources >= this.costs.mage) {
+                buildType = 'mage'; cost = this.costs.mage;
+            } else if (counts.stables < 2 && this.resources >= this.costs.stable) {
+                buildType = 'stable'; cost = this.costs.stable;
+            } else if (counts.barracks < 5 + this.aggressionLevel && this.resources >= this.costs.barracks) {
+                buildType = 'barracks'; cost = this.costs.barracks;
+            } else if (counts.archery < 3 && this.resources >= this.costs.archery) {
+                buildType = 'archery'; cost = this.costs.archery;
+            } else if (this.resources >= this.costs.barracks) {
+                buildType = 'barracks'; cost = this.costs.barracks;
             }
         }
 
-        // Try to build
-        if (this.tryBuild(selectedType)) {
-            this.resources -= this.costs[selectedType];
+        // Fallback
+        if (!buildType && this.resources > 150) {
+            const options = [
+                { type: 'barracks', cost: this.costs.barracks },
+                { type: 'archery', cost: this.costs.archery },
+                { type: 'tower', cost: this.costs.tower }
+            ];
+            const affordable = options.filter(o => this.resources >= o.cost);
+            if (affordable.length > 0) {
+                const choice = affordable[Math.floor(Math.random() * affordable.length)];
+                buildType = choice.type; cost = choice.cost;
+            }
+        }
+
+        if (buildType && this.resources >= cost) {
+            if (this.tryBuild(buildType)) {
+                this.resources -= cost;
+            }
         }
     }
 
     onMineBuild() {
-        this.resourceRate += 1;
+        this.resourceRate += 1.5;
     }
 
     tryBuild(type) {
@@ -193,22 +174,15 @@ export class AI {
         const minX = Math.floor(cols / 2) + 1;
         const maxX = cols - 3;
 
-        for (let attempt = 0; attempt < 40; attempt++) {
+        for (let attempt = 0; attempt < 50; attempt++) {
             let x, y;
 
-            // Strategic placement
-            if (type === 'tower' && attempt < 15) {
-                // Front line defense
-                x = minX + Math.floor(Math.random() * 4);
-                y = Math.floor(rows / 2) + Math.floor(Math.random() * 6) - 3;
-            } else if ((type === 'mine' || type === 'research') && attempt < 15) {
-                // Back for safety
-                x = maxX - Math.floor(Math.random() * 4);
+            if (type === 'tower' && attempt < 10) {
+                x = minX + Math.floor(Math.random() * 3);
+                y = Math.floor(rows / 2) + Math.floor(Math.random() * 5) - 2;
+            } else if (type === 'mine' && attempt < 10) {
+                x = maxX - Math.floor(Math.random() * 3);
                 y = 1 + Math.floor(Math.random() * (rows - 2));
-            } else if ((type === 'hospital' || type === 'forge') && attempt < 15) {
-                // Center for best coverage
-                x = minX + 2 + Math.floor(Math.random() * 4);
-                y = Math.floor(rows / 2) + Math.floor(Math.random() * 4) - 2;
             } else {
                 x = minX + Math.floor(Math.random() * (maxX - minX));
                 y = 1 + Math.floor(Math.random() * (rows - 2));
@@ -230,17 +204,16 @@ export class AI {
                 return true;
             }
         }
-
         return false;
     }
 
     reset() {
         this.resources = 150;
-        this.resourceRate = 1;
+        this.resourceRate = 2;
         this.buildTimer = 0;
         this.resourceTimer = 0;
         this.gameTime = 0;
         this.aggressionLevel = 1;
-        this.personality = this.randomPersonality();
+        this.threatLevel = 0;
     }
 }
