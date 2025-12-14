@@ -40,7 +40,8 @@ export class Game {
         this.availableUpgrades = []; // 3 random upgrades when research center is built
         this.usedUpgradeIds = []; // Track used upgrades
 
-        // Grid System - Larger map
+        // Grid System - Configurable map size
+        this.mapSize = 'medium'; // 'small', 'medium', 'large'
         this.gridSize = 32;
         this.cols = 30;
         this.rows = 20;
@@ -56,10 +57,14 @@ export class Game {
         this.selectedBuilding = null;
         this.mousePos = null;
 
+        // Single Player Mode
+        this.singlePlayerMode = '1v1'; // '1v1', '2v2', '3v3', 'ffa'
+        this.aiPlayers = []; // Array of AI instances for multi-AI modes
+
         // Systems
         this.particles = new ParticleSystem();
         this.sound = new SoundManager();
-        this.ai = new AI(this);
+        this.ai = new AI(this); // Main enemy AI
         this.renderer = new Renderer(this.ctx, this);
 
         // Multiplayer - WebSocket only (Firebase removed)
@@ -139,17 +144,31 @@ export class Game {
             this.showScreen('main-menu');
         });
 
-        // Single Player mode buttons (1v1, 2v2, 3v3 AI)
+        // Single Player mode buttons (1v1, 2v2, 3v3, FFA)
         document.querySelectorAll('.sp-mode-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                const mode = btn.dataset.spMode;
-                this.singlePlayerMode = mode;
-                // TODO: Configure AI count based on mode (2v2 = 3 AI, 3v3 = 5 AI)
-                this.startGame();
+                document.querySelectorAll('.sp-mode-btn').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                this.singlePlayerMode = btn.dataset.spMode;
             });
         });
 
-        // Mode selector
+        // Map size buttons
+        document.querySelectorAll('.map-size-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.map-size-btn').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                this.mapSize = btn.dataset.mapSize;
+            });
+        });
+
+        // Start Single Player game button
+        document.getElementById('start-sp-btn')?.addEventListener('click', () => {
+            this.setupGameForMode();
+            this.startGame();
+        });
+
+        // Mode selector (for multiplayer)
         document.querySelectorAll('.mode-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
@@ -824,6 +843,58 @@ export class Game {
         setTimeout(() => notification.remove(), 3000);
     }
 
+    // Setup game based on selected mode and map size
+    setupGameForMode() {
+        // Set map size
+        switch (this.mapSize) {
+            case 'small':
+                this.cols = 20;
+                this.rows = 14;
+                break;
+            case 'medium':
+                this.cols = 30;
+                this.rows = 20;
+                break;
+            case 'large':
+                this.cols = 40;
+                this.rows = 26;
+                break;
+        }
+        this.width = this.cols * this.gridSize;
+        this.height = this.rows * this.gridSize;
+        this.canvas.width = this.width;
+        this.canvas.height = this.height;
+
+        // Regenerate terrain for new size
+        this.renderer.generateTerrainNoise();
+
+        // Setup AI count based on mode
+        this.aiPlayers = [];
+        let aiCount = 1;
+
+        switch (this.singlePlayerMode) {
+            case '1v1':
+                aiCount = 1;
+                break;
+            case '2v2':
+                aiCount = 3; // 1 ally AI + 2 enemy AI
+                break;
+            case '3v3':
+                aiCount = 5; // 2 ally AI + 3 enemy AI
+                break;
+            case 'ffa':
+                aiCount = 3; // 3 enemy AIs
+                break;
+        }
+
+        // Create additional AI players
+        for (let i = 1; i < aiCount; i++) {
+            this.aiPlayers.push(new AI(this));
+        }
+
+        console.log(`🎮 Mode: ${this.singlePlayerMode}, Map: ${this.mapSize} (${this.cols}x${this.rows}), AIs: ${aiCount}`);
+    }
+
     startGame() {
         document.getElementById('start-screen').classList.add('hidden');
         this.gameStarted = true;
@@ -862,8 +933,10 @@ export class Game {
         this.gameTime += dt;
 
         // Update AI (only in single player)
-        if (this.ai) {
+        if (this.ai && !this.isMultiplayer) {
             this.ai.update(dt);
+            // Update additional AIs for 2v2, 3v3, FFA modes
+            this.aiPlayers.forEach(ai => ai.update(dt));
         }
 
         // Update Buildings
