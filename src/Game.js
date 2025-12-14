@@ -58,8 +58,9 @@ export class Game {
         this.mousePos = null;
 
         // Single Player Mode
-        this.singlePlayerMode = '1v1'; // '1v1', '2v2', '3v3', 'ffa'
+        this.singlePlayerMode = '1v1'; // '1v1', '2v2', 'ffa'
         this.aiPlayers = []; // Array of AI instances for multi-AI modes
+        this.is4PlayerMode = false; // 4-corner map layout for 2v2/FFA
 
         // Systems
         this.particles = new ParticleSystem();
@@ -867,6 +868,24 @@ export class Game {
 
         // Regenerate terrain for new size
         this.renderer.generateTerrainNoise();
+
+        // Reset game state for new map
+        this.buildings = [];
+        this.units = [];
+        this.projectiles = [];
+        this.gameOver = false;
+        this.gameTime = 0;
+        this.resources = 150;
+        this.resourceRate = 1;
+
+        // Recreate castles for new map size
+        this.playerCastle = new Castle(1, Math.floor(this.rows / 2) - 1, 'player');
+        this.buildings.push(this.playerCastle);
+        this.enemyCastle = new Castle(this.cols - 3, Math.floor(this.rows / 2) - 1, 'enemy');
+        this.buildings.push(this.enemyCastle);
+
+        // Reset main AI
+        this.ai.reset();
 
         // Setup AI count based on mode
         this.aiPlayers = [];
