@@ -1,22 +1,13 @@
-// AI System for enemy behavior - Aggressive and Strategic
+// AI System for enemy behavior - Fair but Strategic
 export class AI {
     constructor(game) {
         this.game = game;
-        this.resources = 150; // Start with more resources
-        this.resourceRate = 2; // Faster base income
+        this.resources = 150; // Same as player
+        this.resourceRate = 1; // Same as player base rate
         this.buildTimer = 0;
         this.resourceTimer = 0;
         this.gameTime = 0;
         this.aggressionLevel = 1;
-        this.difficulty = 'hard'; // easy, medium, hard
-
-        // Bonus multipliers based on difficulty
-        this.incomeMultiplier = 1.5; // 50% more income
-        this.buildSpeedMultiplier = 0.6; // 40% faster building
-
-        // Track building counts for smarter decisions
-        this.lastPlayerUnitCount = 0;
-        this.threatLevel = 0;
 
         this.costs = {
             mine: 50,
@@ -37,40 +28,24 @@ export class AI {
         this.resourceTimer += dt;
         this.gameTime += dt;
 
-        // Faster passive income with multiplier
-        if (this.resourceTimer >= 0.5) { // Twice as fast income ticks
+        // Same passive income as player (1 per second base)
+        if (this.resourceTimer >= 1) {
             this.resourceTimer = 0;
-            this.resources += (this.resourceRate * this.incomeMultiplier) * 0.5;
+            this.resources += this.resourceRate;
         }
 
-        // Faster aggression scaling
-        if (this.gameTime > 30) this.aggressionLevel = 2;
-        if (this.gameTime > 60) this.aggressionLevel = 3;
-        if (this.gameTime > 90) this.aggressionLevel = 4;
-        if (this.gameTime > 120) this.aggressionLevel = 5;
-        if (this.gameTime > 150) this.aggressionLevel = 6;
-        if (this.gameTime > 180) this.aggressionLevel = 7;
+        // Gradual aggression increase
+        if (this.gameTime > 45) this.aggressionLevel = 2;
+        if (this.gameTime > 90) this.aggressionLevel = 3;
+        if (this.gameTime > 135) this.aggressionLevel = 4;
+        if (this.gameTime > 180) this.aggressionLevel = 5;
 
-        // Calculate threat level based on player units
-        const playerUnits = this.game.units.filter(u => u.team === 'player');
-        const enemyUnits = this.game.units.filter(u => u.team === 'enemy');
-        this.threatLevel = Math.max(0, playerUnits.length - enemyUnits.length);
-
-        // Much faster build interval
-        const baseBuildInterval = 4;
-        const buildInterval = Math.max(1.5, (baseBuildInterval - this.aggressionLevel * 0.5) * this.buildSpeedMultiplier);
+        // Normal build interval (same pace as before the buffs)
+        const buildInterval = Math.max(4, 8 - this.aggressionLevel);
 
         if (this.buildTimer >= buildInterval) {
             this.buildTimer = 0;
             this.makeDecision();
-
-            // Sometimes make multiple decisions in late game
-            if (this.aggressionLevel >= 4 && this.resources > 200) {
-                this.makeDecision();
-            }
-            if (this.aggressionLevel >= 6 && this.resources > 300) {
-                this.makeDecision();
-            }
         }
     }
 
@@ -94,128 +69,90 @@ export class AI {
             hospital: enemyBuildings.filter(b => b.type === 'hospital').length
         };
 
-        // Player threat analysis
-        const playerMilitaryBuildings = playerBuildings.filter(b =>
+        // Analyze player's strategy
+        const playerMines = playerBuildings.filter(b => b.type === 'mine').length;
+        const playerMilitary = playerBuildings.filter(b =>
             ['barracks', 'archery', 'stable', 'siege', 'mage'].includes(b.type)
         ).length;
 
-        const isUnderPressure = playerUnits.length > enemyUnits.length + 2;
-        const hasEconomicAdvantage = counts.mines >= 2;
-        const needsDefense = this.threatLevel > 3;
+        const isUnderPressure = playerUnits.length > enemyUnits.length + 3;
+        const playerRushing = playerMilitary > playerMines + 1;
 
         let buildType = null;
         let cost = 0;
 
-        // PHASE 1: Early Game Economy Rush (0-30s)
-        if (this.gameTime < 30) {
-            if (counts.mines < 2 && this.resources >= this.costs.mine) {
-                buildType = 'mine';
-                cost = this.costs.mine;
-            } else if (counts.barracks < 1 && this.resources >= this.costs.barracks) {
-                buildType = 'barracks';
-                cost = this.costs.barracks;
-            } else if (counts.archery < 1 && this.resources >= this.costs.archery) {
-                buildType = 'archery';
-                cost = this.costs.archery;
-            }
+        // SMART DECISION MAKING (no cheating, just better priorities)
+
+        // Step 1: Always maintain economy first
+        // Build mines proportionally - aim for 1 mine per 2 military buildings
+        const desiredMines = Math.max(2, Math.floor((counts.barracks + counts.archery + counts.stables) / 2) + 1);
+
+        if (counts.mines < desiredMines && counts.mines < 4 && this.resources >= this.costs.mine) {
+            buildType = 'mine';
+            cost = this.costs.mine;
         }
-        // PHASE 2: Military Buildup (30-90s)
-        else if (this.gameTime < 90) {
-            // Emergency defense if under attack
-            if (needsDefense && counts.towers < 3 && this.resources >= this.costs.tower) {
-                buildType = 'tower';
-                cost = this.costs.tower;
+        // Step 2: React to player pressure with defense
+        else if (isUnderPressure && counts.towers < 2 && this.resources >= this.costs.tower) {
+            buildType = 'tower';
+            cost = this.costs.tower;
+        }
+        // Step 3: Counter player rushing with quick military
+        else if (playerRushing && counts.barracks < 2 && this.resources >= this.costs.barracks) {
+            buildType = 'barracks';
+            cost = this.costs.barracks;
+        }
+        // Step 4: Build balanced army composition
+        else if (counts.barracks < 2 && this.resources >= this.costs.barracks) {
+            buildType = 'barracks';
+            cost = this.costs.barracks;
+        }
+        else if (counts.archery < 1 && this.resources >= this.costs.archery) {
+            buildType = 'archery';
+            cost = this.costs.archery;
+        }
+        // Step 5: Mid-game diversity
+        else if (this.aggressionLevel >= 2) {
+            if (counts.stables < 1 && this.resources >= this.costs.stable) {
+                buildType = 'stable';
+                cost = this.costs.stable;
             }
-            // Keep expanding economy
-            else if (counts.mines < 3 && this.resources >= this.costs.mine) {
-                buildType = 'mine';
-                cost = this.costs.mine;
-            }
-            // Build military production
-            else if (counts.barracks < 3 && this.resources >= this.costs.barracks) {
-                buildType = 'barracks';
-                cost = this.costs.barracks;
+            else if (counts.forge < 1 && this.resources >= this.costs.forge) {
+                buildType = 'forge';
+                cost = this.costs.forge;
             }
             else if (counts.archery < 2 && this.resources >= this.costs.archery) {
                 buildType = 'archery';
                 cost = this.costs.archery;
             }
-            else if (counts.stables < 1 && this.resources >= this.costs.stable) {
-                buildType = 'stable';
-                cost = this.costs.stable;
-            }
-            // Add strategic buildings
-            else if (counts.forge < 1 && this.resources >= this.costs.forge) {
-                buildType = 'forge';
-                cost = this.costs.forge;
-            }
         }
-        // PHASE 3: Late Game Domination (90s+)
-        else {
-            // Max out economy
-            if (counts.mines < 4 + Math.floor(this.aggressionLevel / 2) && this.resources >= this.costs.mine) {
-                buildType = 'mine';
-                cost = this.costs.mine;
+        // Step 6: Late-game power units
+        else if (this.aggressionLevel >= 3) {
+            if (counts.mage < 1 && this.resources >= this.costs.mage) {
+                buildType = 'mage';
+                cost = this.costs.mage;
             }
-            // Defense priority if needed
-            else if (needsDefense && counts.towers < 4 && this.resources >= this.costs.tower) {
-                buildType = 'tower';
-                cost = this.costs.tower;
+            else if (counts.siege < 1 && this.resources >= this.costs.siege) {
+                buildType = 'siege';
+                cost = this.costs.siege;
             }
-            // Hospital for sustainability
             else if (counts.hospital < 1 && this.resources >= this.costs.hospital) {
                 buildType = 'hospital';
                 cost = this.costs.hospital;
             }
-            // Siege weapons for pushing
-            else if (counts.siege < 2 && this.resources >= this.costs.siege) {
-                buildType = 'siege';
-                cost = this.costs.siege;
-            }
-            // Mages for area damage
-            else if (counts.mage < 2 && this.resources >= this.costs.mage) {
-                buildType = 'mage';
-                cost = this.costs.mage;
-            }
-            // More cavalry for flanking
-            else if (counts.stables < 2 && this.resources >= this.costs.stable) {
-                buildType = 'stable';
-                cost = this.costs.stable;
-            }
-            // Additional barracks for overwhelming force
-            else if (counts.barracks < 5 + this.aggressionLevel && this.resources >= this.costs.barracks) {
-                buildType = 'barracks';
-                cost = this.costs.barracks;
-            }
-            // More archers
-            else if (counts.archery < 3 && this.resources >= this.costs.archery) {
-                buildType = 'archery';
-                cost = this.costs.archery;
-            }
-            // Extra forge if affordable
-            else if (counts.forge < 2 && this.resources >= this.costs.forge) {
-                buildType = 'forge';
-                cost = this.costs.forge;
-            }
-            // Default: spam barracks
-            else if (this.resources >= this.costs.barracks) {
-                buildType = 'barracks';
-                cost = this.costs.barracks;
-            }
         }
-
-        // Fallback: If we have lots of resources, just build something
-        if (!buildType && this.resources > 150) {
-            const options = [
-                { type: 'barracks', cost: this.costs.barracks },
-                { type: 'archery', cost: this.costs.archery },
-                { type: 'tower', cost: this.costs.tower }
-            ];
-            const affordable = options.filter(o => this.resources >= o.cost);
-            if (affordable.length > 0) {
-                const choice = affordable[Math.floor(Math.random() * affordable.length)];
-                buildType = choice.type;
-                cost = choice.cost;
+        // Step 7: Scale up existing production
+        else if (counts.barracks < 3 + this.aggressionLevel && this.resources >= this.costs.barracks) {
+            buildType = 'barracks';
+            cost = this.costs.barracks;
+        }
+        // Fallback: Don't hoard resources, spend them on something useful
+        else if (this.resources >= 150) {
+            if (counts.towers < 3 && this.resources >= this.costs.tower) {
+                buildType = 'tower';
+                cost = this.costs.tower;
+            } else if (this.resources >= this.costs.barracks) {
+                buildType = 'barracks';
+                cost = this.costs.barracks;
             }
         }
 
@@ -227,7 +164,7 @@ export class AI {
     }
 
     onMineBuild() {
-        this.resourceRate += 1.5; // Mines give more income to AI
+        this.resourceRate += 1; // Same as player gets from mines
     }
 
     tryBuild(type) {
@@ -236,25 +173,22 @@ export class AI {
         const minX = Math.floor(cols / 2) + 1;
         const maxX = cols - 3;
 
-        // Strategic placement based on building type
-        let priorityY = null;
-        if (type === 'tower') {
-            // Place towers near the front line
-            priorityY = Math.floor(rows / 2);
-        }
-
-        for (let attempt = 0; attempt < 50; attempt++) { // More attempts
+        // Strategic placement
+        for (let attempt = 0; attempt < 40; attempt++) {
             let x, y;
 
-            if (type === 'tower' && attempt < 10) {
-                // Try placing towers near center first
-                x = minX + Math.floor(Math.random() * 3);
-                y = Math.floor(rows / 2) + Math.floor(Math.random() * 5) - 2;
-            } else if (type === 'mine' && attempt < 10) {
-                // Place mines in the back
-                x = maxX - Math.floor(Math.random() * 3);
+            // Towers near front line
+            if (type === 'tower' && attempt < 15) {
+                x = minX + Math.floor(Math.random() * 4);
+                y = Math.floor(rows / 2) + Math.floor(Math.random() * 6) - 3;
+            }
+            // Mines in back for safety
+            else if (type === 'mine' && attempt < 15) {
+                x = maxX - Math.floor(Math.random() * 4);
                 y = 1 + Math.floor(Math.random() * (rows - 2));
-            } else {
+            }
+            // Other buildings randomly
+            else {
                 x = minX + Math.floor(Math.random() * (maxX - minX));
                 y = 1 + Math.floor(Math.random() * (rows - 2));
             }
@@ -282,12 +216,10 @@ export class AI {
 
     reset() {
         this.resources = 150;
-        this.resourceRate = 2;
+        this.resourceRate = 1;
         this.buildTimer = 0;
         this.resourceTimer = 0;
         this.gameTime = 0;
         this.aggressionLevel = 1;
-        this.threatLevel = 0;
-        this.lastPlayerUnitCount = 0;
     }
 }
