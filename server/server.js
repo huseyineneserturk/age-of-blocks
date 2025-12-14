@@ -58,13 +58,7 @@ class GameRoom {
     }
 
     getMaxPlayers() {
-        switch (this.mode) {
-            case 'ffa': return 4;
-            case '1v1': return 2;
-            case '2v2': return 4;
-            case '3v3': return 6;
-            default: return 2;
-        }
+        return 2; // Only 1v1 mode is supported
     }
 
     assignTeam() {

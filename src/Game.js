@@ -135,18 +135,12 @@ export class Game {
             this.showScreen('main-menu');
         });
 
-        // Mode selector
-        document.querySelectorAll('.mode-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
-                btn.classList.add('selected');
-            });
-        });
+        // Mode is hardcoded to 1v1
 
         // Confirm Create Room
         document.getElementById('confirm-create-btn')?.addEventListener('click', async () => {
             const name = document.getElementById('create-player-name').value || 'Player';
-            const mode = document.querySelector('.mode-btn.selected')?.dataset.mode || '1v1';
+            const mode = '1v1'; // Only 1v1 mode is supported
 
             try {
                 const roomCode = await this.multiplayer.createRoom(mode, name);
@@ -347,9 +341,13 @@ export class Game {
                 this.handleRemoteBuildingPlaced(data);
             };
 
-            this.multiplayer.onUnitReceived = (data) => {
-                this.handleRemoteUnitSpawned(data);
-            };
+            // Only host receives immediate unit spawn events
+            // Non-host gets units via syncFromHostState to avoid duplication
+            if (this.multiplayer.isHost) {
+                this.multiplayer.onUnitReceived = (data) => {
+                    this.handleRemoteUnitSpawned(data);
+                };
+            }
 
             this.multiplayer.onGameStateReceived = (gameState) => {
                 this.syncFromHostState(gameState);

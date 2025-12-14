@@ -309,15 +309,9 @@ export class SocketMultiplayer {
         }
     }
 
-    // Get max players
+    // Get max players (1v1 only)
     getMaxPlayers(mode) {
-        switch (mode) {
-            case 'ffa': return 4;
-            case '1v1': return 2;
-            case '2v2': return 4;
-            case '3v3': return 6;
-            default: return 2;
-        }
+        return 2; // Only 1v1 mode is supported
     }
 
     // Callbacks
