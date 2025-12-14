@@ -116,9 +116,19 @@ export class Game {
             this.startGame();
         });
 
-        // Create Room button
-        document.getElementById('create-room-btn')?.addEventListener('click', () => {
-            this.showScreen('create-room-screen');
+        // Create Room button - directly creates room and shows code
+        document.getElementById('create-room-btn')?.addEventListener('click', async () => {
+            const playerName = 'Player_' + Math.random().toString(36).substr(2, 4);
+
+            try {
+                const roomCode = await this.multiplayer.createRoom('1v1', playerName);
+                // Show room code screen
+                this.showScreen('create-room-screen');
+                document.getElementById('room-code-display').textContent = roomCode;
+                document.getElementById('waiting-status').textContent = 'Waiting for opponent...';
+            } catch (err) {
+                console.error('Create room error:', err);
+            }
         });
 
         // Join Room button
@@ -128,6 +138,7 @@ export class Game {
 
         // Back buttons
         document.getElementById('back-from-create')?.addEventListener('click', () => {
+            this.multiplayer.leaveRoom();
             this.showScreen('main-menu');
         });
 
@@ -135,24 +146,9 @@ export class Game {
             this.showScreen('main-menu');
         });
 
-        // Mode is hardcoded to 1v1
-
-        // Confirm Create Room
-        document.getElementById('confirm-create-btn')?.addEventListener('click', async () => {
-            const name = document.getElementById('create-player-name').value || 'Player';
-            const mode = '1v1'; // Only 1v1 mode is supported
-
-            try {
-                const roomCode = await this.multiplayer.createRoom(mode, name);
-                this.showLobby(roomCode, mode);
-            } catch (err) {
-                console.error('Create room error:', err);
-            }
-        });
-
-        // Confirm Join Room
+        // Confirm Join Room - directly joins and game auto-starts
         document.getElementById('confirm-join-btn')?.addEventListener('click', async () => {
-            const name = document.getElementById('join-player-name').value || 'Player';
+            const playerName = 'Player_' + Math.random().toString(36).substr(2, 4);
             const code = document.getElementById('room-code-input').value.toUpperCase();
 
             if (code.length !== 6) {
@@ -161,50 +157,23 @@ export class Game {
             }
 
             try {
-                const roomData = await this.multiplayer.joinRoom(code, name);
-                this.showLobby(code, roomData.mode);
+                await this.multiplayer.joinRoom(code, playerName);
+                // Game will auto-start via onGameStart callback
             } catch (err) {
                 this.showJoinError(err.message);
             }
         });
 
-        // Switch Team
-        document.getElementById('switch-team-btn')?.addEventListener('click', async () => {
-            const newTeam = this.multiplayer.team === 1 ? 2 : 1;
-            await this.multiplayer.setTeam(newTeam);
-        });
-
-        // Ready button
-        document.getElementById('ready-btn')?.addEventListener('click', async () => {
-            const btn = document.getElementById('ready-btn');
-            const isReady = btn.classList.toggle('ready');
-            btn.textContent = isReady ? 'Ready ✓' : 'Ready';
-            await this.multiplayer.setReady(isReady);
-        });
-
-        // Leave Room
-        document.getElementById('leave-room-btn')?.addEventListener('click', async () => {
-            await this.multiplayer.leaveRoom();
-            this.showScreen('main-menu');
-        });
-
-        // Start Game (Host only)
-        document.getElementById('start-game-btn')?.addEventListener('click', async () => {
-            if (!this.multiplayer.isHost) return;
-
-            try {
-                await this.multiplayer.startGame();
-            } catch (err) {
-                alert(err.message);
-            }
-        });
-
         // Multiplayer callbacks
-        this.multiplayer.onPlayersUpdate = (players) => this.updateLobbyPlayers(players);
-        this.multiplayer.onRoomDeleted = () => {
-            alert('Room was closed');
-            this.showScreen('main-menu');
+        this.multiplayer.onPlayersUpdate = (players) => {
+            // Update waiting status when player joins
+            const playerCount = Object.keys(players).length;
+            const waitingStatus = document.getElementById('waiting-status');
+            if (waitingStatus && playerCount >= 2) {
+                waitingStatus.textContent = 'Starting game...';
+            }
         };
+
         this.multiplayer.onGameStart = (data) => {
             this.isMultiplayer = true;
             this.team = this.multiplayer.team;
@@ -268,41 +237,6 @@ export class Game {
         errorEl.textContent = message;
         errorEl.classList.remove('hidden');
         setTimeout(() => errorEl.classList.add('hidden'), 3000);
-    }
-
-    showLobby(roomCode, mode) {
-        this.showScreen('lobby-screen');
-        document.getElementById('lobby-room-code').textContent = roomCode;
-        document.getElementById('lobby-mode').textContent = mode;
-
-        // Show/hide start button based on host status
-        const startBtn = document.getElementById('start-game-btn');
-        if (startBtn) {
-            startBtn.style.display = this.multiplayer.isHost ? 'block' : 'none';
-        }
-    }
-
-    updateLobbyPlayers(players) {
-        const team1List = document.getElementById('team1-players');
-        const team2List = document.getElementById('team2-players');
-
-        team1List.innerHTML = '';
-        team2List.innerHTML = '';
-
-        Object.values(players).forEach(player => {
-            const div = document.createElement('div');
-            div.className = 'player-item' + (player.ready ? ' ready' : '') + (player.isHost ? ' host' : '');
-            div.innerHTML = `
-                <span class="player-name">${player.name}</span>
-                ${player.ready ? '<span class="ready-badge">Ready</span>' : ''}
-            `;
-
-            if (player.team === 1) {
-                team1List.appendChild(div);
-            } else {
-                team2List.appendChild(div);
-            }
-        });
     }
 
     startMultiplayerGame(data) {

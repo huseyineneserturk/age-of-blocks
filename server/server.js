@@ -137,6 +137,23 @@ io.on('connection', (socket) => {
 
         callback({ success: true, room: room.serialize(), team });
         io.to(currentRoom).emit('roomUpdate', room.serialize());
+
+        // AUTO-START: If room is now full (2 players), start game immediately
+        if (room.players.size >= room.getMaxPlayers()) {
+            room.status = 'playing';
+            room.gameState = {
+                buildings: [],
+                units: [],
+                castles: { team1: { hp: 1000, alive: true }, team2: { hp: 1000, alive: true } },
+                winner: null
+            };
+
+            // Small delay to ensure join callback is processed first
+            setTimeout(() => {
+                io.to(currentRoom).emit('gameStart', { room: room.serialize() });
+                console.log(`Game auto-started in room ${currentRoom}`);
+            }, 100);
+        }
     });
 
     // Toggle ready

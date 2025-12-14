@@ -795,6 +795,69 @@ body {
     border-radius: 8px;
 }
 
+/* Room Code Display */
+.room-code-display {
+    font-family: var(--font-title);
+    font-size: 56px;
+    font-weight: 700;
+    color: var(--gold);
+    text-align: center;
+    letter-spacing: 12px;
+    padding: 20px 40px;
+    background: rgba(255, 215, 0, 0.1);
+    border: 3px solid var(--gold);
+    border-radius: 16px;
+    margin: 20px 0;
+    text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+    animation: codeGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes codeGlow {
+    from {
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+    }
+
+    to {
+        box-shadow: 0 0 40px rgba(255, 215, 0, 0.6);
+    }
+}
+
+.waiting-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin: 30px 0;
+}
+
+.waiting-dot {
+    width: 12px;
+    height: 12px;
+    background: var(--gold);
+    border-radius: 50%;
+    animation: waitingPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes waitingPulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.5);
+        opacity: 0.5;
+    }
+}
+
+.waiting-text {
+    font-size: 18px;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
 /* Lobby Screen */
 .lobby-mode {
     font-family: var(--font-title);

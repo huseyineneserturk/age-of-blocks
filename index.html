@@ -169,7 +169,7 @@
             </div>
         </div>
 
-        <!-- Start Screen / Lobby -->
+        <!-- Start Screen -->
         <div id="start-screen">
             <h1 class="game-title">Age of Blocks</h1>
             <p class="game-subtitle">Build • Defend • Conquer</p>
@@ -183,26 +183,23 @@
                 </div>
             </div>
 
-            <!-- Create Room Screen -->
+            <!-- Create Room Screen - Shows room code and waits -->
             <div id="create-room-screen" class="menu-section hidden">
-                <h2>Create Room</h2>
-                <div class="form-group">
-                    <label>Your Name</label>
-                    <input type="text" id="create-player-name" placeholder="Enter name..." maxlength="12">
+                <h2>Your Room Code</h2>
+                <div class="room-code-display" id="room-code-display">------</div>
+                <p class="waiting-text">Share this code with your friend!</p>
+                <div class="waiting-indicator">
+                    <span class="waiting-dot"></span>
+                    <span class="waiting-text" id="waiting-status">Waiting for opponent...</span>
                 </div>
                 <div class="menu-buttons">
-                    <button class="menu-btn" id="back-from-create">← Back</button>
-                    <button class="menu-btn primary" id="confirm-create-btn">Create ➜</button>
+                    <button class="menu-btn" id="back-from-create">← Cancel</button>
                 </div>
             </div>
 
             <!-- Join Room Screen -->
             <div id="join-room-screen" class="menu-section hidden">
                 <h2>Join Room</h2>
-                <div class="form-group">
-                    <label>Your Name</label>
-                    <input type="text" id="join-player-name" placeholder="Enter name..." maxlength="12">
-                </div>
                 <div class="form-group">
                     <label>Room Code</label>
                     <input type="text" id="room-code-input" placeholder="ABC123" maxlength="6"
@@ -213,33 +210,6 @@
                     <button class="menu-btn primary" id="confirm-join-btn">Join ➜</button>
                 </div>
                 <div id="join-error" class="error-msg hidden"></div>
-            </div>
-
-            <!-- Lobby Screen -->
-            <div id="lobby-screen" class="menu-section hidden">
-                <h2>Room: <span id="lobby-room-code">ABC123</span></h2>
-                <div class="lobby-mode" id="lobby-mode">1v1</div>
-
-                <div class="teams-container">
-                    <div class="team-column" id="team1-column">
-                        <h3 class="team-header player">Team 1</h3>
-                        <div class="player-list" id="team1-players"></div>
-                    </div>
-                    <div class="team-column" id="team2-column">
-                        <h3 class="team-header enemy">Team 2</h3>
-                        <div class="player-list" id="team2-players"></div>
-                    </div>
-                </div>
-
-                <div class="lobby-bottom">
-                    <button class="team-btn" id="switch-team-btn">↔️ Switch Team</button>
-                    <button class="ready-btn" id="ready-btn">✓ Ready</button>
-                </div>
-
-                <div class="menu-buttons lobby-menu">
-                    <button class="menu-btn" id="leave-room-btn">← Leave</button>
-                    <button class="menu-btn primary" id="start-game-btn">Start Game ▶</button>
-                </div>
             </div>
         </div>
 
