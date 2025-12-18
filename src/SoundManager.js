@@ -1,4 +1,5 @@
 // Sound Manager using Web Audio API for procedural sounds
+// Optimized for multiplayer with rate limiting and sound pooling
 export class SoundManager {
     constructor() {
         this.audioContext = null;
@@ -9,6 +10,20 @@ export class SoundManager {
         this.sfxVolume = 0.4;
 
         this.initialized = false;
+
+        // Sound optimization
+        this.lastPlayTime = new Map(); // Rate limiting per sound type
+        this.activeSounds = 0;
+        this.maxConcurrentSounds = 8; // Max simultaneous sounds
+        this.soundCooldowns = {
+            hit: 30,      // 30ms cooldown for hit sounds
+            death: 100,   // 100ms cooldown for death sounds
+            spawn: 80,    // 80ms cooldown for spawn sounds
+            arrow: 50,    // 50ms cooldown for arrow sounds
+            build: 100,   // 100ms cooldown for build sounds
+            resource: 200, // 200ms cooldown for resource sounds
+            default: 50   // Default cooldown
+        };
     }
 
     async init() {
@@ -22,49 +37,78 @@ export class SoundManager {
         }
     }
 
-    // Play a procedurally generated sound
+    // Ensure AudioContext is running (required after user gesture)
+    async ensureContext() {
+        if (this.audioContext && this.audioContext.state === 'suspended') {
+            await this.audioContext.resume();
+        }
+    }
+
+    // Play a procedurally generated sound with rate limiting
     playSound(type) {
         if (!this.initialized || !this.sfxEnabled || !this.audioContext) return;
 
+        // Ensure context is running
+        this.ensureContext();
+
+        // Rate limiting - prevent same sound from playing too quickly
+        const now = Date.now();
+        const lastTime = this.lastPlayTime.get(type) || 0;
+        const cooldown = this.soundCooldowns[type] || this.soundCooldowns.default;
+
+        if (now - lastTime < cooldown) return;
+        this.lastPlayTime.set(type, now);
+
+        // Limit concurrent sounds
+        if (this.activeSounds >= this.maxConcurrentSounds) return;
+
+        this.activeSounds++;
+
         const ctx = this.audioContext;
-        const now = ctx.currentTime;
+        const ctxNow = ctx.currentTime;
+
+        // Auto-decrement active sounds after a short delay
+        setTimeout(() => {
+            this.activeSounds = Math.max(0, this.activeSounds - 1);
+        }, 300);
 
         switch (type) {
             case 'build':
-                this.playBuildSound(ctx, now);
+                this.playBuildSound(ctx, ctxNow);
                 break;
             case 'hit':
-                this.playHitSound(ctx, now);
+                this.playHitSound(ctx, ctxNow);
                 break;
             case 'death':
-                this.playDeathSound(ctx, now);
+                this.playDeathSound(ctx, ctxNow);
                 break;
             case 'spawn':
-                this.playSpawnSound(ctx, now);
+                this.playSpawnSound(ctx, ctxNow);
                 break;
             case 'click':
-                this.playClickSound(ctx, now);
+                this.playClickSound(ctx, ctxNow);
                 break;
             case 'select':
-                this.playSelectSound(ctx, now);
+                this.playSelectSound(ctx, ctxNow);
                 break;
             case 'wave':
-                this.playWaveSound(ctx, now);
+                this.playWaveSound(ctx, ctxNow);
                 break;
             case 'victory':
-                this.playVictorySound(ctx, now);
+                this.playVictorySound(ctx, ctxNow);
                 break;
             case 'defeat':
-                this.playDefeatSound(ctx, now);
+                this.playDefeatSound(ctx, ctxNow);
                 break;
             case 'resource':
-                this.playResourceSound(ctx, now);
+                this.playResourceSound(ctx, ctxNow);
                 break;
             case 'arrow':
-                this.playArrowSound(ctx, now);
+                this.playArrowSound(ctx, ctxNow);
                 break;
         }
     }
+
 
     createGain(ctx, volume) {
         const gainNode = ctx.createGain();

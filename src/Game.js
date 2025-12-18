@@ -109,7 +109,116 @@ export class Game {
     }
 
     setupUI() {
-        // === LOBBY UI ===
+        // === PLAYER COUNT ===
+        this.multiplayer.onPlayerCountUpdate = (count) => {
+            const playerCountEl = document.getElementById('active-players');
+            if (playerCountEl) {
+                playerCountEl.textContent = count;
+            }
+        };
+
+        // Initial player count fetch
+        this.multiplayer.getPlayerCount().then(count => {
+            const playerCountEl = document.getElementById('active-players');
+            if (playerCountEl) {
+                playerCountEl.textContent = count;
+            }
+        });
+
+        // === LOBBY SYSTEM ===
+
+        // Store for pending lobby join (for password modal)
+        this.pendingLobbyJoin = null;
+
+        // Lobby button - show lobby list
+        document.getElementById('lobby-btn')?.addEventListener('click', async () => {
+            this.showScreen('lobby-list-screen');
+            await this.refreshLobbies();
+        });
+
+        // Refresh lobbies button
+        document.getElementById('refresh-lobbies')?.addEventListener('click', async () => {
+            await this.refreshLobbies();
+        });
+
+        // Back from lobby list
+        document.getElementById('back-from-lobby')?.addEventListener('click', () => {
+            this.showScreen('main-menu');
+        });
+
+        // Create lobby button (from lobby list screen)
+        document.getElementById('create-lobby-btn')?.addEventListener('click', () => {
+            this.showScreen('create-lobby-screen');
+        });
+
+        // Toggle visibility buttons
+        document.getElementById('public-btn')?.addEventListener('click', () => {
+            document.getElementById('public-btn').classList.add('active');
+            document.getElementById('private-btn').classList.remove('active');
+        });
+
+        document.getElementById('private-btn')?.addEventListener('click', () => {
+            document.getElementById('private-btn').classList.add('active');
+            document.getElementById('public-btn').classList.remove('active');
+        });
+
+        // Back from create lobby
+        document.getElementById('back-from-create-lobby')?.addEventListener('click', () => {
+            this.showScreen('lobby-list-screen');
+        });
+
+        // Confirm create lobby
+        document.getElementById('confirm-create-lobby')?.addEventListener('click', async () => {
+            const playerName = 'Player_' + Math.random().toString(36).substr(2, 4);
+            const isPublic = document.getElementById('public-btn')?.classList.contains('active');
+            const password = document.getElementById('lobby-password')?.value || null;
+
+            try {
+                const roomCode = await this.multiplayer.createLobby(playerName, isPublic, password);
+                this.showScreen('create-room-screen');
+                document.getElementById('room-code-display').textContent = roomCode;
+                document.getElementById('waiting-status').textContent = 'Rakip bekleniyor...';
+            } catch (err) {
+                console.error('Create lobby error:', err);
+            }
+        });
+
+        // Lobbies update listener
+        this.multiplayer.onLobbiesUpdate = async () => {
+            const lobbyListScreen = document.getElementById('lobby-list-screen');
+            if (lobbyListScreen && !lobbyListScreen.classList.contains('hidden')) {
+                await this.refreshLobbies();
+            }
+        };
+
+        // Password modal handlers
+        document.getElementById('modal-cancel')?.addEventListener('click', () => {
+            document.getElementById('password-modal').classList.add('hidden');
+            document.getElementById('modal-password').value = '';
+            document.getElementById('modal-error').classList.add('hidden');
+            this.pendingLobbyJoin = null;
+        });
+
+        document.getElementById('modal-confirm')?.addEventListener('click', async () => {
+            if (!this.pendingLobbyJoin) return;
+
+            const password = document.getElementById('modal-password').value;
+            const playerName = 'Player_' + Math.random().toString(36).substr(2, 4);
+
+            try {
+                await this.multiplayer.joinLobby(this.pendingLobbyJoin.code, playerName, password);
+                document.getElementById('password-modal').classList.add('hidden');
+                document.getElementById('modal-password').value = '';
+                this.pendingLobbyJoin = null;
+                // Game will auto-start via onGameStart callback
+            } catch (err) {
+                const errorEl = document.getElementById('modal-error');
+                errorEl.textContent = err.message;
+                errorEl.classList.remove('hidden');
+            }
+        });
+
+        // === ORIGINAL MENU HANDLERS ===
 
         // Single Player button
         document.getElementById('single-player-btn')?.addEventListener('click', () => {
@@ -125,7 +234,7 @@ export class Game {
                 // Show room code screen
                 this.showScreen('create-room-screen');
                 document.getElementById('room-code-display').textContent = roomCode;
-                document.getElementById('waiting-status').textContent = 'Waiting for opponent...';
+                document.getElementById('waiting-status').textContent = 'Rakip bekleniyor...';
             } catch (err) {
                 console.error('Create room error:', err);
             }
@@ -152,7 +261,7 @@ export class Game {
             const code = document.getElementById('room-code-input').value.toUpperCase();
 
             if (code.length !== 6) {
-                this.showJoinError('Room code must be 6 characters');
+                this.showJoinError('Oda kodu 6 karakter olmalıdır');
                 return;
             }
 
@@ -170,7 +279,7 @@ export class Game {
             const playerCount = Object.keys(players).length;
             const waitingStatus = document.getElementById('waiting-status');
             if (waitingStatus && playerCount >= 2) {
-                waitingStatus.textContent = 'Starting game...';
+                waitingStatus.textContent = 'Oyun başlıyor...';
             }
         };
 
@@ -179,6 +288,7 @@ export class Game {
             this.team = this.multiplayer.team;
             this.startMultiplayerGame(data);
         };
+
 
         // === GAME UI ===
 
@@ -238,6 +348,69 @@ export class Game {
         errorEl.classList.remove('hidden');
         setTimeout(() => errorEl.classList.add('hidden'), 3000);
     }
+
+    async refreshLobbies() {
+        const lobbyListEl = document.getElementById('lobby-list');
+        if (!lobbyListEl) return;
+
+        try {
+            const lobbies = await this.multiplayer.getLobbies();
+
+            if (lobbies.length === 0) {
+                lobbyListEl.innerHTML = '<div class="lobby-empty">Aktif lobi bulunamadı</div>';
+                return;
+            }
+
+            lobbyListEl.innerHTML = lobbies.map(lobby => `
+                <div class="lobby-item" data-code="${lobby.code}" data-has-password="${lobby.hasPassword}">
+                    <div class="lobby-info">
+                        <div class="host-name">${lobby.hostName}'in Lobisi</div>
+                        <div class="player-count">👥 ${lobby.players}/${lobby.maxPlayers} Oyuncu</div>
+                    </div>
+                    <div class="lobby-status">
+                        ${lobby.hasPassword ? '<span class="lock-icon">🔒</span>' : ''}
+                        <span class="join-icon">➜</span>
+                    </div>
+                </div>
+            `).join('');
+
+            // Add click handlers
+            lobbyListEl.querySelectorAll('.lobby-item').forEach(item => {
+                item.addEventListener('click', () => this.handleLobbyClick(item));
+            });
+        } catch (err) {
+            console.error('Failed to fetch lobbies:', err);
+            lobbyListEl.innerHTML = '<div class="lobby-empty">Lobiler yüklenemedi</div>';
+        }
+    }
+
+    handleLobbyClick(lobbyItem) {
+        const code = lobbyItem.dataset.code;
+        const hasPassword = lobbyItem.dataset.hasPassword === 'true';
+
+        if (hasPassword) {
+            // Show password modal
+            this.pendingLobbyJoin = { code };
+            document.getElementById('modal-password').value = '';
+            document.getElementById('modal-error').classList.add('hidden');
+            document.querySelector('.modal-lobby-name').textContent = `Oda: ${code}`;
+            document.getElementById('password-modal').classList.remove('hidden');
+        } else {
+            // Join directly
+            this.joinLobbyDirectly(code);
+        }
+    }
+
+    async joinLobbyDirectly(code) {
+        const playerName = 'Player_' + Math.random().toString(36).substr(2, 4);
+        try {
+            await this.multiplayer.joinLobby(code, playerName, null);
+            // Game will auto-start via onGameStart callback
+        } catch (err) {
+            this.showJoinError(err.message);
+        }
+    }
+
 
     startMultiplayerGame(data) {
         // Hide lobby, show game

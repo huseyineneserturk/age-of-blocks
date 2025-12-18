@@ -17,6 +17,9 @@ const io = new Server(httpServer, {
 // Store rooms
 const rooms = new Map();
 
+// Global player counter
+let connectedPlayers = 0;
+
 // Generate room code
 function generateRoomCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -27,9 +30,9 @@ function generateRoomCode() {
     return code;
 }
 
-// Room class
+// Room class with lobby support
 class GameRoom {
-    constructor(code, hostId, mode) {
+    constructor(code, hostId, mode, options = {}) {
         this.code = code;
         this.hostId = hostId;
         this.mode = mode;
@@ -41,6 +44,12 @@ class GameRoom {
             castles: { team1: { hp: 1000 }, team2: { hp: 1000 } }
         };
         this.lastUpdate = Date.now();
+
+        // Lobby properties
+        this.isPublic = options.isPublic !== false; // Default true
+        this.password = options.password || null;
+        this.hostName = options.hostName || 'Host';
+        this.createdAt = Date.now();
     }
 
     addPlayer(socketId, name, team) {
@@ -88,16 +97,128 @@ class GameRoom {
             maxPlayers: this.getMaxPlayers()
         };
     }
+
+    // Lobby serialization for listing
+    serializeForLobby() {
+        return {
+            code: this.code,
+            hostName: this.hostName,
+            players: this.players.size,
+            maxPlayers: this.getMaxPlayers(),
+            hasPassword: !!this.password,
+            createdAt: this.createdAt
+        };
+    }
 }
+
 
 io.on('connection', (socket) => {
     console.log('Player connected:', socket.id);
     let currentRoom = null;
 
-    // Create room
+    // Increment player count and broadcast
+    connectedPlayers++;
+    io.emit('playerCountUpdate', { count: connectedPlayers });
+
+    // Get active player count
+    socket.on('getPlayerCount', (callback) => {
+        callback({ count: connectedPlayers });
+    });
+
+    // Get lobbies list
+    socket.on('getLobbies', (callback) => {
+        const publicLobbies = Array.from(rooms.values())
+            .filter(r => r.isPublic && r.status === 'waiting')
+            .map(r => r.serializeForLobby());
+        callback(publicLobbies);
+    });
+
+    // Create lobby (new method with lobby options)
+    socket.on('createLobby', ({ playerName, isPublic, password }, callback) => {
+        const code = generateRoomCode();
+        const room = new GameRoom(code, socket.id, '1v1', {
+            isPublic: isPublic !== false,
+            password: password || null,
+            hostName: playerName
+        });
+        room.addPlayer(socket.id, playerName, 1);
+        rooms.set(code, room);
+        currentRoom = code;
+
+        socket.join(code);
+        console.log(`Lobby ${code} created by ${playerName} (public: ${room.isPublic}, password: ${!!room.password})`);
+
+        callback({ success: true, roomCode: code, room: room.serialize() });
+        io.to(code).emit('roomUpdate', room.serialize());
+
+        // Broadcast lobby list update to all
+        io.emit('lobbiesUpdate');
+    });
+
+    // Join lobby with password support
+    socket.on('joinLobby', ({ roomCode, playerName, password }, callback) => {
+        const room = rooms.get(roomCode.toUpperCase());
+
+        if (!room) {
+            callback({ success: false, error: 'Oda bulunamadı' });
+            return;
+        }
+
+        if (room.players.size >= room.getMaxPlayers()) {
+            callback({ success: false, error: 'Oda dolu' });
+            return;
+        }
+
+        if (room.status !== 'waiting') {
+            callback({ success: false, error: 'Oyun zaten başlamış' });
+            return;
+        }
+
+        // Password check
+        if (room.password && room.password !== password) {
+            callback({ success: false, error: 'Yanlış şifre' });
+            return;
+        }
+
+        const team = room.assignTeam();
+        room.addPlayer(socket.id, playerName, team);
+        currentRoom = roomCode.toUpperCase();
+
+        socket.join(currentRoom);
+        console.log(`${playerName} joined lobby ${currentRoom}`);
+
+        callback({ success: true, room: room.serialize(), team });
+        io.to(currentRoom).emit('roomUpdate', room.serialize());
+
+        // Broadcast lobby list update
+        io.emit('lobbiesUpdate');
+
+        // AUTO-START: If room is now full (2 players), start game immediately
+        if (room.players.size >= room.getMaxPlayers()) {
+            room.status = 'playing';
+            room.gameState = {
+                buildings: [],
+                units: [],
+                castles: { team1: { hp: 1000, alive: true }, team2: { hp: 1000, alive: true } },
+                winner: null
+            };
+
+            // Small delay to ensure join callback is processed first
+            setTimeout(() => {
+                io.to(currentRoom).emit('gameStart', { room: room.serialize() });
+                console.log(`Game auto-started in lobby ${currentRoom}`);
+                io.emit('lobbiesUpdate');
+            }, 100);
+        }
+    });
+
+    // Create room (legacy method - still supported)
     socket.on('createRoom', ({ mode, playerName }, callback) => {
         const code = generateRoomCode();
-        const room = new GameRoom(code, socket.id, mode);
+        const room = new GameRoom(code, socket.id, mode, {
+            isPublic: false, // Legacy rooms are private
+            hostName: playerName
+        });
         room.addPlayer(socket.id, playerName, 1);
         rooms.set(code, room);
         currentRoom = code;
@@ -108,6 +229,7 @@ io.on('connection', (socket) => {
         callback({ success: true, roomCode: code, room: room.serialize() });
         io.to(code).emit('roomUpdate', room.serialize());
     });
+
 
     // Join room
     socket.on('joinRoom', ({ roomCode, playerName }, callback) => {
@@ -283,6 +405,8 @@ io.on('connection', (socket) => {
     // Disconnect
     socket.on('disconnect', () => {
         console.log('Player disconnected:', socket.id);
+        connectedPlayers--;
+        io.emit('playerCountUpdate', { count: connectedPlayers });
         handleLeave();
     });
 
@@ -298,6 +422,7 @@ io.on('connection', (socket) => {
             // Delete empty room
             rooms.delete(currentRoom);
             console.log(`Room ${currentRoom} deleted (empty)`);
+            io.emit('lobbiesUpdate');
         } else if (wasHost) {
             // Transfer host to first player
             const newHost = room.players.keys().next().value;
@@ -320,8 +445,9 @@ io.on('connection', (socket) => {
 app.get('/', (req, res) => {
     res.json({
         status: 'ok',
+        activePlayers: connectedPlayers,
         rooms: rooms.size,
-        players: Array.from(rooms.values()).reduce((sum, r) => sum + r.players.size, 0)
+        playersInRooms: Array.from(rooms.values()).reduce((sum, r) => sum + r.players.size, 0)
     });
 });
 

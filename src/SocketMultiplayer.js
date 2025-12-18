@@ -109,6 +109,20 @@ export class SocketMultiplayer {
                 console.log('You are now the host');
             }
         });
+
+        // Player count update
+        this.socket.on('playerCountUpdate', (data) => {
+            if (this.onPlayerCountUpdate) {
+                this.onPlayerCountUpdate(data.count);
+            }
+        });
+
+        // Lobbies list update
+        this.socket.on('lobbiesUpdate', () => {
+            if (this.onLobbiesUpdate) {
+                this.onLobbiesUpdate();
+            }
+        });
     }
 
     // Create room
@@ -322,4 +336,66 @@ export class SocketMultiplayer {
     onGameStateReceived = null;
     onCastleDamage = null;
     onGameOver = null;
+    onPlayerCountUpdate = null;
+    onLobbiesUpdate = null;
+
+    // Get player count
+    async getPlayerCount() {
+        await this.connect();
+        return new Promise((resolve) => {
+            this.socket.emit('getPlayerCount', (response) => {
+                resolve(response.count);
+            });
+        });
+    }
+
+    // Get lobbies list
+    async getLobbies() {
+        await this.connect();
+        return new Promise((resolve) => {
+            this.socket.emit('getLobbies', (lobbies) => {
+                resolve(lobbies);
+            });
+        });
+    }
+
+    // Create lobby with options
+    async createLobby(playerName, isPublic = true, password = null) {
+        await this.connect();
+
+        return new Promise((resolve, reject) => {
+            this.socket.emit('createLobby', { playerName, isPublic, password }, (response) => {
+                if (response.success) {
+                    this.roomCode = response.roomCode;
+                    this.isHost = true;
+                    this.playerName = playerName;
+                    this.gameMode = '1v1';
+                    this.team = 1;
+                    resolve(response.roomCode);
+                } else {
+                    reject(new Error(response.error));
+                }
+            });
+        });
+    }
+
+    // Join lobby with password
+    async joinLobby(roomCode, playerName, password = null) {
+        await this.connect();
+
+        return new Promise((resolve, reject) => {
+            this.socket.emit('joinLobby', { roomCode, playerName, password }, (response) => {
+                if (response.success) {
+                    this.roomCode = roomCode.toUpperCase();
+                    this.isHost = false;
+                    this.playerName = playerName;
+                    this.gameMode = response.room.mode;
+                    this.team = response.team;
+                    resolve(response.room);
+                } else {
+                    reject(new Error(response.error));
+                }
+            });
+        });
+    }
 }
