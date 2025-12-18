@@ -360,24 +360,25 @@ export class SocketMultiplayer {
     }
 
     // Create lobby with options
-    async createLobby(playerName, isPublic = true, password = null) {
+    async createLobby(roomName, playerName, isPublic = true, password = null) {
         await this.connect();
 
         return new Promise((resolve, reject) => {
-            this.socket.emit('createLobby', { playerName, isPublic, password }, (response) => {
+            this.socket.emit('createLobby', { roomName, playerName, isPublic, password }, (response) => {
                 if (response.success) {
                     this.roomCode = response.roomCode;
                     this.isHost = true;
                     this.playerName = playerName;
                     this.gameMode = '1v1';
                     this.team = 1;
-                    resolve(response.roomCode);
+                    resolve({ roomCode: response.roomCode, roomName: response.roomName });
                 } else {
                     reject(new Error(response.error));
                 }
             });
         });
     }
+
 
     // Join lobby with password
     async joinLobby(roomCode, playerName, password = null) {

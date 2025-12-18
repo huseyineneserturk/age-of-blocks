@@ -49,6 +49,7 @@ class GameRoom {
         this.isPublic = options.isPublic !== false; // Default true
         this.password = options.password || null;
         this.hostName = options.hostName || 'Host';
+        this.roomName = options.roomName || `${this.hostName}'in Odası`;
         this.createdAt = Date.now();
     }
 
@@ -102,6 +103,7 @@ class GameRoom {
     serializeForLobby() {
         return {
             code: this.code,
+            roomName: this.roomName,
             hostName: this.hostName,
             players: this.players.size,
             maxPlayers: this.getMaxPlayers(),
@@ -134,26 +136,28 @@ io.on('connection', (socket) => {
     });
 
     // Create lobby (new method with lobby options)
-    socket.on('createLobby', ({ playerName, isPublic, password }, callback) => {
+    socket.on('createLobby', ({ roomName, playerName, isPublic, password }, callback) => {
         const code = generateRoomCode();
         const room = new GameRoom(code, socket.id, '1v1', {
             isPublic: isPublic !== false,
             password: password || null,
-            hostName: playerName
+            hostName: playerName,
+            roomName: roomName || null
         });
         room.addPlayer(socket.id, playerName, 1);
         rooms.set(code, room);
         currentRoom = code;
 
         socket.join(code);
-        console.log(`Lobby ${code} created by ${playerName} (public: ${room.isPublic}, password: ${!!room.password})`);
+        console.log(`Lobby ${code} "${room.roomName}" created by ${playerName} (public: ${room.isPublic}, password: ${!!room.password})`);
 
-        callback({ success: true, roomCode: code, room: room.serialize() });
+        callback({ success: true, roomCode: code, room: room.serialize(), roomName: room.roomName });
         io.to(code).emit('roomUpdate', room.serialize());
 
         // Broadcast lobby list update to all
         io.emit('lobbiesUpdate');
     });
+
 
     // Join lobby with password support
     socket.on('joinLobby', ({ roomCode, playerName, password }, callback) => {

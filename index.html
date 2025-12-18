@@ -183,10 +183,8 @@
             <!-- Main Menu -->
             <div id="main-menu" class="menu-section">
                 <div class="menu-buttons">
-                    <button class="menu-btn" id="single-player-btn">🎮 Single Player</button>
-                    <button class="menu-btn" id="lobby-btn">🎯 Lobiler</button>
-                    <button class="menu-btn" id="create-room-btn">🏰 Oda Oluştur</button>
-                    <button class="menu-btn" id="join-room-btn">🚪 Odaya Katıl</button>
+                    <button class="menu-btn" id="single-player-btn">🎮 Tek Oyunculu</button>
+                    <button class="menu-btn primary" id="lobby-btn">🎯 Lobiler</button>
                 </div>
             </div>
 
@@ -207,10 +205,18 @@
             <div id="create-lobby-screen" class="menu-section hidden">
                 <h2>Lobi Oluştur</h2>
                 <div class="form-group">
+                    <label>Oda Adı</label>
+                    <input type="text" id="lobby-name" placeholder="Örn: Eğlenceli Oda" maxlength="20">
+                </div>
+                <div class="form-group">
+                    <label>Oyuncu Adın</label>
+                    <input type="text" id="host-name" placeholder="İsminizi girin..." maxlength="15">
+                </div>
+                <div class="form-group">
                     <label>Görünürlük</label>
                     <div class="toggle-group">
-                        <button class="toggle-btn active" data-public="true" id="public-btn">🌍 Herkese Açık</button>
-                        <button class="toggle-btn" data-public="false" id="private-btn">🔒 Gizli</button>
+                        <button class="toggle-btn active" id="public-btn">🌍 Herkese Açık</button>
+                        <button class="toggle-btn" id="private-btn">🔒 Gizli</button>
                     </div>
                 </div>
                 <div class="form-group" id="password-group">
@@ -223,13 +229,12 @@
                 </div>
             </div>
 
-            <!-- Lobby Waiting Room - Shows room code, players, and start button -->
+            <!-- Lobby Waiting Room -->
             <div id="lobby-room-screen" class="menu-section hidden">
-                <h2>Lobi</h2>
+                <h2 id="lobby-room-title">Lobi</h2>
                 <div class="room-code-display" id="lobby-room-code">------</div>
                 <p class="waiting-text">Bu kodu arkadaşınla paylaş!</p>
 
-                <!-- Players in lobby -->
                 <div class="lobby-players">
                     <h3>Oyuncular</h3>
                     <div id="lobby-player-list" class="player-list-container">
@@ -248,42 +253,19 @@
                 </div>
             </div>
 
-            <!-- Legacy Create Room Screen (for direct room creation) -->
-            <div id="create-room-screen" class="menu-section hidden">
-                <h2>Oda Kodun</h2>
-                <div class="room-code-display" id="room-code-display">------</div>
-                <p class="waiting-text">Bu kodu arkadaşınla paylaş!</p>
-                <div class="waiting-indicator">
-                    <span class="waiting-dot"></span>
-                    <span class="waiting-text" id="waiting-status">Rakip bekleniyor...</span>
-                </div>
-                <div class="menu-buttons">
-                    <button class="menu-btn" id="back-from-create">← İptal</button>
-                </div>
-            </div>
-
-
-            <!-- Join Room Screen -->
-            <div id="join-room-screen" class="menu-section hidden">
-                <h2>Odaya Katıl</h2>
-                <div class="form-group">
-                    <label>Oda Kodu</label>
-                    <input type="text" id="room-code-input" placeholder="ABC123" maxlength="6"
-                        style="text-transform: uppercase;">
-                </div>
-                <div class="menu-buttons">
-                    <button class="menu-btn" id="back-from-join">← Geri</button>
-                    <button class="menu-btn primary" id="confirm-join-btn">Katıl ➜</button>
-                </div>
-                <div id="join-error" class="error-msg hidden"></div>
-            </div>
-
-            <!-- Password Modal -->
-            <div id="password-modal" class="modal hidden">
+            <!-- Join Lobby Modal (with player name + password) -->
+            <div id="join-lobby-modal" class="modal hidden">
                 <div class="modal-content">
-                    <h3>Şifre Gerekli</h3>
-                    <p class="modal-lobby-name"></p>
-                    <input type="password" id="modal-password" placeholder="Şifreyi girin...">
+                    <h3>Lobiye Katıl</h3>
+                    <p class="modal-lobby-name" id="modal-lobby-info"></p>
+                    <div class="form-group">
+                        <label>Oyuncu Adın</label>
+                        <input type="text" id="modal-player-name" placeholder="İsminizi girin..." maxlength="15">
+                    </div>
+                    <div class="form-group modal-password-group hidden" id="modal-password-group">
+                        <label>Şifre</label>
+                        <input type="password" id="modal-password" placeholder="Şifreyi girin...">
+                    </div>
                     <div id="modal-error" class="error-msg hidden"></div>
                     <div class="modal-buttons">
                         <button class="menu-btn" id="modal-cancel">İptal</button>
@@ -292,6 +274,7 @@
                 </div>
             </div>
         </div>
+
 
 
         <!-- Game Over Screen -->

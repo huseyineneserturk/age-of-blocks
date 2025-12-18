@@ -167,15 +167,22 @@ export class Game {
             this.showScreen('lobby-list-screen');
         });
 
-        // Confirm create lobby - show lobby room instead of room code screen
+        // Confirm create lobby - get form values and show lobby room
         document.getElementById('confirm-create-lobby')?.addEventListener('click', async () => {
-            const playerName = 'Player_' + Math.random().toString(36).substr(2, 4);
+            const roomName = document.getElementById('lobby-name')?.value.trim() || null;
+            const playerName = document.getElementById('host-name')?.value.trim() || 'Player_' + Math.random().toString(36).substr(2, 4);
             const isPublic = document.getElementById('public-btn')?.classList.contains('active');
             const password = document.getElementById('lobby-password')?.value || null;
 
+            // Validate player name
+            if (!playerName || playerName.length < 2) {
+                alert('Lütfen geçerli bir oyuncu adı girin');
+                return;
+            }
+
             try {
-                const roomCode = await this.multiplayer.createLobby(playerName, isPublic, password);
-                this.showLobbyRoom(roomCode);
+                const result = await this.multiplayer.createLobby(roomName, playerName, isPublic, password);
+                this.showLobbyRoom(result.roomCode, result.roomName);
             } catch (err) {
                 console.error('Create lobby error:', err);
             }
@@ -210,12 +217,9 @@ export class Game {
             } else if (this.multiplayer.isHost) {
                 startBtn?.classList.add('hidden');
                 document.getElementById('lobby-status').textContent = 'Rakip bekleniyor...';
-            }
-
-            // Update waiting status for legacy screen too
-            const waitingStatus = document.getElementById('waiting-status');
-            if (waitingStatus && playerCount >= 2) {
-                waitingStatus.textContent = 'Oyun başlıyor...';
+            } else {
+                // Guest player
+                document.getElementById('lobby-status').textContent = playerCount >= 2 ? 'Host oyunu başlatacak...' : 'Rakip bekleniyor...';
             }
         };
 
@@ -227,10 +231,10 @@ export class Game {
             }
         };
 
-
-        // Password modal handlers
+        // Join lobby modal handlers
         document.getElementById('modal-cancel')?.addEventListener('click', () => {
-            document.getElementById('password-modal').classList.add('hidden');
+            document.getElementById('join-lobby-modal').classList.add('hidden');
+            document.getElementById('modal-player-name').value = '';
             document.getElementById('modal-password').value = '';
             document.getElementById('modal-error').classList.add('hidden');
             this.pendingLobbyJoin = null;
@@ -239,21 +243,31 @@ export class Game {
         document.getElementById('modal-confirm')?.addEventListener('click', async () => {
             if (!this.pendingLobbyJoin) return;
 
-            const password = document.getElementById('modal-password').value;
-            const playerName = 'Player_' + Math.random().toString(36).substr(2, 4);
+            const playerName = document.getElementById('modal-player-name')?.value.trim();
+            const password = document.getElementById('modal-password')?.value || null;
+
+            // Validate player name
+            if (!playerName || playerName.length < 2) {
+                const errorEl = document.getElementById('modal-error');
+                errorEl.textContent = 'Lütfen geçerli bir oyuncu adı girin';
+                errorEl.classList.remove('hidden');
+                return;
+            }
 
             try {
                 await this.multiplayer.joinLobby(this.pendingLobbyJoin.code, playerName, password);
-                document.getElementById('password-modal').classList.add('hidden');
+                document.getElementById('join-lobby-modal').classList.add('hidden');
+                document.getElementById('modal-player-name').value = '';
                 document.getElementById('modal-password').value = '';
+                this.showLobbyRoom(this.pendingLobbyJoin.code, this.pendingLobbyJoin.roomName);
                 this.pendingLobbyJoin = null;
-                // Game will auto-start via onGameStart callback
             } catch (err) {
                 const errorEl = document.getElementById('modal-error');
                 errorEl.textContent = err.message;
                 errorEl.classList.remove('hidden');
             }
         });
+
 
         // === ORIGINAL MENU HANDLERS ===
 
@@ -399,10 +413,10 @@ export class Game {
             }
 
             lobbyListEl.innerHTML = lobbies.map(lobby => `
-                <div class="lobby-item" data-code="${lobby.code}" data-has-password="${lobby.hasPassword}">
+                <div class="lobby-item" data-code="${lobby.code}" data-room-name="${lobby.roomName}" data-has-password="${lobby.hasPassword}">
                     <div class="lobby-info">
-                        <div class="host-name">${lobby.hostName}'in Lobisi</div>
-                        <div class="player-count">👥 ${lobby.players}/${lobby.maxPlayers} Oyuncu</div>
+                        <div class="host-name">${lobby.roomName}</div>
+                        <div class="player-count">👥 ${lobby.players}/${lobby.maxPlayers} • ${lobby.hostName}</div>
                     </div>
                     <div class="lobby-status">
                         ${lobby.hasPassword ? '<span class="lock-icon">🔒</span>' : ''}
@@ -423,35 +437,38 @@ export class Game {
 
     handleLobbyClick(lobbyItem) {
         const code = lobbyItem.dataset.code;
+        const roomName = lobbyItem.dataset.roomName;
         const hasPassword = lobbyItem.dataset.hasPassword === 'true';
 
+        // Store pending join info
+        this.pendingLobbyJoin = { code, roomName, hasPassword };
+
+        // Show join modal (always - for player name input)
+        document.getElementById('modal-player-name').value = '';
+        document.getElementById('modal-password').value = '';
+        document.getElementById('modal-error').classList.add('hidden');
+        document.getElementById('modal-lobby-info').textContent = roomName;
+
+        // Show/hide password field based on lobby
+        const passwordGroup = document.getElementById('modal-password-group');
         if (hasPassword) {
-            // Show password modal
-            this.pendingLobbyJoin = { code };
-            document.getElementById('modal-password').value = '';
-            document.getElementById('modal-error').classList.add('hidden');
-            document.querySelector('.modal-lobby-name').textContent = `Oda: ${code}`;
-            document.getElementById('password-modal').classList.remove('hidden');
+            passwordGroup?.classList.remove('hidden');
         } else {
-            // Join directly
-            this.joinLobbyDirectly(code);
+            passwordGroup?.classList.add('hidden');
         }
+
+        document.getElementById('join-lobby-modal').classList.remove('hidden');
     }
 
-    async joinLobbyDirectly(code) {
-        const playerName = 'Player_' + Math.random().toString(36).substr(2, 4);
-        try {
-            await this.multiplayer.joinLobby(code, playerName, null);
-            // Show lobby room (host will start the game)
-            this.showLobbyRoom(code);
-        } catch (err) {
-            this.showJoinError(err.message);
-        }
-    }
-
-    showLobbyRoom(roomCode) {
+    showLobbyRoom(roomCode, roomName = null) {
         this.showScreen('lobby-room-screen');
         document.getElementById('lobby-room-code').textContent = roomCode;
+
+        // Set room title
+        const titleEl = document.getElementById('lobby-room-title');
+        if (titleEl && roomName) {
+            titleEl.textContent = roomName;
+        }
 
         // Reset UI
         document.getElementById('lobby-player-list').innerHTML = '';
@@ -476,17 +493,8 @@ export class Game {
                 <span class="player-badge">${player.isHost ? 'Host' : 'Oyuncu'}</span>
             </div>
         `).join('');
-
-        // Update status
-        const lobbyStatus = document.getElementById('lobby-status');
-        if (lobbyStatus) {
-            if (playerArray.length >= 2) {
-                lobbyStatus.textContent = this.multiplayer.isHost ? 'Oyun başlatılabilir!' : 'Host oyunu başlatacak...';
-            } else {
-                lobbyStatus.textContent = 'Rakip bekleniyor...';
-            }
-        }
     }
+
 
 
 
