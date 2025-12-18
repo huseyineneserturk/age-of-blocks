@@ -125,10 +125,16 @@ export class Game {
             }
         });
 
+        // === SINGLE PLAYER ===
+        document.getElementById('single-player-btn')?.addEventListener('click', () => {
+            this.startGame();
+        });
+
         // === LOBBY SYSTEM ===
 
         // Store for pending lobby join (for password modal)
         this.pendingLobbyJoin = null;
+
 
         // Lobby button - show lobby list
         document.getElementById('lobby-btn')?.addEventListener('click', async () => {
@@ -269,71 +275,7 @@ export class Game {
         });
 
 
-        // === ORIGINAL MENU HANDLERS ===
-
-        // Single Player button
-        document.getElementById('single-player-btn')?.addEventListener('click', () => {
-            this.startGame();
-        });
-
-        // Create Room button - directly creates room and shows code
-        document.getElementById('create-room-btn')?.addEventListener('click', async () => {
-            const playerName = 'Player_' + Math.random().toString(36).substr(2, 4);
-
-            try {
-                const roomCode = await this.multiplayer.createRoom('1v1', playerName);
-                // Show room code screen
-                this.showScreen('create-room-screen');
-                document.getElementById('room-code-display').textContent = roomCode;
-                document.getElementById('waiting-status').textContent = 'Rakip bekleniyor...';
-            } catch (err) {
-                console.error('Create room error:', err);
-            }
-        });
-
-        // Join Room button
-        document.getElementById('join-room-btn')?.addEventListener('click', () => {
-            this.showScreen('join-room-screen');
-        });
-
-        // Back buttons
-        document.getElementById('back-from-create')?.addEventListener('click', () => {
-            this.multiplayer.leaveRoom();
-            this.showScreen('main-menu');
-        });
-
-        document.getElementById('back-from-join')?.addEventListener('click', () => {
-            this.showScreen('main-menu');
-        });
-
-        // Confirm Join Room - directly joins and game auto-starts
-        document.getElementById('confirm-join-btn')?.addEventListener('click', async () => {
-            const playerName = 'Player_' + Math.random().toString(36).substr(2, 4);
-            const code = document.getElementById('room-code-input').value.toUpperCase();
-
-            if (code.length !== 6) {
-                this.showJoinError('Oda kodu 6 karakter olmalıdır');
-                return;
-            }
-
-            try {
-                await this.multiplayer.joinRoom(code, playerName);
-                // Game will auto-start via onGameStart callback
-            } catch (err) {
-                this.showJoinError(err.message);
-            }
-        });
-
-        // Multiplayer callbacks
-        this.multiplayer.onPlayersUpdate = (players) => {
-            // Update waiting status when player joins
-            const playerCount = Object.keys(players).length;
-            const waitingStatus = document.getElementById('waiting-status');
-            if (waitingStatus && playerCount >= 2) {
-                waitingStatus.textContent = 'Oyun başlıyor...';
-            }
-        };
-
+        // Multiplayer game start callback
         this.multiplayer.onGameStart = (data) => {
             this.isMultiplayer = true;
             this.team = this.multiplayer.team;

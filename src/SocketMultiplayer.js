@@ -19,6 +19,22 @@ export class SocketMultiplayer {
 
     // Connect to server
     async connect() {
+        // Return immediately if already connected
+        if (this.socket && this.connected) {
+            return Promise.resolve();
+        }
+
+        // If socket exists but not connected, wait for it
+        if (this.socket) {
+            return new Promise((resolve) => {
+                if (this.connected) {
+                    resolve();
+                } else {
+                    this.socket.once('connect', () => resolve());
+                }
+            });
+        }
+
         return new Promise((resolve, reject) => {
             // Load Socket.IO client
             if (!window.io) {
@@ -36,6 +52,7 @@ export class SocketMultiplayer {
             }
         });
     }
+
 
     initSocket() {
         this.socket = io(this.serverUrl, {
