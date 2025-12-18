@@ -39,6 +39,7 @@ export class Game {
         };
         this.availableUpgrades = []; // 3 random upgrades when research center is built
         this.usedUpgradeIds = []; // Track used upgrades
+        this.researchPoints = 0; // Number of research selections available
 
         // Grid System - Larger map
         this.gridSize = 32;
@@ -810,6 +811,21 @@ export class Game {
     }
 
     generateUpgrades() {
+        // Increment research points
+        this.researchPoints++;
+
+        // Generate new upgrades if none are available
+        if (this.availableUpgrades.length === 0) {
+            this.refreshUpgradeChoices();
+        }
+
+        this.updateResearchPanel();
+
+        // Show/update badge on research tab
+        this.updateResearchBadge();
+    }
+
+    refreshUpgradeChoices() {
         // Get unused upgrades
         const available = UPGRADES.filter(u => !this.usedUpgradeIds.includes(u.id));
 
@@ -820,16 +836,21 @@ export class Game {
             const shuffled = [...available].sort(() => Math.random() - 0.5);
             this.availableUpgrades = shuffled.slice(0, 3);
         }
+    }
 
-        this.updateResearchPanel();
-
-        // Show badge on research tab
-        const badge = document.createElement('span');
-        badge.className = 'badge';
-        badge.textContent = '!';
+    updateResearchBadge() {
         const researchTab = document.getElementById('research-tab');
-        if (!researchTab.querySelector('.badge')) {
-            researchTab.appendChild(badge);
+        let badge = researchTab.querySelector('.badge');
+
+        if (this.researchPoints > 0) {
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'badge';
+                researchTab.appendChild(badge);
+            }
+            badge.textContent = this.researchPoints;
+        } else if (badge) {
+            badge.remove();
         }
     }
 
@@ -877,21 +898,28 @@ export class Game {
         // Mark as used
         this.usedUpgradeIds.push(upgrade.id);
 
-        // Clear available upgrades
-        this.availableUpgrades = [];
-        this.updateResearchPanel();
-
-        // Remove badge
-        const badge = document.getElementById('research-tab').querySelector('.badge');
-        if (badge) badge.remove();
+        // Decrement research points
+        this.researchPoints--;
 
         // Show notification
         this.showNotification(`Upgraded: ${upgrade.name}!`, 'success');
         this.sound.playSound('build');
 
-        // Switch back to buildings tab
-        const buildingsTab = document.querySelector('[data-panel="controls"]');
-        this.switchTab(buildingsTab);
+        // Generate new upgrade choices if we still have research points
+        if (this.researchPoints > 0) {
+            this.refreshUpgradeChoices();
+            this.updateResearchPanel();
+            this.updateResearchBadge();
+        } else {
+            // Clear available upgrades and update UI
+            this.availableUpgrades = [];
+            this.updateResearchPanel();
+            this.updateResearchBadge();
+
+            // Switch back to buildings tab
+            const buildingsTab = document.querySelector('[data-panel="controls"]');
+            this.switchTab(buildingsTab);
+        }
     }
 
     selectCard(card) {
