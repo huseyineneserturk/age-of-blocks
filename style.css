@@ -1517,6 +1517,38 @@ body {
     }
 }
 
+/* ===== LOBBY HEADER ===== */
+.lobby-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.lobby-header h3 {
+    margin: 0;
+}
+
+.room-code-badge {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 215, 0, 0.1));
+    border: 1px solid var(--gold);
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-family: var(--font-mono, monospace);
+    font-size: 12px;
+    color: var(--gold);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.room-code-badge:hover {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 215, 0, 0.2));
+    transform: scale(1.05);
+}
+
+.room-code-badge:active {
+    transform: scale(0.98);
+}
 
 /* ===== TOGGLE BUTTONS ===== */
 .toggle-group {

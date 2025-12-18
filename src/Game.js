@@ -404,7 +404,21 @@ export class Game {
 
     showLobbyRoom(roomCode, roomName = null) {
         this.showScreen('lobby-room-screen');
-        document.getElementById('lobby-room-code').textContent = roomCode;
+
+        // Set room code badge with copy icon
+        const codeEl = document.getElementById('lobby-room-code');
+        if (codeEl) {
+            codeEl.textContent = `📋 ${roomCode}`;
+            // Click to copy
+            codeEl.onclick = () => {
+                navigator.clipboard.writeText(roomCode).then(() => {
+                    codeEl.textContent = '✅ Kopyalandı!';
+                    setTimeout(() => {
+                        codeEl.textContent = `📋 ${roomCode}`;
+                    }, 1500);
+                });
+            };
+        }
 
         // Set room title
         const titleEl = document.getElementById('lobby-room-title');
@@ -422,6 +436,7 @@ export class Game {
             startBtn.classList.add('hidden');
         }
     }
+
 
     updateLobbyPlayerList(players) {
         const playerListEl = document.getElementById('lobby-player-list');

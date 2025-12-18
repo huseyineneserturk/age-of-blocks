@@ -232,11 +232,12 @@
             <!-- Lobby Waiting Room -->
             <div id="lobby-room-screen" class="menu-section hidden">
                 <h2 id="lobby-room-title">Lobi</h2>
-                <div class="room-code-display" id="lobby-room-code">------</div>
-                <p class="waiting-text">Bu kodu arkadaşınla paylaş!</p>
 
                 <div class="lobby-players">
-                    <h3>Oyuncular</h3>
+                    <div class="lobby-header">
+                        <h3>Oyuncular</h3>
+                        <span class="room-code-badge" id="lobby-room-code" title="Kodu kopyala">📋 ------</span>
+                    </div>
                     <div id="lobby-player-list" class="player-list-container">
                         <!-- Players will be dynamically added here -->
                     </div>
@@ -252,6 +253,7 @@
                     <button class="menu-btn primary hidden" id="start-game-btn">🎮 Oyunu Başlat</button>
                 </div>
             </div>
+
 
             <!-- Join Lobby Modal (with player name + password) -->
             <div id="join-lobby-modal" class="modal hidden">
