@@ -405,25 +405,13 @@ export class Game {
     showLobbyRoom(roomCode, roomName = null) {
         this.showScreen('lobby-room-screen');
 
-        // Set room code badge with copy icon
-        const codeEl = document.getElementById('lobby-room-code');
-        if (codeEl) {
-            codeEl.textContent = `📋 ${roomCode}`;
-            // Click to copy
-            codeEl.onclick = () => {
-                navigator.clipboard.writeText(roomCode).then(() => {
-                    codeEl.textContent = '✅ Kopyalandı!';
-                    setTimeout(() => {
-                        codeEl.textContent = `📋 ${roomCode}`;
-                    }, 1500);
-                });
-            };
-        }
+        // Store room code internally (for server communication)
+        this.currentRoomCode = roomCode;
 
         // Set room title
         const titleEl = document.getElementById('lobby-room-title');
-        if (titleEl && roomName) {
-            titleEl.textContent = roomName;
+        if (titleEl) {
+            titleEl.textContent = roomName || 'Lobi';
         }
 
         // Reset UI
@@ -436,6 +424,7 @@ export class Game {
             startBtn.classList.add('hidden');
         }
     }
+
 
 
     updateLobbyPlayerList(players) {
