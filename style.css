@@ -1443,6 +1443,81 @@ body {
     gap: 15px;
 }
 
+/* ===== LOBBY WAITING ROOM ===== */
+.lobby-players {
+    margin: 20px 0;
+    text-align: center;
+}
+
+.lobby-players h3 {
+    font-family: var(--font-title);
+    font-size: 16px;
+    color: var(--gold);
+    margin-bottom: 15px;
+}
+
+.player-list-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 350px;
+    margin: 0 auto;
+}
+
+.player-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 215, 0, 0.05));
+    border: 1px solid var(--gold);
+    border-radius: 10px;
+}
+
+.player-card .player-name {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.player-card .player-badge {
+    font-size: 14px;
+    color: var(--gold);
+}
+
+.player-card.host {
+    border-color: var(--gold);
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 215, 0, 0.1));
+}
+
+.player-card.host .player-badge::after {
+    content: ' 👑';
+}
+
+.lobby-room-buttons {
+    flex-direction: row !important;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+#start-game-btn {
+    animation: pulse-btn 2s ease-in-out infinite;
+}
+
+@keyframes pulse-btn {
+
+    0%,
+    100% {
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+    }
+
+    50% {
+        box-shadow: 0 0 35px rgba(255, 215, 0, 0.7);
+    }
+}
+
+
 /* ===== TOGGLE BUTTONS ===== */
 .toggle-group {
     display: flex;

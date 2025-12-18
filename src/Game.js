@@ -167,7 +167,7 @@ export class Game {
             this.showScreen('lobby-list-screen');
         });
 
-        // Confirm create lobby
+        // Confirm create lobby - show lobby room instead of room code screen
         document.getElementById('confirm-create-lobby')?.addEventListener('click', async () => {
             const playerName = 'Player_' + Math.random().toString(36).substr(2, 4);
             const isPublic = document.getElementById('public-btn')?.classList.contains('active');
@@ -175,13 +175,49 @@ export class Game {
 
             try {
                 const roomCode = await this.multiplayer.createLobby(playerName, isPublic, password);
-                this.showScreen('create-room-screen');
-                document.getElementById('room-code-display').textContent = roomCode;
-                document.getElementById('waiting-status').textContent = 'Rakip bekleniyor...';
+                this.showLobbyRoom(roomCode);
             } catch (err) {
                 console.error('Create lobby error:', err);
             }
         });
+
+        // Leave lobby button
+        document.getElementById('leave-lobby-btn')?.addEventListener('click', () => {
+            this.multiplayer.leaveRoom();
+            this.showScreen('main-menu');
+        });
+
+        // Start game button (host only)
+        document.getElementById('start-game-btn')?.addEventListener('click', async () => {
+            try {
+                await this.multiplayer.startGame();
+            } catch (err) {
+                console.log('Cannot start game:', err.message);
+            }
+        });
+
+        // Players update listener - update lobby room player list
+        this.multiplayer.onPlayersUpdate = (players) => {
+            this.updateLobbyPlayerList(players);
+
+            // Show/hide start button based on player count (host only)
+            const startBtn = document.getElementById('start-game-btn');
+            const playerCount = Object.keys(players).length;
+
+            if (this.multiplayer.isHost && playerCount >= 2) {
+                startBtn?.classList.remove('hidden');
+                document.getElementById('lobby-status').textContent = 'Oyun başlatılabilir!';
+            } else if (this.multiplayer.isHost) {
+                startBtn?.classList.add('hidden');
+                document.getElementById('lobby-status').textContent = 'Rakip bekleniyor...';
+            }
+
+            // Update waiting status for legacy screen too
+            const waitingStatus = document.getElementById('waiting-status');
+            if (waitingStatus && playerCount >= 2) {
+                waitingStatus.textContent = 'Oyun başlıyor...';
+            }
+        };
 
         // Lobbies update listener
         this.multiplayer.onLobbiesUpdate = async () => {
@@ -190,6 +226,7 @@ export class Game {
                 await this.refreshLobbies();
             }
         };
+
 
         // Password modal handlers
         document.getElementById('modal-cancel')?.addEventListener('click', () => {
@@ -405,11 +442,52 @@ export class Game {
         const playerName = 'Player_' + Math.random().toString(36).substr(2, 4);
         try {
             await this.multiplayer.joinLobby(code, playerName, null);
-            // Game will auto-start via onGameStart callback
+            // Show lobby room (host will start the game)
+            this.showLobbyRoom(code);
         } catch (err) {
             this.showJoinError(err.message);
         }
     }
+
+    showLobbyRoom(roomCode) {
+        this.showScreen('lobby-room-screen');
+        document.getElementById('lobby-room-code').textContent = roomCode;
+
+        // Reset UI
+        document.getElementById('lobby-player-list').innerHTML = '';
+        document.getElementById('lobby-status').textContent = 'Rakip bekleniyor...';
+
+        // Hide start button initially (will be shown when enough players join and if host)
+        const startBtn = document.getElementById('start-game-btn');
+        if (startBtn) {
+            startBtn.classList.add('hidden');
+        }
+    }
+
+    updateLobbyPlayerList(players) {
+        const playerListEl = document.getElementById('lobby-player-list');
+        if (!playerListEl) return;
+
+        const playerArray = Object.values(players);
+
+        playerListEl.innerHTML = playerArray.map(player => `
+            <div class="player-card ${player.isHost ? 'host' : ''}">
+                <span class="player-name">${player.name}</span>
+                <span class="player-badge">${player.isHost ? 'Host' : 'Oyuncu'}</span>
+            </div>
+        `).join('');
+
+        // Update status
+        const lobbyStatus = document.getElementById('lobby-status');
+        if (lobbyStatus) {
+            if (playerArray.length >= 2) {
+                lobbyStatus.textContent = this.multiplayer.isHost ? 'Oyun başlatılabilir!' : 'Host oyunu başlatacak...';
+            } else {
+                lobbyStatus.textContent = 'Rakip bekleniyor...';
+            }
+        }
+    }
+
 
 
     startMultiplayerGame(data) {

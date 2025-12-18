@@ -193,24 +193,9 @@ io.on('connection', (socket) => {
         // Broadcast lobby list update
         io.emit('lobbiesUpdate');
 
-        // AUTO-START: If room is now full (2 players), start game immediately
-        if (room.players.size >= room.getMaxPlayers()) {
-            room.status = 'playing';
-            room.gameState = {
-                buildings: [],
-                units: [],
-                castles: { team1: { hp: 1000, alive: true }, team2: { hp: 1000, alive: true } },
-                winner: null
-            };
-
-            // Small delay to ensure join callback is processed first
-            setTimeout(() => {
-                io.to(currentRoom).emit('gameStart', { room: room.serialize() });
-                console.log(`Game auto-started in lobby ${currentRoom}`);
-                io.emit('lobbiesUpdate');
-            }, 100);
-        }
+        // NOTE: No auto-start for lobbies - host will start the game manually
     });
+
 
     // Create room (legacy method - still supported)
     socket.on('createRoom', ({ mode, playerName }, callback) => {
@@ -311,8 +296,9 @@ io.on('connection', (socket) => {
         const room = rooms.get(currentRoom);
         if (!room || room.hostId !== socket.id) return;
 
-        if (!room.allReady()) {
-            callback({ success: false, error: 'Not all players ready' });
+        // Check minimum players
+        if (room.players.size < 2) {
+            callback({ success: false, error: 'En az 2 oyuncu gerekli' });
             return;
         }
 
@@ -325,9 +311,11 @@ io.on('connection', (socket) => {
         };
 
         io.to(currentRoom).emit('gameStart', { room: room.serialize() });
+        io.emit('lobbiesUpdate'); // Update lobby list since room is no longer waiting
         callback({ success: true });
-        console.log(`Game started in room ${currentRoom}`);
+        console.log(`Game started in room ${currentRoom} by host`);
     });
+
 
     // Building placed
     socket.on('buildingPlaced', (data) => {
