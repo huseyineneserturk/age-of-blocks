@@ -30,6 +30,12 @@ export function updateMovement(world: World, dt: number): void {
       u.pathIdx++;
       if (u.pathIdx >= u.path.length) {
         u.path = null;
+        // A completed plain move becomes a new idle post (leash anchor).
+        if (u.order === 'move') {
+          u.order = 'idle';
+          u.anchorX = u.x;
+          u.anchorY = u.y;
+        }
       }
       continue;
     }

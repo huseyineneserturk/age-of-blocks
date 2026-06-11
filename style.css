@@ -68,3 +68,8 @@ html, body, #app {
   color: var(--text-dim);
 }
 #hint-bar b { color: var(--gold); font-weight: 600; }
+#hint-bar.armed {
+  border-color: #ff8a3d;
+  color: #ffb27a;
+  font-weight: 600;
+}

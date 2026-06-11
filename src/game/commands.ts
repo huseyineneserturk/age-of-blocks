@@ -1,5 +1,5 @@
-// Player commands: turn a right-click into per-unit paths with formation
-// slots around the target so groups arrive in a loose block, not a stack.
+// Player commands: move, attack a target, attack-move. Groups get formation
+// slots around the destination so they arrive as a loose block, not a stack.
 
 import { findPath } from '../engine/astar';
 import type { TileMap } from '../engine/grid';
@@ -28,13 +28,12 @@ function formationSlots(map: TileMap, tx: number, ty: number, n: number): Array<
   return slots;
 }
 
-/** Order the given units to move toward (tx, ty) in tile coords. */
-export function issueMove(world: World, units: Unit[], tx: number, ty: number): void {
-  if (units.length === 0) return;
+/** Greedy nearest unit→slot assignment + pathing. Returns assigned slots. */
+function moveToSlots(world: World, units: Unit[], tx: number, ty: number): Map<Unit, { x: number; y: number }> {
+  const assigned = new Map<Unit, { x: number; y: number }>();
   const slots = formationSlots(world.map, tx, ty, units.length);
-  if (slots.length === 0) return;
+  if (slots.length === 0) return assigned;
 
-  // Greedy nearest assignment: keeps crossing paths to a minimum.
   const remaining = [...units];
   for (const slot of slots) {
     if (remaining.length === 0) break;
@@ -52,6 +51,48 @@ export function issueMove(world: World, units: Unit[], tx: number, ty: number): 
     if (path) {
       unit.path = path;
       unit.pathIdx = 0;
+      assigned.set(unit, slot);
+    }
+  }
+  return assigned;
+}
+
+/** Plain move: ignores enemies en route. */
+export function issueMove(world: World, units: Unit[], tx: number, ty: number): void {
+  if (units.length === 0) return;
+  const assigned = moveToSlots(world, units, tx, ty);
+  for (const unit of assigned.keys()) {
+    unit.order = 'move';
+    unit.targetId = null;
+  }
+}
+
+/** Focus-fire a specific enemy: chase + attack until it dies. */
+export function issueAttack(_world: World, units: Unit[], targetId: number): void {
+  for (const unit of units) {
+    unit.order = 'attack';
+    unit.targetId = targetId;
+    unit.repathTimer = 0; // chase immediately
+  }
+}
+
+/** Attack-move: march to a point, engaging anything encountered. */
+export function issueAttackMove(world: World, units: Unit[], tx: number, ty: number): void {
+  if (units.length === 0) return;
+  const assigned = moveToSlots(world, units, tx, ty);
+  for (const [unit, slot] of assigned) {
+    unit.order = 'attackmove';
+    unit.targetId = null;
+    unit.amX = slot.x;
+    unit.amY = slot.y;
+  }
+  // Units that couldn't path still adopt the order so they engage locally.
+  for (const unit of units) {
+    if (!assigned.has(unit)) {
+      unit.order = 'attackmove';
+      unit.targetId = null;
+      unit.amX = tx;
+      unit.amY = ty;
     }
   }
 }

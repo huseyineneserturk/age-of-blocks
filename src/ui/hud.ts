@@ -3,6 +3,19 @@
 export class Hud {
   private selectionEl = document.getElementById('selection-info')!;
   private fpsEl = document.getElementById('fps')!;
+  private hintEl = document.getElementById('hint-bar')!;
+  private defaultHint = this.hintEl.innerHTML;
+
+  /** Temporarily replace the hint bar (null = restore default). */
+  setHintOverride(text: string | null): void {
+    if (text === null) {
+      this.hintEl.innerHTML = this.defaultHint;
+      this.hintEl.classList.remove('armed');
+    } else {
+      this.hintEl.textContent = text;
+      this.hintEl.classList.add('armed');
+    }
+  }
 
   setSelection(labels: string[]): void {
     if (labels.length === 0) {

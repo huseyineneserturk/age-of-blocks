@@ -6,13 +6,15 @@ import { Camera, TILE } from '../engine/camera';
 import { Terrain, TileMap } from '../engine/grid';
 import { TEAM_COLORS } from '../data/units';
 import type { SelectRect } from '../engine/input';
-import type { Unit, World } from '../game/world';
+import type { Projectile, Unit, World } from '../game/world';
 import { drawFigure } from './figures';
+import type { Effects } from './effects';
 
 interface MoveMarker {
   x: number;
   y: number;
   age: number;
+  color: string;
 }
 
 const COLORS = {
@@ -52,8 +54,8 @@ export class Renderer {
     this.renderTerrain(map);
   }
 
-  addMoveMarker(wx: number, wy: number): void {
-    this.markers.push({ x: wx, y: wy, age: 0 });
+  addMoveMarker(wx: number, wy: number, color = '#ffd700'): void {
+    this.markers.push({ x: wx, y: wy, age: 0, color });
   }
 
   /** Pre-render full terrain at TILE px per tile. Call again if map changes. */
@@ -183,7 +185,7 @@ export class Renderer {
     }
   }
 
-  render(world: World, camera: Camera, selected: Set<number>, dragRect: SelectRect | null, alpha: number, dt: number): void {
+  render(world: World, camera: Camera, selected: Set<number>, dragRect: SelectRect | null, alpha: number, dt: number, effects: Effects): void {
     const ctx = this.ctx;
     const w = camera.viewW;
     const h = camera.viewH;
@@ -214,11 +216,14 @@ export class Renderer {
       const p = camera.worldToScreen(m.x, m.y);
       const t = m.age / 0.45;
       if (t >= 1) continue;
-      ctx.strokeStyle = `rgba(255, 215, 0, ${1 - t})`;
+      ctx.save();
+      ctx.globalAlpha = 1 - t;
+      ctx.strokeStyle = m.color;
       ctx.lineWidth = 2.5;
       ctx.beginPath();
       ctx.arc(p.x, p.y, (1 - t) * 16 + 4, 0, Math.PI * 2);
       ctx.stroke();
+      ctx.restore();
     }
     this.markers = this.markers.filter((m) => m.age < 0.45);
 
@@ -227,6 +232,15 @@ export class Renderer {
     for (const u of sorted) {
       this.drawUnit(ctx, camera, u, selected.has(u.id), alpha);
     }
+
+    // --- Projectiles ---
+    for (const pr of world.projectiles) {
+      this.drawProjectile(ctx, camera, pr);
+    }
+
+    // --- Effects (particles) ---
+    effects.update(dt);
+    effects.render(ctx, camera);
 
     // --- Drag selection rect (screen space) ---
     if (dragRect) {
@@ -237,6 +251,57 @@ export class Renderer {
       const rh = dragRect.y1 - dragRect.y0;
       ctx.fillRect(dragRect.x0, dragRect.y0, rw, rh);
       ctx.strokeRect(dragRect.x0, dragRect.y0, rw, rh);
+    }
+  }
+
+  private drawProjectile(ctx: CanvasRenderingContext2D, camera: Camera, pr: Projectile): void {
+    const p = camera.worldToScreen(pr.x, pr.y);
+    if (p.x < -40 || p.y < -40 || p.x > camera.viewW + 40 || p.y > camera.viewH + 40) return;
+    const z = camera.zoom;
+
+    if (pr.kind === 'arrow') {
+      const angle = Math.atan2(pr.ty - pr.sy, pr.tx - pr.sx);
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(angle);
+      ctx.fillStyle = pr.team === 0 ? '#bcd6ff' : '#ffc9c9';
+      ctx.shadowColor = TEAM_COLORS[pr.team].main;
+      ctx.shadowBlur = 6;
+      ctx.fillRect(-7 * z, -1.2 * z, 14 * z, 2.4 * z);
+      ctx.beginPath();
+      ctx.moveTo(8 * z, 0);
+      ctx.lineTo(4 * z, -3 * z);
+      ctx.lineTo(4 * z, 3 * z);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    } else {
+      // Boulder with a lobbed arc.
+      const arcY = -Math.sin(Math.min(1, pr.progress) * Math.PI) * 1.4 * camera.scale;
+      ctx.save();
+      ctx.translate(p.x, p.y + arcY);
+      ctx.rotate(pr.progress * 14);
+      ctx.shadowColor = '#ff7a00';
+      ctx.shadowBlur = 10;
+      ctx.fillStyle = '#5a4636';
+      ctx.beginPath();
+      for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * Math.PI * 2;
+        const r = (8 + (k % 2 ? -2.2 : 1.4)) * z;
+        const px = Math.cos(a) * r;
+        const py = Math.sin(a) * r;
+        if (k === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.restore();
+      // landing shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.beginPath();
+      ctx.ellipse(p.x, p.y, 6 * z, 2.5 * z, 0, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
 
