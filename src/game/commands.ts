@@ -64,6 +64,7 @@ export function issueMove(world: World, units: Unit[], tx: number, ty: number): 
   for (const unit of assigned.keys()) {
     unit.order = 'move';
     unit.targetId = null;
+    unit.targetBuildingId = null;
   }
 }
 
@@ -72,7 +73,18 @@ export function issueAttack(_world: World, units: Unit[], targetId: number): voi
   for (const unit of units) {
     unit.order = 'attack';
     unit.targetId = targetId;
+    unit.targetBuildingId = null;
     unit.repathTimer = 0; // chase immediately
+  }
+}
+
+/** Focus a specific enemy building. */
+export function issueAttackBuilding(_world: World, units: Unit[], buildingId: number): void {
+  for (const unit of units) {
+    unit.order = 'attack';
+    unit.targetId = null;
+    unit.targetBuildingId = buildingId;
+    unit.repathTimer = 0;
   }
 }
 
@@ -83,6 +95,7 @@ export function issueAttackMove(world: World, units: Unit[], tx: number, ty: num
   for (const [unit, slot] of assigned) {
     unit.order = 'attackmove';
     unit.targetId = null;
+    unit.targetBuildingId = null;
     unit.amX = slot.x;
     unit.amY = slot.y;
   }
@@ -91,6 +104,7 @@ export function issueAttackMove(world: World, units: Unit[], tx: number, ty: num
     if (!assigned.has(unit)) {
       unit.order = 'attackmove';
       unit.targetId = null;
+      unit.targetBuildingId = null;
       unit.amX = tx;
       unit.amY = ty;
     }

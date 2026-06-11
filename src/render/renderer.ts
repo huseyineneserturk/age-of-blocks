@@ -5,10 +5,18 @@
 import { Camera, TILE } from '../engine/camera';
 import { Terrain, TileMap } from '../engine/grid';
 import { TEAM_COLORS } from '../data/units';
+import { BUILDINGS, type BuildingKind } from '../data/buildings';
 import type { SelectRect } from '../engine/input';
-import type { Projectile, Unit, World } from '../game/world';
+import type { Building, Projectile, Unit, World } from '../game/world';
 import { drawFigure } from './figures';
 import type { Effects } from './effects';
+
+export interface PlacementGhost {
+  kind: BuildingKind;
+  tileX: number;
+  tileY: number;
+  valid: boolean;
+}
 
 interface MoveMarker {
   x: number;
@@ -185,7 +193,17 @@ export class Renderer {
     }
   }
 
-  render(world: World, camera: Camera, selected: Set<number>, dragRect: SelectRect | null, alpha: number, dt: number, effects: Effects): void {
+  render(
+    world: World,
+    camera: Camera,
+    selected: Set<number>,
+    selectedBuildingId: number | null,
+    ghost: PlacementGhost | null,
+    dragRect: SelectRect | null,
+    alpha: number,
+    dt: number,
+    effects: Effects,
+  ): void {
     const ctx = this.ctx;
     const w = camera.viewW;
     const h = camera.viewH;
@@ -227,6 +245,30 @@ export class Renderer {
     }
     this.markers = this.markers.filter((m) => m.age < 0.45);
 
+    // --- Buildings (under units) ---
+    for (const b of world.buildings) {
+      this.drawBuilding(ctx, camera, b, b.id === selectedBuildingId);
+    }
+
+    // --- Placement ghost ---
+    if (ghost) {
+      const def = BUILDINGS[ghost.kind];
+      const p0 = camera.worldToScreen(ghost.tileX, ghost.tileY);
+      const wpx = def.w * camera.scale;
+      const hpx = def.h * camera.scale;
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = ghost.valid ? '#5fe07a' : '#ff6a6a';
+      ctx.fillRect(p0.x, p0.y, wpx, hpx);
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = ghost.valid ? '#2bd47a' : '#ff4a4a';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(p0.x, p0.y, wpx, hpx);
+      ctx.font = `${camera.scale * 0.8}px serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(def.icon, p0.x + wpx / 2, p0.y + hpx / 2);
+    }
+
     // --- Units (y-sorted for painter's order) ---
     const sorted = [...world.units].sort((a, b) => a.y - b.y);
     for (const u of sorted) {
@@ -251,6 +293,90 @@ export class Renderer {
       const rh = dragRect.y1 - dragRect.y0;
       ctx.fillRect(dragRect.x0, dragRect.y0, rw, rh);
       ctx.strokeRect(dragRect.x0, dragRect.y0, rw, rh);
+    }
+  }
+
+  private drawBuilding(ctx: CanvasRenderingContext2D, camera: Camera, b: Building, isSelected: boolean): void {
+    const def = BUILDINGS[b.kind];
+    const p0 = camera.worldToScreen(b.x, b.y);
+    const wpx = b.w * camera.scale;
+    const hpx = b.h * camera.scale;
+    if (p0.x > camera.viewW + 40 || p0.y > camera.viewH + 40 || p0.x + wpx < -40 || p0.y + hpx < -40) return;
+
+    const tc = TEAM_COLORS[b.team];
+    const pad = camera.scale * 0.06;
+
+    // Shadow + body
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillRect(p0.x + pad * 2, p0.y + pad * 2, wpx - pad * 2, hpx - pad * 2);
+    const grad = ctx.createLinearGradient(p0.x, p0.y, p0.x, p0.y + hpx);
+    grad.addColorStop(0, tc.main);
+    grad.addColorStop(1, tc.dark);
+    ctx.fillStyle = grad;
+    ctx.fillRect(p0.x + pad, p0.y + pad, wpx - pad * 2, hpx - pad * 2);
+    ctx.strokeStyle = isSelected ? COLORS.gold : 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = isSelected ? 2.5 : 1.5;
+    ctx.strokeRect(p0.x + pad, p0.y + pad, wpx - pad * 2, hpx - pad * 2);
+
+    // Castle battlements
+    if (b.kind === 'castle') {
+      ctx.fillStyle = 'rgba(255,255,255,0.22)';
+      const teeth = 6;
+      for (let i = 0; i < teeth; i++) {
+        ctx.fillRect(p0.x + pad + (i * (wpx - pad * 2)) / teeth, p0.y + pad, (wpx - pad * 2) / (teeth * 2), camera.scale * 0.18);
+      }
+    }
+
+    // Icon
+    ctx.font = `${Math.min(wpx, hpx) * 0.5}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.globalAlpha = b.buildProgress < 1 ? 0.45 : 1;
+    ctx.fillText(def.icon, p0.x + wpx / 2, p0.y + hpx / 2);
+    ctx.globalAlpha = 1;
+
+    // Construction overlay (fills bottom-up)
+    if (b.buildProgress < 1) {
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      const remaining = (1 - b.buildProgress) * (hpx - pad * 2);
+      ctx.fillRect(p0.x + pad, p0.y + pad, wpx - pad * 2, remaining);
+      ctx.fillStyle = COLORS.gold;
+      ctx.fillRect(p0.x + pad, p0.y + hpx - pad - 3, (wpx - pad * 2) * b.buildProgress, 3);
+    }
+
+    // Production progress bar
+    if (b.queue.length > 0 && b.buildProgress >= 1) {
+      const total = b.queue.length;
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(p0.x + pad, p0.y + hpx - pad - 4, wpx - pad * 2, 4);
+      ctx.fillStyle = '#5fd0ff';
+      // trainProgress fraction is shown by hud; here a subtle pulsing strip per queued count
+      ctx.fillRect(p0.x + pad, p0.y + hpx - pad - 4, (wpx - pad * 2) * Math.min(1, total / 5), 4);
+    }
+
+    // HP bar
+    if (b.hp < b.maxHp) {
+      const frac = Math.max(0, b.hp / b.maxHp);
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(p0.x + pad, p0.y - 7, wpx - pad * 2, 5);
+      ctx.fillStyle = frac > 0.6 ? '#32cd32' : frac > 0.3 ? '#ffa500' : '#ff4444';
+      ctx.fillRect(p0.x + pad, p0.y - 7, (wpx - pad * 2) * frac, 5);
+    }
+
+    // Rally flag for the selected building
+    if (isSelected && b.rallyX !== null && b.rallyY !== null) {
+      const rp = camera.worldToScreen(b.rallyX, b.rallyY);
+      ctx.strokeStyle = COLORS.gold;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      const c = camera.worldToScreen(b.x + b.w / 2, b.y + b.h / 2);
+      ctx.moveTo(c.x, c.y);
+      ctx.lineTo(rp.x, rp.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.font = `${camera.scale * 0.7}px serif`;
+      ctx.fillText('🚩', rp.x, rp.y);
     }
   }
 

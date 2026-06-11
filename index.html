@@ -13,11 +13,42 @@
     <div id="hud">
       <div id="top-bar">
         <span class="logo">⚔ Age of Blocks</span>
+        <span class="res gold">🪙 <b id="gold">0</b> <small id="income"></small></span>
+        <span class="res supply">👥 <b id="supply">0/0</b></span>
         <span id="selection-info">Birim seçilmedi</span>
         <span id="fps"></span>
       </div>
+
+      <!-- Build menu (bottom-left) -->
+      <div id="build-menu"></div>
+
+      <!-- Selected building panel (bottom-right) -->
+      <div id="building-panel" class="hidden">
+        <div id="bp-title">Bina</div>
+        <div id="bp-trains"></div>
+        <div id="bp-queue"></div>
+        <div id="bp-hint"></div>
+      </div>
+
       <div id="hint-bar">
         Sol tık / sürükle: <b>seç</b> · Sağ tık: <b>yürüt / saldır</b> · <b>A</b>: saldırı emri · WASD / orta tuş: <b>kamera</b> · Tekerlek: <b>zoom</b>
+      </div>
+
+      <!-- Research -->
+      <button id="research-fab" class="hidden">🔬<span id="research-badge">0</span></button>
+      <div id="research-modal" class="hidden">
+        <div class="research-box">
+          <h3>🔬 Araştırma</h3>
+          <p class="research-sub">Bir geliştirme seç</p>
+          <div id="research-choices"></div>
+          <button id="research-close">Sonra</button>
+        </div>
+      </div>
+
+      <!-- Game over -->
+      <div id="gameover" class="hidden">
+        <h1 id="go-title">Zafer!</h1>
+        <button id="go-restart">Tekrar Oyna</button>
       </div>
     </div>
   </div>

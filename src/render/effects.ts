@@ -47,6 +47,15 @@ export class Effects {
         case 'death':
           this.death(e.x, e.y, e.team);
           break;
+        case 'building_destroyed':
+          this.explosion(e.x, e.y, 1.8);
+          break;
+        case 'build_placed':
+          this.impact(e.x, e.y, '#ffd700');
+          break;
+        case 'train_done':
+          this.impact(e.x, e.y, TEAM_COLORS[e.team].main);
+          break;
         case 'arrow_fire':
         case 'boulder_fire':
           break; // sound only

@@ -1,5 +1,6 @@
 // Projectile simulation. Arrows softly home onto their target; boulders fly
-// to the aimed tile (units can dodge) and splash on impact.
+// to the aimed tile (units can dodge) and splash on impact. Both can also
+// target buildings.
 
 import { counterMultiplier } from '../data/units';
 import { retaliate } from './combat';
@@ -26,7 +27,17 @@ export function updateProjectiles(world: World, dt: number): void {
     if (p.progress < 1) continue;
 
     // --- Impact ---
-    if (p.splash > 0) {
+    if (p.targetBuildingId !== null) {
+      const b = world.getBuilding(p.targetBuildingId);
+      if (b) {
+        b.hp -= p.damage;
+        if (p.splash > 0) {
+          world.events.push({ type: 'boulder_hit', x: p.tx, y: p.ty, radius: p.splash });
+        } else {
+          world.events.push({ type: 'arrow_hit', x: p.tx, y: p.ty, team: b.team });
+        }
+      }
+    } else if (p.splash > 0) {
       world.events.push({ type: 'boulder_hit', x: p.tx, y: p.ty, radius: p.splash });
       for (const e of world.units) {
         if (!e.alive || e.team === p.team) continue;
@@ -34,6 +45,13 @@ export function updateProjectiles(world: World, dt: number): void {
         if (d <= p.splash) {
           const falloff = 1 - (d / p.splash) * 0.5;
           e.hp -= p.damage * counterMultiplier(p.attackerKind, e.kind) * falloff;
+        }
+      }
+      // Splash also chips nearby enemy buildings.
+      for (const b of world.buildings) {
+        if (!b.alive || b.team === p.team) continue;
+        if (world.distToBuilding(p.tx, p.ty, b) <= p.splash) {
+          b.hp -= p.damage * 0.5;
         }
       }
     } else {

@@ -29,12 +29,15 @@ export const TERRAIN: Record<Terrain, TerrainProps> = {
 
 export class TileMap {
   readonly tiles: Uint8Array;
+  /** Dynamic obstacles (buildings). 1 = blocked. */
+  readonly blocked: Uint8Array;
 
   constructor(
     readonly w: number,
     readonly h: number,
   ) {
     this.tiles = new Uint8Array(w * h).fill(Terrain.Grass);
+    this.blocked = new Uint8Array(w * h);
   }
 
   inBounds(x: number, y: number): boolean {
@@ -49,8 +52,20 @@ export class TileMap {
     if (this.inBounds(x, y)) this.tiles[y * this.w + x] = t;
   }
 
+  setBlocked(x: number, y: number, v: boolean): void {
+    if (this.inBounds(x, y)) this.blocked[y * this.w + x] = v ? 1 : 0;
+  }
+
+  isBlocked(x: number, y: number): boolean {
+    return this.inBounds(x, y) && this.blocked[y * this.w + x] === 1;
+  }
+
   passable(x: number, y: number): boolean {
-    return this.inBounds(x, y) && TERRAIN[this.get(x, y)].passable;
+    return (
+      this.inBounds(x, y) &&
+      TERRAIN[this.get(x, y)].passable &&
+      this.blocked[y * this.w + x] === 0
+    );
   }
 
   /** Speed multiplier at a world position (tile units, float). */

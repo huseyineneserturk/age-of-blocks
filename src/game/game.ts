@@ -1,16 +1,18 @@
 // Game orchestrator: fixed-timestep sim (20 Hz) + interpolated render,
-// camera + input wiring, selection, commands, combat events → effects/sound.
+// camera + input wiring, selection, commands, building placement, economy UI.
 
 import { Camera } from '../engine/camera';
 import { Input } from '../engine/input';
 import { buildRiverCrossing, type GameMap } from '../data/maps/riverCrossing';
 import { UNITS, type UnitKind } from '../data/units';
-import { World, type Unit } from './world';
+import { BUILDINGS, BUILD_MENU, type BuildingKind } from '../data/buildings';
+import { World, type Building, type Unit } from './world';
 import { updateMovement } from './movement';
 import { updateCombat } from './combat';
 import { updateProjectiles } from './projectiles';
-import { issueAttack, issueAttackMove, issueMove } from './commands';
-import { Renderer } from '../render/renderer';
+import { updateEconomy, enqueueUnit, pickUpgrade } from './economy';
+import { issueAttack, issueAttackBuilding, issueAttackMove, issueMove } from './commands';
+import { Renderer, type PlacementGhost } from '../render/renderer';
 import { Effects } from '../render/effects';
 import { Sound } from '../audio/sound';
 import { Hud } from '../ui/hud';
@@ -25,10 +27,14 @@ export class Game {
   private renderer: Renderer;
   private effects = new Effects();
   private sound = new Sound();
-  private hud = new Hud();
+  private hud: Hud;
 
   private selected = new Set<number>();
+  private selectedBuildingId: number | null = null;
+  private placing: BuildingKind | null = null;
   private attackMoveArmed = false;
+  private gameOverShown = false;
+
   private acc = 0;
   private last = performance.now();
   private fpsTime = 0;
@@ -42,12 +48,20 @@ export class Game {
     this.world = new World(this.gameMap.map);
     this.camera = new Camera(this.gameMap.map.w, this.gameMap.map.h);
     this.renderer = new Renderer(ctx, this.gameMap.map);
+    this.hud = new Hud({
+      onPickBuilding: (kind) => this.startPlacement(kind),
+      onTrain: (kind) => this.train(kind),
+      onPickUpgrade: (id) => {
+        if (pickUpgrade(this.world, 0, id)) this.sound.play('resource');
+      },
+      onRestart: () => location.reload(),
+    });
 
     this.resize();
     window.addEventListener('resize', () => this.resize());
 
-    this.spawnDemoArmies();
-    this.camera.centerOn(this.gameMap.playerStart.x + 8, this.gameMap.playerStart.y);
+    this.setupArmies();
+    this.camera.centerOn(this.gameMap.playerStart.x + 6, this.gameMap.playerStart.y);
 
     this.input.attach(canvas, {
       onSelectPoint: (sx, sy, additive) => this.selectPoint(sx, sy, additive),
@@ -57,7 +71,6 @@ export class Game {
       onZoom: (sx, sy, f) => this.camera.zoomAt(sx, sy, f),
     });
 
-    // Audio needs a user gesture; also hotkeys.
     window.addEventListener('pointerdown', () => this.sound.init(), { once: true });
     window.addEventListener('keydown', (e) => this.handleKey(e));
 
@@ -73,30 +86,76 @@ export class Game {
     this.camera.setViewport(window.innerWidth, window.innerHeight);
   }
 
-  /** Phase 2 sandbox: player army vs enemy squads (idle — they retaliate). */
-  private spawnDemoArmies(): void {
+  /** Castles + small starting forces. The economy game starts here. */
+  private setupArmies(): void {
     const ps = this.gameMap.playerStart;
-    const kinds: UnitKind[] = ['knight', 'knight', 'knight', 'spear', 'spear', 'archer', 'archer', 'archer', 'cavalry', 'cavalry', 'mage', 'catapult'];
-    kinds.forEach((k, i) => {
-      const col = i % 4;
-      const row = Math.floor(i / 4);
-      this.world.spawnUnit(0, k, ps.x + 2 + col * 1.2, ps.y - 2 + row * 1.4);
-    });
-
-    // Enemy garrison at their base
     const es = this.gameMap.enemyStart;
-    const baseKinds: UnitKind[] = ['knight', 'knight', 'spear', 'archer', 'archer', 'cavalry'];
-    baseKinds.forEach((k, i) => {
-      const col = i % 3;
-      const row = Math.floor(i / 3);
-      this.world.spawnUnit(1, k, es.x - 4 - col * 1.2, es.y - 1 + row * 1.4);
+
+    this.world.placeBuilding(0, 'castle', ps.x - 1, ps.y - 1, true);
+    this.world.placeBuilding(1, 'castle', es.x - 2, es.y - 1, true);
+
+    // Small starting squads.
+    const startKinds: UnitKind[] = ['knight', 'knight', 'spear', 'archer'];
+    startKinds.forEach((k, i) => {
+      this.world.spawnUnit(0, k, ps.x + 3 + (i % 2), ps.y - 1 + Math.floor(i / 2) * 1.5);
     });
 
-    // Enemy patrol guarding the middle bridge — first fight happens here.
+    // Enemy defense (no AI yet): tower + garrison + bridge patrol.
+    this.world.placeBuilding(1, 'tower', es.x - 5, es.y - 3, true);
+    this.world.placeBuilding(1, 'tower', es.x - 5, es.y + 2, true);
+    const garrison: UnitKind[] = ['knight', 'knight', 'spear', 'archer', 'archer', 'cavalry'];
+    garrison.forEach((k, i) => {
+      this.world.spawnUnit(1, k, es.x - 7 - (i % 3) * 1.3, es.y - 1 + Math.floor(i / 3) * 1.5);
+    });
     const patrol: UnitKind[] = ['knight', 'spear', 'archer', 'archer', 'mage'];
     patrol.forEach((k, i) => {
       this.world.spawnUnit(1, k, 37 + (i % 2) * 1.3, 19 + Math.floor(i / 2) * 1.3);
     });
+  }
+
+  // --- Building placement ---
+
+  private startPlacement(kind: BuildingKind): void {
+    if (this.world.players[0].gold < BUILDINGS[kind].cost) {
+      this.sound.play('click');
+      return;
+    }
+    this.placing = kind;
+    this.attackMoveArmed = false;
+    this.canvas.style.cursor = 'copy';
+    this.hud.setBuildSelection(kind);
+    const def = BUILDINGS[kind];
+    this.hud.setHintOverride(
+      def.onGold
+        ? `${def.icon} ${def.label} — altın madeni üzerine tıkla (ESC iptal)`
+        : `${def.icon} ${def.label} — yerleştirmek için tıkla (ESC iptal)`,
+    );
+  }
+
+  private stopPlacement(): void {
+    this.placing = null;
+    this.canvas.style.cursor = 'default';
+    this.hud.setBuildSelection(null);
+    this.hud.setHintOverride(null);
+  }
+
+  private tryPlace(wx: number, wy: number): void {
+    if (!this.placing) return;
+    const kind = this.placing;
+    const def = BUILDINGS[kind];
+    const tx = Math.round(wx - def.w / 2);
+    const ty = Math.round(wy - def.h / 2);
+    const p = this.world.players[0];
+
+    if (p.gold < def.cost || !this.world.canPlace(kind, tx, ty)) {
+      this.sound.play('click');
+      return;
+    }
+    p.gold -= def.cost;
+    this.world.placeBuilding(0, kind, tx, ty);
+    this.world.events.push({ type: 'build_placed', x: tx + def.w / 2, y: ty + def.h / 2, team: 0 });
+    // Walls chain-place; other buildings exit placement mode.
+    if (kind !== 'wall') this.stopPlacement();
   }
 
   // --- Selection & commands ---
@@ -104,14 +163,18 @@ export class Game {
   private selectPoint(sx: number, sy: number, additive: boolean): void {
     const w = this.camera.screenToWorld(sx, sy);
 
-    // Armed attack-move: this click is the order, not a selection.
+    if (this.placing) {
+      this.tryPlace(w.x, w.y);
+      return;
+    }
     if (this.attackMoveArmed) {
       this.executeAttackMove(w.x, w.y);
       return;
     }
 
+    // Priority 1: own unit near the click.
     let best: Unit | null = null;
-    let bestD = 0.8; // click tolerance in tiles
+    let bestD = 0.8;
     for (const u of this.world.units) {
       if (u.team !== 0) continue;
       const d = Math.hypot(u.x - w.x, u.y - w.y);
@@ -120,16 +183,41 @@ export class Game {
         best = u;
       }
     }
-    if (!additive) this.selected.clear();
     if (best) {
+      this.selectedBuildingId = null;
+      if (!additive) this.selected.clear();
       if (additive && this.selected.has(best.id)) this.selected.delete(best.id);
       else this.selected.add(best.id);
       this.sound.play('select');
+      this.updateSelectionInfo();
+      return;
     }
-    this.updateSelectionInfo();
+
+    // Priority 2: own building under the click.
+    const b = this.world.buildings.find(
+      (bb) => bb.team === 0 && w.x >= bb.x && w.x < bb.x + bb.w && w.y >= bb.y && w.y < bb.y + bb.h,
+    );
+    if (b) {
+      this.selected.clear();
+      this.selectedBuildingId = b.id;
+      this.sound.play('select');
+      this.hud.setSelectionText(`Seçili: ${BUILDINGS[b.kind].icon} ${BUILDINGS[b.kind].label}`);
+      return;
+    }
+
+    // Empty ground.
+    if (!additive) {
+      this.selected.clear();
+      this.selectedBuildingId = null;
+      this.updateSelectionInfo();
+    }
   }
 
   private selectRect(rect: { x0: number; y0: number; x1: number; y1: number }, additive: boolean): void {
+    if (this.placing) {
+      this.stopPlacement();
+      return;
+    }
     if (this.attackMoveArmed) this.disarmAttackMove();
     const a = this.camera.screenToWorld(rect.x0, rect.y0);
     const b = this.camera.screenToWorld(rect.x1, rect.y1);
@@ -142,17 +230,37 @@ export class Game {
         any = true;
       }
     }
-    if (any) this.sound.play('select');
+    if (any) {
+      this.selectedBuildingId = null;
+      this.sound.play('select');
+    }
     this.updateSelectionInfo();
   }
 
   private command(sx: number, sy: number): void {
+    if (this.placing) {
+      this.stopPlacement();
+      return;
+    }
     if (this.attackMoveArmed) this.disarmAttackMove();
-    if (this.selected.size === 0) return;
     const w = this.camera.screenToWorld(sx, sy);
+
+    // Building selected → right click sets the rally point.
+    if (this.selectedBuildingId !== null && this.selected.size === 0) {
+      const b = this.world.getBuilding(this.selectedBuildingId);
+      if (b && BUILDINGS[b.kind].trains) {
+        b.rallyX = w.x;
+        b.rallyY = w.y;
+        this.renderer.addMoveMarker(w.x, w.y, '#5fd0ff');
+        this.sound.play('click');
+      }
+      return;
+    }
+
+    if (this.selected.size === 0) return;
     const units = this.world.units.filter((u) => this.selected.has(u.id));
 
-    // Right-click on an enemy → focused attack; on ground → move.
+    // Enemy unit under cursor → focus attack.
     let target: Unit | null = null;
     let bestD = 0.85;
     for (const u of this.world.units) {
@@ -163,14 +271,27 @@ export class Game {
         target = u;
       }
     }
-
     if (target) {
       issueAttack(this.world, units, target.id);
       this.renderer.addMoveMarker(target.x, target.y, '#ff5a5a');
-    } else {
-      issueMove(this.world, units, w.x, w.y);
-      this.renderer.addMoveMarker(w.x, w.y, '#ffd700');
+      this.sound.play('click');
+      return;
     }
+
+    // Enemy building under cursor → siege it.
+    const tb = this.world.buildings.find(
+      (bb) => bb.team !== 0 && w.x >= bb.x && w.x < bb.x + bb.w && w.y >= bb.y && w.y < bb.y + bb.h,
+    );
+    if (tb) {
+      issueAttackBuilding(this.world, units, tb.id);
+      const c = this.world.buildingCenter(tb);
+      this.renderer.addMoveMarker(c.x, c.y, '#ff5a5a');
+      this.sound.play('click');
+      return;
+    }
+
+    issueMove(this.world, units, w.x, w.y);
+    this.renderer.addMoveMarker(w.x, w.y, '#ffd700');
     this.sound.play('click');
   }
 
@@ -182,17 +303,35 @@ export class Game {
     this.disarmAttackMove();
   }
 
+  private train(kind: UnitKind): void {
+    if (this.selectedBuildingId === null) return;
+    const b = this.world.getBuilding(this.selectedBuildingId);
+    if (!b) return;
+    if (enqueueUnit(this.world, b, kind)) this.sound.play('click');
+  }
+
   private handleKey(e: KeyboardEvent): void {
     const k = e.key.toLowerCase();
-    if (k === 'a' && this.selected.size > 0) {
+
+    // Build hotkeys
+    const byHotkey = BUILD_MENU.find((kind) => BUILDINGS[kind].hotkey === k);
+    if (byHotkey) {
+      this.startPlacement(byHotkey);
+      return;
+    }
+
+    if (k === 'a' && this.selected.size > 0 && !this.placing) {
       this.attackMoveArmed = true;
       this.canvas.style.cursor = 'crosshair';
       this.hud.setHintOverride('🎯 Saldırı emri — hedef noktayı tıkla (ESC iptal)');
     } else if (k === 'escape') {
-      if (this.attackMoveArmed) {
+      if (this.placing) {
+        this.stopPlacement();
+      } else if (this.attackMoveArmed) {
         this.disarmAttackMove();
       } else {
         this.selected.clear();
+        this.selectedBuildingId = null;
         this.updateSelectionInfo();
       }
     }
@@ -218,14 +357,19 @@ export class Game {
 
     this.camera.update(elapsed, this.input.keys);
 
-    while (this.acc >= DT) {
-      this.acc -= DT;
-      updateCombat(this.world, DT);
-      updateMovement(this.world, DT);
-      updateProjectiles(this.world, DT);
+    if (this.world.winner === null) {
+      while (this.acc >= DT) {
+        this.acc -= DT;
+        updateEconomy(this.world, DT);
+        updateCombat(this.world, DT);
+        updateMovement(this.world, DT);
+        updateProjectiles(this.world, DT);
+      }
+    } else {
+      this.acc = 0;
     }
 
-    // Consume sim events → particles + sound.
+    // Sim events → particles + sound.
     if (this.world.events.length > 0) {
       this.effects.consume(this.world.events);
       for (const e of this.world.events) {
@@ -236,12 +380,15 @@ export class Game {
           case 'boulder_hit': this.sound.play('explosion'); break;
           case 'magic_cast': this.sound.play('magic'); break;
           case 'death': this.sound.play('death'); break;
+          case 'building_destroyed': this.sound.play('explosion'); break;
+          case 'train_done': this.sound.play('spawn'); break;
+          case 'build_placed': this.sound.play('build'); break;
         }
       }
       this.world.events = [];
     }
 
-    // Drop dead units from the selection.
+    // Selection hygiene.
     let selectionChanged = false;
     for (const id of this.selected) {
       if (!this.world.units.some((u) => u.id === id && u.alive)) {
@@ -250,9 +397,56 @@ export class Game {
       }
     }
     if (selectionChanged) this.updateSelectionInfo();
+    if (this.selectedBuildingId !== null && !this.world.getBuilding(this.selectedBuildingId)) {
+      this.selectedBuildingId = null;
+    }
+
+    // Ghost preview while placing.
+    let ghost: PlacementGhost | null = null;
+    if (this.placing) {
+      const w = this.camera.screenToWorld(this.input.mouseX, this.input.mouseY);
+      const def = BUILDINGS[this.placing];
+      const tx = Math.round(w.x - def.w / 2);
+      const ty = Math.round(w.y - def.h / 2);
+      ghost = {
+        kind: this.placing,
+        tileX: tx,
+        tileY: ty,
+        valid: this.world.canPlace(this.placing, tx, ty) && this.world.players[0].gold >= def.cost,
+      };
+    }
 
     const alpha = this.acc / DT;
-    this.renderer.render(this.world, this.camera, this.selected, this.input.dragRect, alpha, elapsed, this.effects);
+    this.renderer.render(
+      this.world,
+      this.camera,
+      this.selected,
+      this.selectedBuildingId,
+      ghost,
+      this.input.dragRect,
+      alpha,
+      elapsed,
+      this.effects,
+    );
+
+    // HUD
+    const p0 = this.world.players[0];
+    const selBuilding = this.selectedBuildingId !== null
+      ? (this.world.getBuilding(this.selectedBuildingId) as Building | undefined) ?? null
+      : null;
+    this.hud.update(p0, selBuilding);
+    let income = 0;
+    for (const b of this.world.buildings) {
+      if (b.alive && b.team === 0 && b.buildProgress >= 1) income += BUILDINGS[b.kind].income ?? 0;
+    }
+    this.hud.setIncome(income * p0.upgrades.income);
+
+    // Win/lose
+    if (this.world.winner !== null && !this.gameOverShown) {
+      this.gameOverShown = true;
+      this.hud.showGameOver(this.world.winner === 0);
+      this.sound.play(this.world.winner === 0 ? 'victory' : 'defeat');
+    }
 
     this.fpsCount++;
     this.fpsTime += elapsed;
