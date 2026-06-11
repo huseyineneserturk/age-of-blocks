@@ -10,7 +10,7 @@ import { World, type Building, type Unit } from './world';
 import { updateMovement } from './movement';
 import { updateCombat } from './combat';
 import { updateProjectiles } from './projectiles';
-import { updateEconomy, enqueueUnit, pickUpgrade } from './economy';
+import { updateEconomy, enqueueUnit, pickUpgrade, researchCost, startResearch } from './economy';
 import { issueAttack, issueAttackBuilding, issueAttackMove, issueAttackRock, issueMove } from './commands';
 import { Renderer, type PlacementGhost } from '../render/renderer';
 import { Effects } from '../render/effects';
@@ -51,6 +51,10 @@ export class Game {
     this.hud = new Hud({
       onPickBuilding: (kind) => this.startPlacement(kind),
       onTrain: (kind) => this.train(kind),
+      onResearch: () => {
+        const b = this.selectedBuildingId !== null ? this.world.getBuilding(this.selectedBuildingId) : undefined;
+        if (b && startResearch(this.world, b)) this.sound.play('build');
+      },
       onPickUpgrade: (id) => {
         if (pickUpgrade(this.world, 0, id)) this.sound.play('resource');
       },
@@ -479,7 +483,7 @@ export class Game {
     const selBuilding = this.selectedBuildingId !== null
       ? (this.world.getBuilding(this.selectedBuildingId) as Building | undefined) ?? null
       : null;
-    this.hud.update(p0, selBuilding);
+    this.hud.update(p0, selBuilding, researchCost(p0));
     let income = 0;
     for (const b of this.world.buildings) {
       if (b.alive && b.team === 0 && b.buildProgress >= 1) income += BUILDINGS[b.kind].income ?? 0;

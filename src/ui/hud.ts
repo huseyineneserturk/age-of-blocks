@@ -1,13 +1,14 @@
 // HUD: resources, build menu, selected-building production panel,
 // research modal, game-over overlay.
 
-import { BUILDINGS, BUILD_MENU, TRAIN, UPGRADES, type BuildingKind } from '../data/buildings';
+import { BUILDINGS, BUILD_MENU, RESEARCH_TIME, TRAIN, UPGRADES, type BuildingKind } from '../data/buildings';
 import { UNITS, type UnitKind } from '../data/units';
 import type { Building, PlayerState } from '../game/world';
 
 export interface HudCallbacks {
   onPickBuilding(kind: BuildingKind): void;
   onTrain(kind: UnitKind): void;
+  onResearch(): void;
   onPickUpgrade(id: string): void;
   onRestart(): void;
 }
@@ -100,7 +101,7 @@ export class Hud {
 
   // --- Per-frame update ---
 
-  update(player: PlayerState, selectedBuilding: Building | null): void {
+  update(player: PlayerState, selectedBuilding: Building | null, researchPrice: number): void {
     this.goldEl.textContent = String(Math.floor(player.gold));
     this.supplyEl.textContent = `${player.supplyUsed}/${player.supplyCap}`;
     (this.supplyEl as HTMLElement).style.color =
@@ -110,7 +111,7 @@ export class Hud {
       el.classList.toggle('disabled', player.gold < BUILDINGS[k].cost);
     }
 
-    this.updateBuildingPanel(player, selectedBuilding);
+    this.updateBuildingPanel(player, selectedBuilding, researchPrice);
     this.updateResearch(player);
   }
 
@@ -120,7 +121,7 @@ export class Hud {
 
   // --- Building panel ---
 
-  private updateBuildingPanel(player: PlayerState, b: Building | null): void {
+  private updateBuildingPanel(player: PlayerState, b: Building | null, researchPrice: number): void {
     if (!b) {
       this.bPanel.classList.add('hidden');
       this.panelSig = '';
@@ -129,7 +130,7 @@ export class Hud {
     this.bPanel.classList.remove('hidden');
     const def = BUILDINGS[b.kind];
 
-    const sig = `${b.id}:${b.buildProgress >= 1 ? 1 : 0}:${b.queue.join(',')}`;
+    const sig = `${b.id}:${b.buildProgress >= 1 ? 1 : 0}:${b.queue.join(',')}:${b.researching ? 1 : 0}:${researchPrice}`;
     if (sig !== this.panelSig) {
       this.panelSig = sig;
       this.bpTitle.textContent = `${def.icon} ${def.label}`;
@@ -151,9 +152,28 @@ export class Hud {
           this.bpTrains.appendChild(card);
         }
         this.bpHint.textContent = 'Sağ tık: toplanma noktası belirle';
+      } else if (b.kind === 'research') {
+        const card = document.createElement('button');
+        card.className = 'tcard research-buy';
+        if (b.researching) {
+          card.innerHTML =
+            `<span class="ic">🔬</span>` +
+            `<span class="nm">Araştırılıyor</span>` +
+            `<span class="cost"><span class="rprog">0%</span></span>`;
+          card.classList.add('disabled');
+        } else {
+          card.innerHTML =
+            `<span class="ic">🔬</span>` +
+            `<span class="nm">Araştır</span>` +
+            `<span class="cost">🪙${researchPrice}</span>`;
+          card.addEventListener('click', () => this.cb.onResearch());
+        }
+        this.bpTrains.appendChild(card);
+        this.bpHint.textContent = b.researching
+          ? 'Araştırma sürüyor...'
+          : 'Altın karşılığı geliştirme puanı al (her seferinde pahalanır)';
       } else {
-        this.bpHint.textContent =
-          b.kind === 'research' ? 'Geliştirme puanı üretiyor...' : '';
+        this.bpHint.textContent = '';
       }
 
       this.bpQueue.innerHTML = '';
@@ -172,6 +192,14 @@ export class Hud {
         const frac = Math.min(1, b.trainProgress / TRAIN[b.queue[0]].time);
         prog.style.width = `${frac * 100}%`;
       }
+    }
+    if (b.kind === 'research' && b.researching) {
+      const rp = this.bpTrains.querySelector('.rprog');
+      if (rp) rp.textContent = `${Math.floor((b.researchTimer / RESEARCH_TIME) * 100)}%`;
+    }
+    if (b.kind === 'research' && !b.researching) {
+      const buy = this.bpTrains.querySelector('.research-buy');
+      if (buy) buy.classList.toggle('disabled', player.gold < researchPrice);
     }
     const trainCards = this.bpTrains.querySelectorAll<HTMLButtonElement>('.tcard');
     const trains = def.trains ?? [];

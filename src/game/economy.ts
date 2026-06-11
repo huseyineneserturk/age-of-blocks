@@ -1,7 +1,14 @@
 // Economy system: construction progress, gold income, production queues,
 // supply bookkeeping, research point accrual + pick-1-of-3 offers.
 
-import { BUILDINGS, RESEARCH_INTERVAL, TRAIN, UPGRADES } from '../data/buildings';
+import {
+  BUILDINGS,
+  RESEARCH_BASE_COST,
+  RESEARCH_COST_STEP,
+  RESEARCH_TIME,
+  TRAIN,
+  UPGRADES,
+} from '../data/buildings';
 import { findPath } from '../engine/astar';
 import type { Building, PlayerState, World } from './world';
 
@@ -24,7 +31,6 @@ export function updateEconomy(world: World, dt: number): void {
       b.hp = Math.min(b.maxHp, b.hp + b.maxHp * 0.9 * step);
       if (b.buildProgress >= 1) {
         b.hp = Math.min(b.maxHp, b.hp);
-        if (b.kind === 'research') grantResearchPoint(world, team);
       }
       continue; // unfinished buildings neither earn nor train
     }
@@ -35,10 +41,11 @@ export function updateEconomy(world: World, dt: number): void {
       p.gold += def.income * p.upgrades.income * dt;
     }
 
-    // --- Research point accrual ---
-    if (b.kind === 'research') {
+    // --- Paid research in progress ---
+    if (b.kind === 'research' && b.researching) {
       b.researchTimer += dt;
-      if (b.researchTimer >= RESEARCH_INTERVAL) {
+      if (b.researchTimer >= RESEARCH_TIME) {
+        b.researching = false;
         b.researchTimer = 0;
         grantResearchPoint(world, team);
       }
@@ -125,6 +132,23 @@ function spawnTrained(world: World, b: Building, kind: keyof typeof TRAIN): void
 }
 
 // --- Research ---
+
+/** Current price of the next research (escalates with each one bought). */
+export function researchCost(p: PlayerState): number {
+  return RESEARCH_BASE_COST + RESEARCH_COST_STEP * (p.usedUpgrades.length + p.researchPoints);
+}
+
+/** Pay gold to start a research at this building. */
+export function startResearch(world: World, b: Building): boolean {
+  if (b.kind !== 'research' || b.buildProgress < 1 || b.researching || b.team === 2) return false;
+  const p = world.players[b.team];
+  const cost = researchCost(p);
+  if (p.gold < cost) return false;
+  p.gold -= cost;
+  b.researching = true;
+  b.researchTimer = 0;
+  return true;
+}
 
 function grantResearchPoint(world: World, team: PlayerTeam): void {
   const p = world.players[team];

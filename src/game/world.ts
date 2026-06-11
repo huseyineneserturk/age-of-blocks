@@ -38,6 +38,10 @@ export interface Unit {
   amY: number;
   atkTimer: number;
   repathTimer: number;
+  // Stuck detection
+  stuckTimer: number;
+  lastPX: number;
+  lastPY: number;
 }
 
 export interface Building {
@@ -58,7 +62,8 @@ export interface Building {
   rallyX: number | null;
   rallyY: number | null;
   atkTimer: number; // towers
-  researchTimer: number; // research building point accrual
+  researching: boolean; // research building: a paid research is in progress
+  researchTimer: number; // progress of the current research (seconds)
 }
 
 /** A destructible rock blocking a passage; siege opens the shortcut. */
@@ -200,6 +205,9 @@ export class World {
       amY: y,
       atkTimer: 0,
       repathTimer: 0,
+      stuckTimer: 0,
+      lastPX: x,
+      lastPY: y,
     };
     this.units.push(u);
     return u;
@@ -228,6 +236,7 @@ export class World {
       rallyX: null,
       rallyY: null,
       atkTimer: 0,
+      researching: false,
       researchTimer: 0,
     };
     this.buildings.push(b);

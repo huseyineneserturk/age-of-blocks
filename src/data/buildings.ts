@@ -99,4 +99,7 @@ export const UPGRADES: UpgradeDef[] = [
   { id: 'income2', name: 'Altına Hücum', desc: '+%45 altın geliri', icon: '💰', effect: 'income', value: 0.45 },
 ];
 
-export const RESEARCH_INTERVAL = 35; // seconds per extra research point
+// Research is bought with gold: each purchase costs more and takes time.
+export const RESEARCH_BASE_COST = 80;
+export const RESEARCH_COST_STEP = 40;
+export const RESEARCH_TIME = 16; // seconds per research
