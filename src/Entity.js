@@ -748,9 +748,10 @@ export class Mage extends Unit {
             }
         });
 
-        // Visual effect
+        // Visual effect — arcane bolt + burst
         if (game.particles) {
-            game.particles.spawnExplosion(targetX, targetY, 0.8);
+            game.particles.spawnMagicBolt(this.realX, this.realY, targetX, targetY, this.team);
+            game.particles.spawnMagicBurst(targetX, targetY, this.team);
         }
 
         if (game.sound) game.sound.playSound('hit');

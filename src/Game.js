@@ -1085,6 +1085,9 @@ export class Game {
                     if (p.splash) {
                         this.applySplashDamage(p.targetX, p.targetY, p.splashRadius, dmg * 0.5, p.team);
                         this.particles.spawnExplosion(p.targetX, p.targetY, p.splashRadius);
+                    } else if (this.particles) {
+                        // Arrow/bolt impact
+                        this.particles.spawnImpact(p.targetX, p.targetY, p.color || '#ffd700');
                     }
 
                     // Kill reward

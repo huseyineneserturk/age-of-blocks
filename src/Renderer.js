@@ -18,7 +18,14 @@ export class Renderer {
             grid: 'rgba(255, 255, 255, 0.05)',
             gold: '#ffd700',
             health: '#32cd32',
-            healthBg: 'rgba(255, 0, 0, 0.5)'
+            healthBg: 'rgba(255, 0, 0, 0.5)',
+            // Figure palette
+            skin: '#e8b88a',
+            skinDark: '#c89868',
+            steel: '#dfe6f0',
+            steelDark: '#9aa7bd',
+            wood: '#9b6a3a',
+            woodDark: '#6e4a26'
         };
 
         // Terrain noise (for visual variety)
@@ -287,58 +294,224 @@ export class Renderer {
         game.units.forEach(u => {
             const x = u.realX * gs + gs / 2;
             const y = u.realY * gs + gs / 2;
-            const size = gs * 0.35;
+            const s = gs * 0.4;
+            const dir = u.direction || (u.team === 'player' ? 1 : -1);
+            const col = u.team === 'player' ? this.colors.player : this.colors.enemy;
+            const dark = u.team === 'player' ? this.colors.playerDark : this.colors.enemyDark;
+            const glow = u.team === 'player' ? this.colors.playerGlow : this.colors.enemyGlow;
+            const walk = Math.sin(((u.animationFrame || 0) / 4) * Math.PI * 2);
+            const atk = u.isAttacking ? 1 : 0;
 
-            // Unit shadow
+            // Ground shadow
             ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
             ctx.beginPath();
-            ctx.ellipse(x, y + size + 2, size * 0.8, size * 0.3, 0, 0, Math.PI * 2);
+            ctx.ellipse(x, y + s * 0.95, s * 0.7, s * 0.22, 0, 0, Math.PI * 2);
             ctx.fill();
 
-            // Team color
-            const teamColor = u.team === 'player' ? this.colors.player : this.colors.enemy;
-            const teamGlow = u.team === 'player' ? this.colors.playerGlow : this.colors.enemyGlow;
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(dir, 1); // everything below drawn facing right
+            if (u.isAttacking) { ctx.shadowColor = glow; ctx.shadowBlur = 10; }
 
-            // Glow effect when attacking
-            if (u.isAttacking) {
-                ctx.shadowColor = teamGlow;
-                ctx.shadowBlur = 15;
+            switch (u.type) {
+                case 'cavalry': this._figCavalry(s, col, dark, walk, atk); break;
+                case 'catapult': this._figCatapult(s, col, dark, atk); break;
+                case 'archer': this._figArcher(s, col, dark, walk, atk); break;
+                case 'mage': this._figMage(s, col, dark, walk, atk); break;
+                default: this._figKnight(s, col, dark, walk, atk); break;
             }
-
-            // Unit body
-            ctx.fillStyle = teamColor;
-            ctx.beginPath();
-            ctx.arc(x, y, size, 0, Math.PI * 2);
-            ctx.fill();
-
             ctx.shadowBlur = 0;
+            ctx.restore();
 
-            // Unit type indicator
-            ctx.fillStyle = 'white';
-            ctx.font = `${size * 1.2}px Arial`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-
-            const icon = this.getUnitIcon(u.type);
-            ctx.fillText(icon, x, y);
-
-            // Direction arrow for cavalry
-            if (u.type === 'cavalry') {
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-                ctx.beginPath();
-                const arrowX = x + u.direction * (size + 5);
-                ctx.moveTo(arrowX, y);
-                ctx.lineTo(arrowX - u.direction * 6, y - 4);
-                ctx.lineTo(arrowX - u.direction * 6, y + 4);
-                ctx.closePath();
-                ctx.fill();
-            }
-
-            // Health bar
+            // Health bar (screen space)
             if (u.hp < u.maxHp) {
-                this.drawHealthBar(x - size, y - size - 8, size * 2, 4, u.hp, u.maxHp);
+                this.drawHealthBar(x - s * 0.8, y - s * 1.55, s * 1.6, 4, u.hp, u.maxHp);
             }
         });
+    }
+
+    // ---- Mini military figures (all drawn facing right; origin = unit centre) ----
+    _legs(s, color, walk) {
+        const ctx = this.ctx;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = s * 0.22;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.13, s * 0.32);
+        ctx.lineTo(-s * 0.13 + walk * s * 0.22, s * 0.92);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(s * 0.13, s * 0.32);
+        ctx.lineTo(s * 0.13 - walk * s * 0.22, s * 0.92);
+        ctx.stroke();
+    }
+
+    _torsoHead(s, col, dark, helmet) {
+        const ctx = this.ctx, C = this.colors;
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.ellipse(0, -s * 0.05, s * 0.3, s * 0.42, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = dark;
+        ctx.fillRect(-s * 0.3, s * 0.05, s * 0.6, s * 0.1);
+        ctx.fillStyle = C.skin;
+        ctx.beginPath();
+        ctx.arc(0, -s * 0.62, s * 0.24, 0, Math.PI * 2);
+        ctx.fill();
+        if (helmet) {
+            ctx.fillStyle = helmet;
+            ctx.beginPath();
+            ctx.arc(0, -s * 0.64, s * 0.26, Math.PI, Math.PI * 2);
+            ctx.fill();
+            ctx.fillRect(-s * 0.26, -s * 0.66, s * 0.52, s * 0.1);
+        }
+    }
+
+    _figKnight(s, col, dark, walk, atk) {
+        const ctx = this.ctx, C = this.colors;
+        this._legs(s, dark, walk);
+        // back shield
+        ctx.fillStyle = dark;
+        ctx.beginPath();
+        ctx.ellipse(-s * 0.34, -s * 0.05, s * 0.16, s * 0.26, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = C.gold; ctx.lineWidth = s * 0.05; ctx.stroke();
+        this._torsoHead(s, col, dark, dark);
+        // sword arm (front)
+        ctx.save();
+        ctx.translate(s * 0.26, -s * 0.18);
+        ctx.rotate(atk ? -1.15 : -0.25);
+        ctx.strokeStyle = C.steel; ctx.lineWidth = s * 0.09; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(0, s * 0.05); ctx.lineTo(0, -s * 0.78); ctx.stroke();
+        ctx.fillStyle = C.gold; ctx.fillRect(-s * 0.13, -s * 0.02, s * 0.26, s * 0.07);
+        ctx.restore();
+    }
+
+    _figArcher(s, col, dark, walk, atk) {
+        const ctx = this.ctx, C = this.colors;
+        this._legs(s, dark, walk);
+        this._torsoHead(s, col, dark, null);
+        // hood
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.arc(0, -s * 0.62, s * 0.27, Math.PI * 0.85, Math.PI * 2.15);
+        ctx.fill();
+        // bow + string (front)
+        const bx = s * 0.3, by = -s * 0.1, br = s * 0.42;
+        ctx.strokeStyle = C.wood; ctx.lineWidth = s * 0.07; ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(bx, by, br, -Math.PI * 0.55, Math.PI * 0.55);
+        ctx.stroke();
+        const topx = bx + Math.cos(-Math.PI * 0.55) * br, topy = by + Math.sin(-Math.PI * 0.55) * br;
+        const botx = bx + Math.cos(Math.PI * 0.55) * br, boty = by + Math.sin(Math.PI * 0.55) * br;
+        const nockx = atk ? s * 0.02 : bx;
+        ctx.strokeStyle = 'rgba(255,255,255,0.65)'; ctx.lineWidth = s * 0.03;
+        ctx.beginPath(); ctx.moveTo(topx, topy); ctx.lineTo(nockx, by); ctx.lineTo(botx, boty); ctx.stroke();
+        if (atk) {
+            ctx.strokeStyle = C.steelDark; ctx.lineWidth = s * 0.04;
+            ctx.beginPath(); ctx.moveTo(nockx, by); ctx.lineTo(bx + br, by); ctx.stroke();
+        }
+    }
+
+    _figMage(s, col, dark, walk, atk) {
+        const ctx = this.ctx, C = this.colors;
+        // robe
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.moveTo(0, -s * 0.35);
+        ctx.lineTo(-s * 0.4, s * 0.92);
+        ctx.lineTo(s * 0.4, s * 0.92);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = dark; ctx.fillRect(-s * 0.4, s * 0.8, s * 0.8, s * 0.12);
+        // head
+        ctx.fillStyle = C.skin;
+        ctx.beginPath(); ctx.arc(0, -s * 0.5, s * 0.22, 0, Math.PI * 2); ctx.fill();
+        // pointed hat
+        ctx.fillStyle = dark;
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.3, -s * 0.52);
+        ctx.lineTo(s * 0.3, -s * 0.52);
+        ctx.lineTo(s * 0.06, -s * 1.15);
+        ctx.closePath();
+        ctx.fill();
+        // staff + glowing orb (front)
+        ctx.strokeStyle = C.wood; ctx.lineWidth = s * 0.08; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(s * 0.32, s * 0.6); ctx.lineTo(s * 0.32, -s * 0.7); ctx.stroke();
+        const gr = s * (atk ? 0.42 : 0.28);
+        const grad = ctx.createRadialGradient(s * 0.32, -s * 0.8, 0, s * 0.32, -s * 0.8, gr);
+        grad.addColorStop(0, '#ffffff');
+        grad.addColorStop(0.4, '#8fb6ff');
+        grad.addColorStop(1, 'rgba(120,160,255,0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath(); ctx.arc(s * 0.32, -s * 0.8, gr, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#eaf2ff';
+        ctx.beginPath(); ctx.arc(s * 0.32, -s * 0.8, s * 0.1, 0, Math.PI * 2); ctx.fill();
+    }
+
+    _figCavalry(s, col, dark, walk, atk) {
+        const ctx = this.ctx, C = this.colors;
+        const horse = '#7a5230', horseDark = '#5a3c22';
+        // horse legs
+        ctx.strokeStyle = horseDark; ctx.lineWidth = s * 0.14; ctx.lineCap = 'round';
+        const lp = walk * s * 0.18;
+        [[-s * 0.45, lp], [-s * 0.2, -lp], [s * 0.25, lp], [s * 0.5, -lp]].forEach(([lx, off]) => {
+            ctx.beginPath(); ctx.moveTo(lx, s * 0.2); ctx.lineTo(lx + off, s * 0.92); ctx.stroke();
+        });
+        // horse body
+        ctx.fillStyle = horse;
+        ctx.beginPath(); ctx.ellipse(0, s * 0.05, s * 0.62, s * 0.3, 0, 0, Math.PI * 2); ctx.fill();
+        // neck + head
+        ctx.beginPath();
+        ctx.moveTo(s * 0.45, -s * 0.05);
+        ctx.lineTo(s * 0.82, -s * 0.5);
+        ctx.lineTo(s * 1.02, -s * 0.4);
+        ctx.lineTo(s * 0.62, s * 0.05);
+        ctx.closePath(); ctx.fill();
+        // rider
+        ctx.fillStyle = col;
+        ctx.beginPath(); ctx.ellipse(-s * 0.05, -s * 0.35, s * 0.2, s * 0.3, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = C.skin;
+        ctx.beginPath(); ctx.arc(-s * 0.05, -s * 0.72, s * 0.16, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = dark;
+        ctx.beginPath(); ctx.arc(-s * 0.05, -s * 0.74, s * 0.17, Math.PI, Math.PI * 2); ctx.fill();
+        // lance (front)
+        ctx.save();
+        ctx.translate(s * 0.1, -s * 0.35);
+        ctx.rotate(atk ? 0.18 : -0.1);
+        ctx.strokeStyle = C.wood; ctx.lineWidth = s * 0.07; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(-s * 0.2, 0); ctx.lineTo(s * 1.05, 0); ctx.stroke();
+        ctx.fillStyle = C.steel;
+        ctx.beginPath(); ctx.moveTo(s * 1.05, -s * 0.06); ctx.lineTo(s * 1.22, 0); ctx.lineTo(s * 1.05, s * 0.06); ctx.closePath(); ctx.fill();
+        ctx.restore();
+    }
+
+    _figCatapult(s, col, dark, atk) {
+        const ctx = this.ctx, C = this.colors;
+        // wheels
+        [-s * 0.4, s * 0.4].forEach(wx => {
+            ctx.fillStyle = C.woodDark;
+            ctx.beginPath(); ctx.arc(wx, s * 0.7, s * 0.28, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = C.wood;
+            ctx.beginPath(); ctx.arc(wx, s * 0.7, s * 0.13, 0, Math.PI * 2); ctx.fill();
+        });
+        // frame
+        ctx.strokeStyle = C.wood; ctx.lineWidth = s * 0.12; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(-s * 0.5, s * 0.7); ctx.lineTo(s * 0.5, s * 0.7); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-s * 0.3, s * 0.7); ctx.lineTo(0, -s * 0.1); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(s * 0.3, s * 0.7); ctx.lineTo(0, -s * 0.1); ctx.stroke();
+        // throwing arm
+        ctx.save();
+        ctx.translate(0, -s * 0.1);
+        ctx.rotate(atk ? -1.4 : -0.25);
+        ctx.strokeStyle = C.woodDark; ctx.lineWidth = s * 0.1;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -s * 0.7); ctx.stroke();
+        ctx.fillStyle = '#555';
+        ctx.beginPath(); ctx.arc(0, -s * 0.72, s * 0.16, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+        // team flag
+        ctx.fillStyle = col;
+        ctx.fillRect(-s * 0.52, s * 0.28, s * 0.18, s * 0.14);
     }
 
     drawProjectiles() {
@@ -383,10 +556,28 @@ export class Renderer {
 
                 ctx.restore();
             } else if (p.type === 'boulder') {
-                // Boulder
+                // Spinning rock with a fiery glow
+                ctx.save();
+                ctx.translate(currentX, currentY + arcY);
+                ctx.rotate(p.progress * 14);
+                ctx.shadowColor = '#ff7a00';
+                ctx.shadowBlur = 12;
+                ctx.fillStyle = '#5a4636';
                 ctx.beginPath();
-                ctx.arc(currentX, currentY + arcY, 8, 0, Math.PI * 2);
+                for (let k = 0; k < 8; k++) {
+                    const a = (k / 8) * Math.PI * 2;
+                    const r = 9 + (k % 2 ? -2.5 : 1.5);
+                    const px = Math.cos(a) * r, py = Math.sin(a) * r;
+                    if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+                }
+                ctx.closePath();
                 ctx.fill();
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = '#3a2c22';
+                ctx.beginPath();
+                ctx.arc(-2, -2, 2.2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
             }
 
             ctx.shadowBlur = 0;

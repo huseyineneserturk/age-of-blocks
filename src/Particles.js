@@ -57,6 +57,23 @@ export class ParticleSystem {
                 ctx.rotate(p.rotation || 0);
                 this.drawStar(ctx, 0, 0, 5, p.size, p.size / 2);
                 ctx.fill();
+            } else if (p.type === 'ring') {
+                ctx.strokeStyle = p.color;
+                ctx.lineWidth = p.lineWidth || 3;
+                ctx.globalAlpha = p.alpha;
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, p.size, 0, Math.PI * 2);
+                ctx.stroke();
+            } else if (p.type === 'glow') {
+                const g2 = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, p.size);
+                g2.addColorStop(0, p.color);
+                g2.addColorStop(0.5, p.color);
+                g2.addColorStop(1, 'transparent');
+                ctx.globalAlpha = p.alpha;
+                ctx.fillStyle = g2;
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, p.size, 0, Math.PI * 2);
+                ctx.fill();
             }
 
             ctx.restore();
@@ -231,6 +248,18 @@ export class ParticleSystem {
     spawnExplosion(x, y, radius = 1) {
         const count = Math.floor(radius * 20);
 
+        // Shockwave ring + flash
+        this.particles.push({
+            x: x + 0.5, y: y + 0.5, vx: 0, vy: 0, ax: 0, ay: 0,
+            size: 8, color: '#ffcc66', life: 0.35, maxLife: 0.35, alpha: 1,
+            shrink: -8 * radius, type: 'ring', lineWidth: 4
+        });
+        this.particles.push({
+            x: x + 0.5, y: y + 0.5, vx: 0, vy: 0, ax: 0, ay: 0,
+            size: 20 * radius, color: '#ffaa44', life: 0.2, maxLife: 0.2, alpha: 1,
+            shrink: 1.2, type: 'glow'
+        });
+
         for (let i = 0; i < count; i++) {
             const angle = Math.random() * Math.PI * 2;
             const speed = 3 + Math.random() * 5 * radius;
@@ -271,6 +300,81 @@ export class ParticleSystem {
                 alpha: 0.8,
                 shrink: 0.3,
                 type: 'circle'
+            });
+        }
+    }
+
+    // Spawn a travelling magic bolt trail (mage cast streak from -> to)
+    spawnMagicBolt(fromX, fromY, toX, toY, team = 'player') {
+        const core = team === 'player' ? '#7ab8ff' : '#ff7ad0';
+        const steps = 10;
+        for (let i = 0; i <= steps; i++) {
+            const t = i / steps;
+            this.particles.push({
+                x: fromX + 0.5 + (toX - fromX) * t + (Math.random() - 0.5) * 0.2,
+                y: fromY + 0.5 + (toY - fromY) * t + (Math.random() - 0.5) * 0.2,
+                vx: (Math.random() - 0.5) * 0.6,
+                vy: (Math.random() - 0.5) * 0.6,
+                ax: 0, ay: 0,
+                size: 5 + Math.random() * 4,
+                color: i % 2 ? core : '#ffffff',
+                life: 0.18 + t * 0.12,
+                maxLife: 0.3,
+                alpha: 1,
+                shrink: 1.2,
+                type: 'glow'
+            });
+        }
+    }
+
+    // Spawn an arcane burst where a spell lands
+    spawnMagicBurst(x, y, team = 'player') {
+        const c1 = team === 'player' ? '#9d6bff' : '#ff6bd0';
+        const c2 = team === 'player' ? '#6bd5ff' : '#ffb86b';
+        // central flash
+        this.particles.push({
+            x: x + 0.5, y: y + 0.5, vx: 0, vy: 0, ax: 0, ay: 0,
+            size: 28, color: '#ffffff', life: 0.18, maxLife: 0.18, alpha: 1, shrink: 1.5, type: 'glow'
+        });
+        // expanding rings
+        [c1, c2].forEach((col, k) => {
+            this.particles.push({
+                x: x + 0.5, y: y + 0.5, vx: 0, vy: 0, ax: 0, ay: 0,
+                size: 6 + k * 4, color: col, life: 0.45, maxLife: 0.45, alpha: 1,
+                shrink: -6, type: 'ring', lineWidth: 4 - k
+            });
+        });
+        // arcane sparkles
+        for (let i = 0; i < 14; i++) {
+            const a = (Math.PI * 2 * i) / 14 + Math.random() * 0.4;
+            const sp = 2 + Math.random() * 4;
+            this.particles.push({
+                x: x + 0.5, y: y + 0.5,
+                vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+                ax: 0, ay: 1,
+                size: 4 + Math.random() * 4,
+                color: [c1, c2, '#ffffff'][Math.floor(Math.random() * 3)],
+                life: 0.4 + Math.random() * 0.3, maxLife: 0.7, alpha: 1, shrink: 0.6,
+                type: 'star', rotation: Math.random() * Math.PI
+            });
+        }
+    }
+
+    // Spawn a small impact (arrow/melee hit)
+    spawnImpact(x, y, color = '#ffd700') {
+        this.particles.push({
+            x: x + 0.5, y: y + 0.5, vx: 0, vy: 0, ax: 0, ay: 0,
+            size: 5, color: color, life: 0.25, maxLife: 0.25, alpha: 1,
+            shrink: -7, type: 'ring', lineWidth: 2.5
+        });
+        for (let i = 0; i < 6; i++) {
+            const a = Math.random() * Math.PI * 2;
+            const sp = 1.5 + Math.random() * 2.5;
+            this.particles.push({
+                x: x + 0.5, y: y + 0.5,
+                vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+                ax: 0, ay: 3, size: 3 + Math.random() * 3, color: color,
+                life: 0.3, maxLife: 0.3, alpha: 1, shrink: 0.8, type: 'circle'
             });
         }
     }
