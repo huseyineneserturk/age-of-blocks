@@ -19,6 +19,8 @@ const UNIT_ICONS: Record<UnitKind, string> = {
   cavalry: '🐴',
   mage: '🔮',
   catapult: '🛠️',
+  golem: '🗿',
+  wolf: '🐺',
 };
 
 export class Hud {

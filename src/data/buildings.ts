@@ -69,6 +69,9 @@ export const TRAIN: Record<UnitKind, TrainDef> = {
   cavalry:  { cost: 110, supply: 2, time: 11 },
   mage:     { cost: 130, supply: 2, time: 13 },
   catapult: { cost: 170, supply: 3, time: 16 },
+  // Neutral monsters — never trained, table entries for type completeness.
+  golem:    { cost: 0, supply: 0, time: 0 },
+  wolf:     { cost: 0, supply: 0, time: 0 },
 };
 
 export const QUEUE_MAX = 5;

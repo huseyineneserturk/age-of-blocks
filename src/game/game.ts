@@ -11,7 +11,7 @@ import { updateMovement } from './movement';
 import { updateCombat } from './combat';
 import { updateProjectiles } from './projectiles';
 import { updateEconomy, enqueueUnit, pickUpgrade } from './economy';
-import { issueAttack, issueAttackBuilding, issueAttackMove, issueMove } from './commands';
+import { issueAttack, issueAttackBuilding, issueAttackMove, issueAttackRock, issueMove } from './commands';
 import { Renderer, type PlacementGhost } from '../render/renderer';
 import { Effects } from '../render/effects';
 import { Sound } from '../audio/sound';
@@ -111,6 +111,17 @@ export class Game {
     patrol.forEach((k, i) => {
       this.world.spawnUnit(1, k, 37 + (i % 2) * 1.3, 19 + Math.floor(i / 2) * 1.3);
     });
+
+    // --- Environment: cracked rocks seal the top bridge ---
+    for (const r of this.gameMap.crackedRocks) {
+      this.world.addRock(r.x, r.y);
+    }
+
+    // --- Neutral camp guards the middle bridge: golem + wolves ---
+    const camp = this.gameMap.neutralCamp;
+    this.world.spawnUnit(2, 'golem', camp.x, camp.y);
+    this.world.spawnUnit(2, 'wolf', camp.x - 1.6, camp.y - 0.8);
+    this.world.spawnUnit(2, 'wolf', camp.x + 1.6, camp.y + 0.8);
   }
 
   // --- Building placement ---
@@ -290,6 +301,17 @@ export class Game {
       return;
     }
 
+    // Cracked rock under cursor → break it open.
+    const rock = this.world.rocks.find(
+      (r) => r.alive && w.x >= r.x && w.x < r.x + 1 && w.y >= r.y && w.y < r.y + 1,
+    );
+    if (rock) {
+      issueAttackRock(this.world, units, rock.id);
+      this.renderer.addMoveMarker(rock.x + 0.5, rock.y + 0.5, '#d0c060');
+      this.sound.play('click');
+      return;
+    }
+
     issueMove(this.world, units, w.x, w.y);
     this.renderer.addMoveMarker(w.x, w.y, '#ffd700');
     this.sound.play('click');
@@ -343,6 +365,17 @@ export class Game {
     this.hud.setHintOverride(null);
   }
 
+  private bannerTimer: number | undefined;
+
+  /** Flash a message in the hint bar for a few seconds. */
+  private banner(text: string): void {
+    this.hud.setHintOverride(text);
+    clearTimeout(this.bannerTimer);
+    this.bannerTimer = window.setTimeout(() => {
+      if (!this.placing && !this.attackMoveArmed) this.hud.setHintOverride(null);
+    }, 4000);
+  }
+
   private updateSelectionInfo(): void {
     const units = this.world.units.filter((u) => this.selected.has(u.id));
     this.hud.setSelection(units.map((u) => UNITS[u.kind].label));
@@ -383,6 +416,18 @@ export class Game {
           case 'building_destroyed': this.sound.play('explosion'); break;
           case 'train_done': this.sound.play('spawn'); break;
           case 'build_placed': this.sound.play('build'); break;
+          case 'rock_destroyed':
+            this.sound.play('explosion');
+            this.banner('🪨 Geçit açıldı!');
+            break;
+          case 'camp_cleared':
+            this.sound.play('victory');
+            this.banner(
+              e.team === 0
+                ? '🗿 Kamp temizlendi! +150 altın, kalıcı +%10 hasar'
+                : '⚠️ Düşman kampı temizledi ve güçlendi!',
+            );
+            break;
         }
       }
       this.world.events = [];

@@ -7,7 +7,8 @@ import { Terrain, TileMap } from '../engine/grid';
 import { TEAM_COLORS } from '../data/units';
 import { BUILDINGS, type BuildingKind } from '../data/buildings';
 import type { SelectRect } from '../engine/input';
-import type { Building, Projectile, Unit, World } from '../game/world';
+import type { Building, Projectile, RockEntity, Unit, World } from '../game/world';
+import { isHiddenFrom } from '../game/combat';
 import { drawFigure } from './figures';
 import type { Effects } from './effects';
 
@@ -250,6 +251,11 @@ export class Renderer {
       this.drawBuilding(ctx, camera, b, b.id === selectedBuildingId);
     }
 
+    // --- Cracked rocks (destructible) ---
+    for (const r of world.rocks) {
+      this.drawRock(ctx, camera, r);
+    }
+
     // --- Placement ghost ---
     if (ghost) {
       const def = BUILDINGS[ghost.kind];
@@ -270,9 +276,15 @@ export class Renderer {
     }
 
     // --- Units (y-sorted for painter's order) ---
+    // Forest ambush from the player's perspective: hidden enemies are not
+    // drawn; the player's own units inside forests render semi-transparent.
     const sorted = [...world.units].sort((a, b) => a.y - b.y);
     for (const u of sorted) {
+      if (u.team !== 0 && isHiddenFrom(world, u, 0)) continue;
+      const inForest = world.map.get(Math.floor(u.x), Math.floor(u.y)) === Terrain.Forest;
+      if (inForest) ctx.globalAlpha = 0.55;
       this.drawUnit(ctx, camera, u, selected.has(u.id), alpha);
+      ctx.globalAlpha = 1;
     }
 
     // --- Projectiles ---
@@ -377,6 +389,42 @@ export class Renderer {
       ctx.setLineDash([]);
       ctx.font = `${camera.scale * 0.7}px serif`;
       ctx.fillText('🚩', rp.x, rp.y);
+    }
+  }
+
+  private drawRock(ctx: CanvasRenderingContext2D, camera: Camera, r: RockEntity): void {
+    const p = camera.worldToScreen(r.x + 0.5, r.y + 0.5);
+    const s = camera.scale;
+    if (p.x < -s || p.y < -s || p.x > camera.viewW + s || p.y > camera.viewH + s) return;
+
+    // Boulder
+    ctx.fillStyle = COLORS.rock;
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y + s * 0.08, s * 0.42, s * 0.34, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = COLORS.rockDark;
+    ctx.beginPath();
+    ctx.ellipse(p.x - s * 0.14, p.y - s * 0.06, s * 0.16, s * 0.12, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // cracks — these rocks are breakable, show it
+    ctx.strokeStyle = '#2c2e33';
+    ctx.lineWidth = Math.max(1, s * 0.05);
+    ctx.beginPath();
+    ctx.moveTo(p.x - s * 0.05, p.y - s * 0.26);
+    ctx.lineTo(p.x + s * 0.08, p.y);
+    ctx.lineTo(p.x - s * 0.1, p.y + s * 0.22);
+    ctx.moveTo(p.x + 0.08 * s, p.y);
+    ctx.lineTo(p.x + s * 0.28, p.y + s * 0.1);
+    ctx.stroke();
+
+    // HP bar when damaged
+    if (r.hp < r.maxHp) {
+      const bw = s * 0.8;
+      const frac = Math.max(0, r.hp / r.maxHp);
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(p.x - bw / 2, p.y - s * 0.55, bw, 4);
+      ctx.fillStyle = '#d0c060';
+      ctx.fillRect(p.x - bw / 2, p.y - s * 0.55, bw * frac, 4);
     }
   }
 

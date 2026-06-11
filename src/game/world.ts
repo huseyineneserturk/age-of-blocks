@@ -29,6 +29,9 @@ export interface Unit {
   order: UnitOrder;
   targetId: number | null; // enemy unit
   targetBuildingId: number | null; // enemy building
+  targetRockId: number | null; // cracked rock
+  /** Team that last damaged this unit (camp reward attribution). */
+  lastHitBy: Team | null;
   anchorX: number;
   anchorY: number;
   amX: number;
@@ -56,6 +59,16 @@ export interface Building {
   rallyY: number | null;
   atkTimer: number; // towers
   researchTimer: number; // research building point accrual
+}
+
+/** A destructible rock blocking a passage; siege opens the shortcut. */
+export interface RockEntity {
+  id: number;
+  x: number; // tile
+  y: number;
+  hp: number;
+  maxHp: number;
+  alive: boolean;
 }
 
 export interface Upgrades {
@@ -107,7 +120,9 @@ export type SimEvent =
   | { type: 'death'; x: number; y: number; team: Team }
   | { type: 'building_destroyed'; x: number; y: number; team: Team; kind: BuildingKind }
   | { type: 'train_done'; x: number; y: number; team: Team }
-  | { type: 'build_placed'; x: number; y: number; team: Team };
+  | { type: 'build_placed'; x: number; y: number; team: Team }
+  | { type: 'rock_destroyed'; x: number; y: number }
+  | { type: 'camp_cleared'; team: Team };
 
 function makePlayer(team: Team): PlayerState {
   return {
@@ -125,18 +140,37 @@ function makePlayer(team: Team): PlayerState {
 export class World {
   units: Unit[] = [];
   buildings: Building[] = [];
+  rocks: RockEntity[] = [];
   projectiles: Projectile[] = [];
   events: SimEvent[] = [];
   players: [PlayerState, PlayerState] = [makePlayer(0), makePlayer(1)];
   /** Set when a castle falls: winning team. */
   winner: Team | null = null;
+  /** Whether the neutral camp reward has been claimed. */
+  campRewardGiven = false;
   private nextId = 1;
 
   constructor(readonly map: TileMap) {}
 
+  addRock(tx: number, ty: number, hp = 600): RockEntity {
+    const r: RockEntity = { id: this.nextId++, x: tx, y: ty, hp, maxHp: hp, alive: true };
+    this.rocks.push(r);
+    this.map.setBlocked(tx, ty, true);
+    return r;
+  }
+
+  removeRock(r: RockEntity): void {
+    r.alive = false;
+    this.map.setBlocked(r.x, r.y, false);
+  }
+
+  getRock(id: number): RockEntity | undefined {
+    return this.rocks.find((r) => r.id === id && r.alive);
+  }
+
   spawnUnit(team: Team, kind: UnitKind, x: number, y: number): Unit {
     const def = UNITS[kind];
-    const hpMul = this.players[team].upgrades.health;
+    const hpMul = team === 2 ? 1 : this.players[team].upgrades.health;
     const u: Unit = {
       id: this.nextId++,
       team,
@@ -158,6 +192,8 @@ export class World {
       order: 'idle',
       targetId: null,
       targetBuildingId: null,
+      targetRockId: null,
+      lastHitBy: null,
       anchorX: x,
       anchorY: y,
       amX: x,

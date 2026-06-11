@@ -11,6 +11,8 @@ export interface GameMap {
   enemyStart: { x: number; y: number };
   goldNodes: Array<{ x: number; y: number }>;
   neutralCamp: { x: number; y: number };
+  /** Destructible rocks (placed as entities by the game, not terrain). */
+  crackedRocks: Array<{ x: number; y: number }>;
 }
 
 export function buildRiverCrossing(): GameMap {
@@ -86,6 +88,12 @@ export function buildRiverCrossing(): GameMap {
   map.fillRect(1, 16, 7, 24, Terrain.Grass);
   map.fillRect(W - 8, 16, W - 2, 24, Terrain.Grass);
 
+  // Cracked rocks seal the TOP bridge — a catapult can open this flank.
+  const crackedRocks: Array<{ x: number; y: number }> = [];
+  for (let y = 6; y <= 8; y++) {
+    crackedRocks.push({ x: 31, y }, { x: 32, y });
+  }
+
   return {
     map,
     name: 'River Crossing',
@@ -93,5 +101,6 @@ export function buildRiverCrossing(): GameMap {
     enemyStart: { x: W - 5, y: 20 },
     goldNodes,
     neutralCamp: { x: 32, y: 20 },
+    crackedRocks,
   };
 }

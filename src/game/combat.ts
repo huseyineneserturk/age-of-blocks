@@ -1,16 +1,48 @@
-// Combat system: target acquisition, chasing, attacking, deaths — for units
-// AND buildings. Rules (Age-style): units never advance on their own; idle
-// units retaliate within aggro and leash back. Attack-move engages units
-// first, then buildings met along the way. Towers defend automatically.
+// Combat system: target acquisition, chasing, attacking, deaths — units,
+// buildings and destructible rocks. Environment rules (Phase 4):
+//  • Forest ambush: a unit in forest is hidden from enemies until they close in
+//  • Hill bonus: ranged units on a hill gain +1 range
+//  • Neutral camp: killing the last monster grants gold + a permanent buff
 
 import { findPath } from '../engine/astar';
-import { UNITS, counterMultiplier } from '../data/units';
+import { Terrain } from '../engine/grid';
+import { UNITS, counterMultiplier, type Team } from '../data/units';
 import { BUILDINGS, SIEGE_VS_BUILDING } from '../data/buildings';
-import type { Building, Unit, World } from './world';
+import type { Building, RockEntity, Unit, World } from './world';
 
 const REPATH_INTERVAL = 0.4;
 const LEASH_EXTRA = 2.0;
 const ATTACK_ANIM = 0.25;
+const FOREST_REVEAL = 2.2; // enemies closer than this see into the forest
+const HILL_RANGE_BONUS = 1;
+const CAMP_GOLD = 150;
+const CAMP_DAMAGE_BUFF = 0.1;
+
+function upgradesOf(world: World, team: Team): { damage: number; atkspeed: number } {
+  if (team === 2) return { damage: 1, atkspeed: 1 };
+  return world.players[team].upgrades;
+}
+
+/** Is `u` hidden (in forest) from the viewpoint of `viewerTeam`? */
+export function isHiddenFrom(world: World, u: Unit, viewerTeam: Team): boolean {
+  if (u.team === viewerTeam) return false;
+  if (world.map.get(Math.floor(u.x), Math.floor(u.y)) !== Terrain.Forest) return false;
+  for (const v of world.units) {
+    if (!v.alive || v.team !== viewerTeam) continue;
+    if (Math.hypot(v.x - u.x, v.y - u.y) <= FOREST_REVEAL) return false;
+  }
+  return true;
+}
+
+/** Effective attack range, including the hill bonus for ranged units. */
+function effectiveRange(world: World, u: Unit): number {
+  const def = UNITS[u.kind];
+  let range = def.range;
+  if (def.range >= 3 && world.map.get(Math.floor(u.x), Math.floor(u.y)) === Terrain.Hill) {
+    range += HILL_RANGE_BONUS;
+  }
+  return range;
+}
 
 export function updateCombat(world: World, dt: number): void {
   for (const u of world.units) {
@@ -40,14 +72,33 @@ export function updateCombat(world: World, dt: number): void {
 
   updateTowers(world);
 
-  // Unit deaths
+  // Unit deaths (+ neutral camp reward)
   for (const u of world.units) {
     if (u.alive && u.hp <= 0) {
       u.alive = false;
       world.events.push({ type: 'death', x: u.x, y: u.y, team: u.team });
+      if (u.team === 2 && !world.campRewardGiven) {
+        const remaining = world.units.some((m) => m.alive && m.team === 2 && m.id !== u.id);
+        if (!remaining && (u.lastHitBy === 0 || u.lastHitBy === 1)) {
+          world.campRewardGiven = true;
+          const p = world.players[u.lastHitBy];
+          p.gold += CAMP_GOLD;
+          p.upgrades.damage += CAMP_DAMAGE_BUFF;
+          world.events.push({ type: 'camp_cleared', team: u.lastHitBy });
+        }
+      }
     }
   }
   world.units = world.units.filter((u) => u.alive);
+
+  // Rock deaths
+  for (const r of world.rocks) {
+    if (r.alive && r.hp <= 0) {
+      world.removeRock(r);
+      world.events.push({ type: 'rock_destroyed', x: r.x + 0.5, y: r.y + 0.5 });
+    }
+  }
+  world.rocks = world.rocks.filter((r) => r.alive);
 
   // Building deaths
   for (const b of world.buildings) {
@@ -55,7 +106,7 @@ export function updateCombat(world: World, dt: number): void {
       const c = world.buildingCenter(b);
       world.removeBuilding(b);
       world.events.push({ type: 'building_destroyed', x: c.x, y: c.y, team: b.team, kind: b.kind });
-      if (b.kind === 'castle' && world.winner === null) {
+      if (b.kind === 'castle' && world.winner === null && b.team !== 2) {
         world.winner = b.team === 0 ? 1 : 0;
       }
     }
@@ -66,6 +117,15 @@ export function updateCombat(world: World, dt: number): void {
 // --- Order handlers ---
 
 function updateAttackOrder(world: World, u: Unit): void {
+  if (u.targetRockId !== null) {
+    const r = world.getRock(u.targetRockId);
+    if (!r) {
+      becomeIdle(u);
+      return;
+    }
+    engageRock(world, u, r);
+    return;
+  }
   if (u.targetBuildingId !== null) {
     const tb = world.getBuilding(u.targetBuildingId);
     if (!tb) {
@@ -76,7 +136,7 @@ function updateAttackOrder(world: World, u: Unit): void {
     return;
   }
   const target = u.targetId !== null ? world.getUnit(u.targetId) : undefined;
-  if (!target) {
+  if (!target || isHiddenFrom(world, target, u.team)) {
     becomeIdle(u);
     return;
   }
@@ -84,8 +144,9 @@ function updateAttackOrder(world: World, u: Unit): void {
 }
 
 function updateAttackMove(world: World, u: Unit): void {
-  // Priority 1: enemy units.
+  // Priority 1: enemy units (visible only).
   let target = u.targetId !== null ? world.getUnit(u.targetId) : undefined;
+  if (target && isHiddenFrom(world, target, u.team)) target = undefined;
   if (!target) {
     u.targetId = null;
     target = scanForEnemy(world, u, UNITS[u.kind].aggro);
@@ -132,6 +193,7 @@ function updateAttackMove(world: World, u: Unit): void {
 function updateIdle(world: World, u: Unit): void {
   const def = UNITS[u.kind];
   let target = u.targetId !== null ? world.getUnit(u.targetId) : undefined;
+  if (target && isHiddenFrom(world, target, u.team)) target = undefined;
 
   const anchorDist = Math.hypot(u.x - u.anchorX, u.y - u.anchorY);
   if (target && anchorDist > def.aggro + LEASH_EXTRA) {
@@ -165,16 +227,16 @@ function updateIdle(world: World, u: Unit): void {
 // --- Engagement ---
 
 function engage(world: World, u: Unit, target: Unit): void {
-  const def = UNITS[u.kind];
   const dx = target.x - u.x;
   const dy = target.y - u.y;
   const dist = Math.hypot(dx, dy);
+  const range = effectiveRange(world, u);
 
-  if (dist <= def.range) {
+  if (dist <= range) {
     u.path = null;
     if (Math.abs(dx) > 0.05) u.facing = dx > 0 ? 1 : -1;
     if (u.atkTimer <= 0) {
-      u.atkTimer = def.attackCooldown / world.players[u.team].upgrades.atkspeed;
+      u.atkTimer = UNITS[u.kind].attackCooldown / upgradesOf(world, u.team).atkspeed;
       u.attacking = true;
       u.attackAnimTimer = ATTACK_ANIM;
       performAttack(world, u, target);
@@ -193,15 +255,15 @@ function engage(world: World, u: Unit, target: Unit): void {
 }
 
 function engageBuilding(world: World, u: Unit, b: Building): void {
-  const def = UNITS[u.kind];
   const dist = world.distToBuilding(u.x, u.y, b);
   const c = world.buildingCenter(b);
+  const range = effectiveRange(world, u);
 
-  if (dist <= def.range) {
+  if (dist <= range) {
     u.path = null;
     if (Math.abs(c.x - u.x) > 0.05) u.facing = c.x > u.x ? 1 : -1;
     if (u.atkTimer <= 0) {
-      u.atkTimer = def.attackCooldown / world.players[u.team].upgrades.atkspeed;
+      u.atkTimer = UNITS[u.kind].attackCooldown / upgradesOf(world, u.team).atkspeed;
       u.attacking = true;
       u.attackAnimTimer = ATTACK_ANIM;
       performAttackOnBuilding(world, u, b);
@@ -211,7 +273,6 @@ function engageBuilding(world: World, u: Unit, b: Building): void {
 
   if (u.repathTimer <= 0) {
     u.repathTimer = REPATH_INTERVAL;
-    // Path to the nearest passable tile around the building.
     const p = findPath(world.map, u.x, u.y, c.x, c.y);
     if (p) {
       u.path = p;
@@ -220,8 +281,44 @@ function engageBuilding(world: World, u: Unit, b: Building): void {
   }
 }
 
+function engageRock(world: World, u: Unit, r: RockEntity): void {
+  const cx = r.x + 0.5;
+  const cy = r.y + 0.5;
+  const dist = Math.hypot(cx - u.x, cy - u.y) - 0.5;
+  const range = effectiveRange(world, u);
+
+  if (dist <= range) {
+    u.path = null;
+    if (Math.abs(cx - u.x) > 0.05) u.facing = cx > u.x ? 1 : -1;
+    if (u.atkTimer <= 0) {
+      u.atkTimer = UNITS[u.kind].attackCooldown / upgradesOf(world, u.team).atkspeed;
+      u.attacking = true;
+      u.attackAnimTimer = ATTACK_ANIM;
+      let dmg = unitDamage(world, u);
+      dmg *= u.kind === 'catapult' ? SIEGE_VS_BUILDING : 0.5;
+      r.hp -= dmg;
+      world.events.push({ type: 'melee_hit', x: cx, y: cy, team: 2 });
+    }
+    return;
+  }
+
+  if (u.repathTimer <= 0) {
+    u.repathTimer = REPATH_INTERVAL;
+    const p = findPath(world.map, u.x, u.y, cx, cy);
+    if (p) {
+      u.path = p;
+      u.pathIdx = 0;
+    }
+  }
+}
+
 function unitDamage(world: World, u: Unit): number {
-  return UNITS[u.kind].damage * world.players[u.team].upgrades.damage;
+  return UNITS[u.kind].damage * upgradesOf(world, u.team).damage;
+}
+
+function hurt(target: Unit, amount: number, attackerTeam: Team): void {
+  target.hp -= amount;
+  target.lastHitBy = attackerTeam;
 }
 
 function performAttack(world: World, u: Unit, target: Unit): void {
@@ -267,7 +364,7 @@ function performAttack(world: World, u: Unit, target: Unit): void {
         const d = Math.hypot(e.x - target.x, e.y - target.y);
         if (d <= radius) {
           const falloff = 1 - (d / radius) * 0.4;
-          e.hp -= base * counterMultiplier(u.kind, e.kind) * falloff;
+          hurt(e, base * counterMultiplier(u.kind, e.kind) * falloff, u.team);
           retaliate(e, u);
         }
       }
@@ -275,7 +372,7 @@ function performAttack(world: World, u: Unit, target: Unit): void {
     }
 
     default:
-      target.hp -= dmg;
+      hurt(target, dmg, u.team);
       world.events.push({ type: 'melee_hit', x: target.x, y: target.y, team: target.team });
       retaliate(target, u);
       break;
@@ -338,6 +435,7 @@ function updateTowers(world: World): void {
     let bestD = def.range!;
     for (const u of world.units) {
       if (!u.alive || u.team === b.team) continue;
+      if (isHiddenFrom(world, u, b.team)) continue; // can't shoot into forests
       const d = Math.hypot(u.x - c.x, u.y - c.y);
       if (d < bestD) {
         bestD = d;
@@ -375,6 +473,7 @@ function scanForEnemy(world: World, u: Unit, radius: number): Unit | undefined {
   let bestD = radius;
   for (const e of world.units) {
     if (!e.alive || e.team === u.team) continue;
+    if (isHiddenFrom(world, e, u.team)) continue;
     const d = Math.hypot(e.x - u.x, e.y - u.y);
     if (d < bestD) {
       bestD = d;
@@ -388,7 +487,7 @@ function scanForBuilding(world: World, u: Unit, radius: number): Building | unde
   let best: Building | undefined;
   let bestD = radius;
   for (const b of world.buildings) {
-    if (!b.alive || b.team === u.team) continue;
+    if (!b.alive || b.team === u.team || b.team === 2) continue;
     const d = world.distToBuilding(u.x, u.y, b);
     if (d < bestD) {
       bestD = d;
@@ -402,6 +501,7 @@ export function becomeIdle(u: Unit): void {
   u.order = 'idle';
   u.targetId = null;
   u.targetBuildingId = null;
+  u.targetRockId = null;
   u.path = null;
   u.anchorX = u.x;
   u.anchorY = u.y;

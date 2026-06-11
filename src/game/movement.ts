@@ -40,7 +40,8 @@ export function updateMovement(world: World, dt: number): void {
       continue;
     }
 
-    const speed = def.speed * world.map.speedAt(u.x, u.y) * world.players[u.team].upgrades.speed;
+    const speedMul = u.team === 2 ? 1 : world.players[u.team].upgrades.speed;
+    const speed = def.speed * world.map.speedAt(u.x, u.y) * speedMul;
     const step = Math.min(dist, speed * dt);
     u.x += (dx / dist) * step;
     u.y += (dy / dist) * step;

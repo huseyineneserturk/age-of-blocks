@@ -65,6 +65,7 @@ export function issueMove(world: World, units: Unit[], tx: number, ty: number): 
     unit.order = 'move';
     unit.targetId = null;
     unit.targetBuildingId = null;
+    unit.targetRockId = null;
   }
 }
 
@@ -74,6 +75,7 @@ export function issueAttack(_world: World, units: Unit[], targetId: number): voi
     unit.order = 'attack';
     unit.targetId = targetId;
     unit.targetBuildingId = null;
+    unit.targetRockId = null;
     unit.repathTimer = 0; // chase immediately
   }
 }
@@ -84,6 +86,18 @@ export function issueAttackBuilding(_world: World, units: Unit[], buildingId: nu
     unit.order = 'attack';
     unit.targetId = null;
     unit.targetBuildingId = buildingId;
+    unit.targetRockId = null;
+    unit.repathTimer = 0;
+  }
+}
+
+/** Break a cracked rock (siege units are far more effective). */
+export function issueAttackRock(_world: World, units: Unit[], rockId: number): void {
+  for (const unit of units) {
+    unit.order = 'attack';
+    unit.targetId = null;
+    unit.targetBuildingId = null;
+    unit.targetRockId = rockId;
     unit.repathTimer = 0;
   }
 }

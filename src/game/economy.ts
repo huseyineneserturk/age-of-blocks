@@ -2,15 +2,18 @@
 // supply bookkeeping, research point accrual + pick-1-of-3 offers.
 
 import { BUILDINGS, RESEARCH_INTERVAL, TRAIN, UPGRADES } from '../data/buildings';
-import type { Team } from '../data/units';
 import { findPath } from '../engine/astar';
 import type { Building, PlayerState, World } from './world';
+
+/** Buildings/economy belong to the two players only (never team 2). */
+type PlayerTeam = 0 | 1;
 
 export function updateEconomy(world: World, dt: number): void {
   recalcSupply(world);
 
   for (const b of world.buildings) {
-    if (!b.alive) continue;
+    if (!b.alive || b.team === 2) continue;
+    const team = b.team as PlayerTeam;
     const def = BUILDINGS[b.kind];
 
     // --- Construction ---
@@ -21,14 +24,14 @@ export function updateEconomy(world: World, dt: number): void {
       b.hp = Math.min(b.maxHp, b.hp + b.maxHp * 0.9 * step);
       if (b.buildProgress >= 1) {
         b.hp = Math.min(b.maxHp, b.hp);
-        if (b.kind === 'research') grantResearchPoint(world, b.team);
+        if (b.kind === 'research') grantResearchPoint(world, team);
       }
       continue; // unfinished buildings neither earn nor train
     }
 
     // --- Income ---
     if (def.income) {
-      const p = world.players[b.team];
+      const p = world.players[team];
       p.gold += def.income * p.upgrades.income * dt;
     }
 
@@ -37,7 +40,7 @@ export function updateEconomy(world: World, dt: number): void {
       b.researchTimer += dt;
       if (b.researchTimer >= RESEARCH_INTERVAL) {
         b.researchTimer = 0;
-        grantResearchPoint(world, b.team);
+        grantResearchPoint(world, team);
       }
     }
 
@@ -55,7 +58,7 @@ export function updateEconomy(world: World, dt: number): void {
 }
 
 function recalcSupply(world: World): void {
-  for (const team of [0, 1] as Team[]) {
+  for (const team of [0, 1] as PlayerTeam[]) {
     const p = world.players[team];
     let cap = 0;
     for (const b of world.buildings) {
@@ -82,7 +85,7 @@ function recalcSupply(world: World): void {
 export function enqueueUnit(world: World, b: Building, kind: Parameters<typeof spawnTrained>[2]): boolean {
   const def = BUILDINGS[b.kind];
   if (!def.trains || !def.trains.includes(kind)) return false;
-  if (b.buildProgress < 1 || b.queue.length >= 5) return false;
+  if (b.buildProgress < 1 || b.queue.length >= 5 || b.team === 2) return false;
   const p = world.players[b.team];
   const t = TRAIN[kind];
   if (p.gold < t.cost) return false;
@@ -123,7 +126,7 @@ function spawnTrained(world: World, b: Building, kind: keyof typeof TRAIN): void
 
 // --- Research ---
 
-function grantResearchPoint(world: World, team: Team): void {
+function grantResearchPoint(world: World, team: PlayerTeam): void {
   const p = world.players[team];
   p.researchPoints++;
   if (p.offer.length === 0) rollOffer(p);
@@ -140,7 +143,7 @@ function rollOffer(p: PlayerState): void {
 }
 
 /** Apply a chosen upgrade from the current offer. */
-export function pickUpgrade(world: World, team: Team, upgradeId: string): boolean {
+export function pickUpgrade(world: World, team: PlayerTeam, upgradeId: string): boolean {
   const p = world.players[team];
   if (p.researchPoints <= 0 || !p.offer.includes(upgradeId)) return false;
   const def = UPGRADES.find((u) => u.id === upgradeId);

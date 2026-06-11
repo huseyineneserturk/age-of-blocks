@@ -30,6 +30,8 @@ export function drawFigure(
     case 'archer': figArcher(ctx, s, col, dark, walk, atk); break;
     case 'mage': figMage(ctx, s, col, dark, atk); break;
     case 'spear': figSpear(ctx, s, col, dark, walk, atk); break;
+    case 'golem': figGolem(ctx, s, atk); break;
+    case 'wolf': figWolf(ctx, s, walk, atk); break;
     default: figKnight(ctx, s, col, dark, walk, atk); break;
   }
 }
@@ -274,6 +276,106 @@ function figCavalry(ctx: Ctx, s: number, col: string, dark: string, walk: number
   ctx.closePath();
   ctx.fill();
   ctx.restore();
+}
+
+function figGolem(ctx: Ctx, s: number, atk: number): void {
+  const rock = '#7d8089';
+  const rockDark = '#54565e';
+  // legs (stubby boulders)
+  ctx.fillStyle = rockDark;
+  ctx.beginPath();
+  ctx.ellipse(-s * 0.3, s * 0.7, s * 0.22, s * 0.26, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(s * 0.3, s * 0.7, s * 0.22, s * 0.26, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // body (big boulder)
+  ctx.fillStyle = rock;
+  ctx.beginPath();
+  ctx.ellipse(0, -s * 0.05, s * 0.62, s * 0.66, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // cracks
+  ctx.strokeStyle = rockDark;
+  ctx.lineWidth = s * 0.05;
+  ctx.beginPath();
+  ctx.moveTo(-s * 0.2, -s * 0.5);
+  ctx.lineTo(-s * 0.05, -s * 0.15);
+  ctx.lineTo(-s * 0.3, s * 0.15);
+  ctx.stroke();
+  // smash arm
+  ctx.save();
+  ctx.translate(s * 0.45, -s * 0.2);
+  ctx.rotate(atk ? 0.9 : 0.25);
+  ctx.fillStyle = rockDark;
+  ctx.beginPath();
+  ctx.ellipse(s * 0.25, s * 0.1, s * 0.3, s * 0.2, 0.4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  // glowing eyes
+  ctx.fillStyle = '#ffb84a';
+  ctx.beginPath();
+  ctx.arc(s * 0.12, -s * 0.3, s * 0.07, 0, Math.PI * 2);
+  ctx.arc(s * 0.34, -s * 0.3, s * 0.07, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function figWolf(ctx: Ctx, s: number, walk: number, atk: number): void {
+  const fur = '#8a7866';
+  const furDark = '#5e5246';
+  // legs
+  ctx.strokeStyle = furDark;
+  ctx.lineWidth = s * 0.12;
+  ctx.lineCap = 'round';
+  const lp = walk * s * 0.2;
+  const legXs: Array<[number, number]> = [
+    [-s * 0.4, lp],
+    [-s * 0.18, -lp],
+    [s * 0.18, lp],
+    [s * 0.4, -lp],
+  ];
+  for (const [lx, off] of legXs) {
+    ctx.beginPath();
+    ctx.moveTo(lx, s * 0.3);
+    ctx.lineTo(lx + off, s * 0.85);
+    ctx.stroke();
+  }
+  // body
+  ctx.fillStyle = fur;
+  ctx.beginPath();
+  ctx.ellipse(0, s * 0.15, s * 0.52, s * 0.25, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // tail
+  ctx.strokeStyle = fur;
+  ctx.lineWidth = s * 0.12;
+  ctx.beginPath();
+  ctx.moveTo(-s * 0.5, s * 0.05);
+  ctx.quadraticCurveTo(-s * 0.75, -s * 0.15, -s * 0.7, -s * 0.35);
+  ctx.stroke();
+  // head (lunges when attacking)
+  const hx = s * (atk ? 0.72 : 0.58);
+  ctx.fillStyle = fur;
+  ctx.beginPath();
+  ctx.ellipse(hx, -s * 0.05, s * 0.24, s * 0.18, 0.3, 0, Math.PI * 2);
+  ctx.fill();
+  // snout + ear
+  ctx.fillStyle = furDark;
+  ctx.beginPath();
+  ctx.moveTo(hx + s * 0.15, -s * 0.1);
+  ctx.lineTo(hx + s * 0.42, s * 0.02);
+  ctx.lineTo(hx + s * 0.12, s * 0.1);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(hx - s * 0.1, -s * 0.2);
+  ctx.lineTo(hx - s * 0.02, -s * 0.42);
+  ctx.lineTo(hx + s * 0.1, -s * 0.18);
+  ctx.closePath();
+  ctx.fill();
+  // eye
+  ctx.fillStyle = '#ffd24a';
+  ctx.beginPath();
+  ctx.arc(hx + s * 0.05, -s * 0.1, s * 0.045, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 function figCatapult(ctx: Ctx, s: number, col: string, atk: number): void {

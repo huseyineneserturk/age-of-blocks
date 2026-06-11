@@ -56,6 +56,11 @@ export class Effects {
         case 'train_done':
           this.impact(e.x, e.y, TEAM_COLORS[e.team].main);
           break;
+        case 'rock_destroyed':
+          this.explosion(e.x, e.y, 1.2);
+          break;
+        case 'camp_cleared':
+          break; // handled by the HUD banner
         case 'arrow_fire':
         case 'boulder_fire':
           break; // sound only

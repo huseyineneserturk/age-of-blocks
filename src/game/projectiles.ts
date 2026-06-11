@@ -45,6 +45,14 @@ export function updateProjectiles(world: World, dt: number): void {
         if (d <= p.splash) {
           const falloff = 1 - (d / p.splash) * 0.5;
           e.hp -= p.damage * counterMultiplier(p.attackerKind, e.kind) * falloff;
+          e.lastHitBy = p.team;
+        }
+      }
+      // Splash also cracks nearby destructible rocks.
+      for (const r of world.rocks) {
+        if (!r.alive) continue;
+        if (Math.hypot(r.x + 0.5 - p.tx, r.y + 0.5 - p.ty) <= p.splash + 0.5) {
+          r.hp -= p.damage;
         }
       }
       // Splash also chips nearby enemy buildings.
@@ -58,6 +66,7 @@ export function updateProjectiles(world: World, dt: number): void {
       const t = p.targetId !== null ? world.getUnit(p.targetId) : undefined;
       if (t) {
         t.hp -= p.damage;
+        t.lastHitBy = p.team;
         world.events.push({ type: 'arrow_hit', x: t.x, y: t.y, team: t.team });
         const shooter = world.getUnit(p.shooterId);
         if (shooter) retaliate(t, shooter);
