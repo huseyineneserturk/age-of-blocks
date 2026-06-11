@@ -12,6 +12,7 @@ import { updateCombat } from './combat';
 import { updateProjectiles } from './projectiles';
 import { updateEconomy, enqueueUnit, pickUpgrade, researchCost, startResearch } from './economy';
 import { issueAttack, issueAttackBuilding, issueAttackMove, issueAttackRock, issueMove } from './commands';
+import { EnemyAI, type Difficulty } from './ai';
 import { Renderer, type PlacementGhost } from '../render/renderer';
 import { Effects } from '../render/effects';
 import { Sound } from '../audio/sound';
@@ -34,6 +35,7 @@ export class Game {
   private placing: BuildingKind | null = null;
   private attackMoveArmed = false;
   private gameOverShown = false;
+  private ai: EnemyAI;
 
   private acc = 0;
   private last = performance.now();
@@ -66,6 +68,13 @@ export class Game {
 
     this.setupArmies();
     this.camera.centerOn(this.gameMap.playerStart.x + 6, this.gameMap.playerStart.y);
+
+    // Enemy AI — difficulty via URL: ?diff=easy|normal|hard (default normal).
+    const diffParam = new URLSearchParams(location.search).get('diff');
+    const difficulty: Difficulty =
+      diffParam === 'easy' || diffParam === 'hard' ? diffParam : 'normal';
+    this.ai = new EnemyAI(this.world, this.gameMap, difficulty);
+    console.log(`🤖 Düşman AI: ${difficulty}`);
 
     this.input.attach(canvas, {
       onSelectPoint: (sx, sy, additive) => this.selectPoint(sx, sy, additive),
@@ -104,16 +113,12 @@ export class Game {
       this.world.spawnUnit(0, k, ps.x + 3 + (i % 2), ps.y - 1 + Math.floor(i / 2) * 1.5);
     });
 
-    // Enemy defense (no AI yet): tower + garrison + bridge patrol.
+    // Enemy starting defense — the AI builds everything else itself.
     this.world.placeBuilding(1, 'tower', es.x - 5, es.y - 3, true);
     this.world.placeBuilding(1, 'tower', es.x - 5, es.y + 2, true);
-    const garrison: UnitKind[] = ['knight', 'knight', 'spear', 'archer', 'archer', 'cavalry'];
+    const garrison: UnitKind[] = ['knight', 'spear', 'archer'];
     garrison.forEach((k, i) => {
       this.world.spawnUnit(1, k, es.x - 7 - (i % 3) * 1.3, es.y - 1 + Math.floor(i / 3) * 1.5);
-    });
-    const patrol: UnitKind[] = ['knight', 'spear', 'archer', 'archer', 'mage'];
-    patrol.forEach((k, i) => {
-      this.world.spawnUnit(1, k, 37 + (i % 2) * 1.3, 19 + Math.floor(i / 2) * 1.3);
     });
 
     // --- Environment: cracked rocks seal the top bridge ---
@@ -397,6 +402,7 @@ export class Game {
     if (this.world.winner === null) {
       while (this.acc >= DT) {
         this.acc -= DT;
+        this.ai.update(DT);
         updateEconomy(this.world, DT);
         updateCombat(this.world, DT);
         updateMovement(this.world, DT);
