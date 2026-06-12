@@ -8,6 +8,7 @@ import { findPath } from '../engine/astar';
 import { Terrain } from '../engine/grid';
 import { UNITS, counterMultiplier, type Team } from '../data/units';
 import { BUILDINGS, SIEGE_VS_BUILDING } from '../data/buildings';
+import { killBounty } from './spells';
 import type { Building, RockEntity, Unit, World } from './world';
 
 const REPATH_INTERVAL = 0.4;
@@ -72,11 +73,15 @@ export function updateCombat(world: World, dt: number): void {
 
   updateTowers(world);
 
-  // Unit deaths (+ neutral camp reward)
+  // Unit deaths (+ kill bounty + neutral camp reward)
   for (const u of world.units) {
     if (u.alive && u.hp <= 0) {
       u.alive = false;
       world.events.push({ type: 'death', x: u.x, y: u.y, team: u.team });
+      // Kill bounty: the killing player earns gold for enemy units.
+      if ((u.lastHitBy === 0 || u.lastHitBy === 1) && u.lastHitBy !== u.team) {
+        world.players[u.lastHitBy].gold += killBounty(u.kind);
+      }
       if (u.team === 2 && !world.campRewardGiven) {
         const remaining = world.units.some((m) => m.alive && m.team === 2 && m.id !== u.id);
         if (!remaining && (u.lastHitBy === 0 || u.lastHitBy === 1)) {

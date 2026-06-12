@@ -13,7 +13,10 @@ import { updateProjectiles } from './projectiles';
 import { updateEconomy, enqueueUnit, pickUpgrade, researchCost, startResearch } from './economy';
 import { issueAttack, issueAttackBuilding, issueAttackMove, issueAttackRock, issueMove } from './commands';
 import { EnemyAI, type Difficulty } from './ai';
+import { FogOfWar } from './fog';
+import { castSpell, SPELLS, type SpellKind } from './spells';
 import { Renderer, type PlacementGhost } from '../render/renderer';
+import { Minimap } from '../render/minimap';
 import { Effects } from '../render/effects';
 import { Sound } from '../audio/sound';
 import { Hud } from '../ui/hud';
@@ -34,15 +37,22 @@ export class Game {
   private selectedBuildingId: number | null = null;
   private placing: BuildingKind | null = null;
   private attackMoveArmed = false;
+  private spellArmed: SpellKind | null = null;
   private gameOverShown = false;
   private ai: EnemyAI;
+  private fog: FogOfWar;
+  private minimap: Minimap;
+  private fogTick = 0;
 
   private acc = 0;
   private last = performance.now();
   private fpsTime = 0;
   private fpsCount = 0;
 
-  constructor(private canvas: HTMLCanvasElement) {
+  constructor(
+    private canvas: HTMLCanvasElement,
+    difficulty: Difficulty = 'normal',
+  ) {
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('No 2D context');
 
@@ -60,6 +70,7 @@ export class Game {
       onPickUpgrade: (id) => {
         if (pickUpgrade(this.world, 0, id)) this.sound.play('resource');
       },
+      onCastSpell: (kind) => this.armSpell(kind),
       onRestart: () => location.reload(),
     });
 
@@ -69,12 +80,20 @@ export class Game {
     this.setupArmies();
     this.camera.centerOn(this.gameMap.playerStart.x + 6, this.gameMap.playerStart.y);
 
-    // Enemy AI — difficulty via URL: ?diff=easy|normal|hard (default normal).
-    const diffParam = new URLSearchParams(location.search).get('diff');
-    const difficulty: Difficulty =
-      diffParam === 'easy' || diffParam === 'hard' ? diffParam : 'normal';
     this.ai = new EnemyAI(this.world, this.gameMap, difficulty);
     console.log(`🤖 Düşman AI: ${difficulty}`);
+
+    // Fog of war + minimap
+    this.fog = new FogOfWar(this.gameMap.map.w, this.gameMap.map.h);
+    this.fog.update(this.world);
+    this.renderer.updateFog(this.fog);
+    this.minimap = new Minimap(
+      document.getElementById('minimap') as HTMLCanvasElement,
+      this.renderer.terrain,
+      this.gameMap.map.w,
+      this.gameMap.map.h,
+      (wx, wy) => this.camera.centerOn(wx, wy),
+    );
 
     this.input.attach(canvas, {
       onSelectPoint: (sx, sy, additive) => this.selectPoint(sx, sy, additive),
@@ -187,6 +206,10 @@ export class Game {
       this.tryPlace(w.x, w.y);
       return;
     }
+    if (this.spellArmed) {
+      this.executeSpell(w.x, w.y);
+      return;
+    }
     if (this.attackMoveArmed) {
       this.executeAttackMove(w.x, w.y);
       return;
@@ -262,6 +285,10 @@ export class Game {
       this.stopPlacement();
       return;
     }
+    if (this.spellArmed) {
+      this.disarmSpell();
+      return;
+    }
     if (this.attackMoveArmed) this.disarmAttackMove();
     const w = this.camera.screenToWorld(sx, sy);
 
@@ -280,11 +307,12 @@ export class Game {
     if (this.selected.size === 0) return;
     const units = this.world.units.filter((u) => this.selected.has(u.id));
 
-    // Enemy unit under cursor → focus attack.
+    // Enemy unit under cursor → focus attack (only if visible through fog).
     let target: Unit | null = null;
     let bestD = 0.85;
     for (const u of this.world.units) {
       if (u.team === 0) continue;
+      if (!this.fog.isVisible(u.x, u.y)) continue;
       const d = Math.hypot(u.x - w.x, u.y - w.y);
       if (d < bestD) {
         bestD = d;
@@ -298,9 +326,12 @@ export class Game {
       return;
     }
 
-    // Enemy building under cursor → siege it.
+    // Enemy building under cursor → siege it (must be explored).
     const tb = this.world.buildings.find(
-      (bb) => bb.team !== 0 && w.x >= bb.x && w.x < bb.x + bb.w && w.y >= bb.y && w.y < bb.y + bb.h,
+      (bb) =>
+        bb.team !== 0 &&
+        w.x >= bb.x && w.x < bb.x + bb.w && w.y >= bb.y && w.y < bb.y + bb.h &&
+        this.fog.isExplored(bb.x + bb.w / 2, bb.y + bb.h / 2),
     );
     if (tb) {
       issueAttackBuilding(this.world, units, tb.id);
@@ -334,6 +365,41 @@ export class Game {
     this.disarmAttackMove();
   }
 
+  // --- Commander spells ---
+
+  private armSpell(kind: SpellKind): void {
+    if (this.world.players[0].energy < SPELLS[kind].cost) {
+      this.sound.play('click');
+      return;
+    }
+    this.stopPlacement();
+    this.attackMoveArmed = false;
+    this.spellArmed = kind;
+    this.canvas.style.cursor = 'crosshair';
+    this.hud.setSpellArmed(kind);
+    const s = SPELLS[kind];
+    this.hud.setHintOverride(`${s.icon} ${s.label} — görünen bir noktayı tıkla (ESC iptal)`);
+  }
+
+  private disarmSpell(): void {
+    this.spellArmed = null;
+    this.canvas.style.cursor = 'default';
+    this.hud.setSpellArmed(null);
+    this.hud.setHintOverride(null);
+  }
+
+  private executeSpell(wx: number, wy: number): void {
+    if (!this.spellArmed) return;
+    if (!this.fog.isVisible(wx, wy)) {
+      this.banner('🌫️ Orayı göremiyorsun — görünen bir nokta seç');
+      return;
+    }
+    if (castSpell(this.world, 0, this.spellArmed, wx, wy)) {
+      this.sound.play(this.spellArmed === 'meteor' ? 'explosion' : 'magic');
+    }
+    this.disarmSpell();
+  }
+
   private train(kind: UnitKind): void {
     if (this.selectedBuildingId === null) return;
     const b = this.world.getBuilding(this.selectedBuildingId);
@@ -344,20 +410,30 @@ export class Game {
   private handleKey(e: KeyboardEvent): void {
     const k = e.key.toLowerCase();
 
+    // Spell hotkeys (Q/W)
+    const spell = Object.values(SPELLS).find((s) => s.hotkey === k);
+    if (spell) {
+      this.armSpell(spell.kind);
+      return;
+    }
+
     // Build hotkeys
     const byHotkey = BUILD_MENU.find((kind) => BUILDINGS[kind].hotkey === k);
     if (byHotkey) {
+      this.disarmSpell();
       this.startPlacement(byHotkey);
       return;
     }
 
-    if (k === 'a' && this.selected.size > 0 && !this.placing) {
+    if (k === 'a' && this.selected.size > 0 && !this.placing && !this.spellArmed) {
       this.attackMoveArmed = true;
       this.canvas.style.cursor = 'crosshair';
       this.hud.setHintOverride('🎯 Saldırı emri — hedef noktayı tıkla (ESC iptal)');
     } else if (k === 'escape') {
       if (this.placing) {
         this.stopPlacement();
+      } else if (this.spellArmed) {
+        this.disarmSpell();
       } else if (this.attackMoveArmed) {
         this.disarmAttackMove();
       } else {
@@ -407,6 +483,12 @@ export class Game {
         updateCombat(this.world, DT);
         updateMovement(this.world, DT);
         updateProjectiles(this.world, DT);
+        // Fog refresh every 4th tick (5 Hz) — plenty for vision.
+        if (++this.fogTick >= 4) {
+          this.fogTick = 0;
+          this.fog.update(this.world);
+          this.renderer.updateFog(this.fog);
+        }
       }
     } else {
       this.acc = 0;
@@ -482,7 +564,9 @@ export class Game {
       alpha,
       elapsed,
       this.effects,
+      this.fog,
     );
+    this.minimap.render(this.world, this.camera, this.fog);
 
     // HUD
     const p0 = this.world.players[0];

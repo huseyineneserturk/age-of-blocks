@@ -15,9 +15,16 @@
         <span class="logo">⚔ Age of Blocks</span>
         <span class="res gold">🪙 <b id="gold">0</b> <small id="income"></small></span>
         <span class="res supply">👥 <b id="supply">0/0</b></span>
+        <span class="res energy">⚡ <b id="energy">0</b></span>
         <span id="selection-info">Birim seçilmedi</span>
         <span id="fps"></span>
       </div>
+
+      <!-- Commander spells -->
+      <div id="spell-bar"></div>
+
+      <!-- Minimap -->
+      <canvas id="minimap"></canvas>
 
       <!-- Build menu (bottom-left) -->
       <div id="build-menu"></div>
@@ -50,6 +57,22 @@
         <h1 id="go-title">Zafer!</h1>
         <button id="go-restart">Tekrar Oyna</button>
       </div>
+    </div>
+
+    <!-- Main menu -->
+    <div id="main-menu">
+      <h1>⚔ Age of Blocks</h1>
+      <p class="mm-sub">War Fronts — Gerçek Zamanlı Strateji</p>
+      <div class="mm-diff">
+        <button class="mm-diff-btn" data-diff="easy">😌 Kolay</button>
+        <button class="mm-diff-btn active" data-diff="normal">⚔️ Normal</button>
+        <button class="mm-diff-btn" data-diff="hard">💀 Zor</button>
+      </div>
+      <button id="mm-start">Savaşa Başla</button>
+      <p class="mm-hint">
+        Üs kur, ordu eğit ve yönet, düşman kalesini yık.<br/>
+        🌲 Orman = pusu · ⛰️ Tepe = +menzil · 🪨 Kayayı kır = gizli geçit · 🗿 Kampı temizle = güç
+      </p>
     </div>
   </div>
   <script type="module" src="/src/main.ts"></script>

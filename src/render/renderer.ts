@@ -9,6 +9,7 @@ import { BUILDINGS, type BuildingKind } from '../data/buildings';
 import type { SelectRect } from '../engine/input';
 import type { Building, Projectile, RockEntity, Unit, World } from '../game/world';
 import { isHiddenFrom } from '../game/combat';
+import { FOG_EXPLORED, FOG_UNEXPLORED, type FogOfWar } from '../game/fog';
 import { drawFigure } from './figures';
 import type { Effects } from './effects';
 
@@ -53,6 +54,9 @@ function tileHash(x: number, y: number): number {
 
 export class Renderer {
   private terrainCanvas: HTMLCanvasElement;
+  private fogCanvas: HTMLCanvasElement;
+  private fogCtx: CanvasRenderingContext2D;
+  private fogImage: ImageData;
   private markers: MoveMarker[] = [];
 
   constructor(
@@ -61,6 +65,30 @@ export class Renderer {
   ) {
     this.terrainCanvas = document.createElement('canvas');
     this.renderTerrain(map);
+    // 1px-per-tile fog canvas, scaled up with smoothing for soft edges.
+    this.fogCanvas = document.createElement('canvas');
+    this.fogCanvas.width = map.w;
+    this.fogCanvas.height = map.h;
+    this.fogCtx = this.fogCanvas.getContext('2d')!;
+    this.fogImage = this.fogCtx.createImageData(map.w, map.h);
+  }
+
+  /** Get the pre-rendered terrain for the minimap. */
+  get terrain(): HTMLCanvasElement {
+    return this.terrainCanvas;
+  }
+
+  /** Rebuild the fog overlay pixels from the fog grid. */
+  updateFog(fog: FogOfWar): void {
+    const d = this.fogImage.data;
+    for (let i = 0; i < fog.state.length; i++) {
+      const s = fog.state[i];
+      d[i * 4] = 6;
+      d[i * 4 + 1] = 8;
+      d[i * 4 + 2] = 14;
+      d[i * 4 + 3] = s === FOG_UNEXPLORED ? 245 : s === FOG_EXPLORED ? 120 : 0;
+    }
+    this.fogCtx.putImageData(this.fogImage, 0, 0);
   }
 
   addMoveMarker(wx: number, wy: number, color = '#ffd700'): void {
@@ -204,6 +232,7 @@ export class Renderer {
     alpha: number,
     dt: number,
     effects: Effects,
+    fog: FogOfWar,
   ): void {
     const ctx = this.ctx;
     const w = camera.viewW;
@@ -248,6 +277,8 @@ export class Renderer {
 
     // --- Buildings (under units) ---
     for (const b of world.buildings) {
+      // Enemy buildings appear once their ground has been explored.
+      if (b.team !== 0 && !fog.isExplored(b.x + b.w / 2, b.y + b.h / 2)) continue;
       this.drawBuilding(ctx, camera, b, b.id === selectedBuildingId);
     }
 
@@ -281,6 +312,7 @@ export class Renderer {
     const sorted = [...world.units].sort((a, b) => a.y - b.y);
     for (const u of sorted) {
       if (u.team !== 0 && isHiddenFrom(world, u, 0)) continue;
+      if (u.team !== 0 && !fog.isVisible(u.x, u.y)) continue; // fog of war
       const inForest = world.map.get(Math.floor(u.x), Math.floor(u.y)) === Terrain.Forest;
       if (inForest) ctx.globalAlpha = 0.55;
       this.drawUnit(ctx, camera, u, selected.has(u.id), alpha);
@@ -289,12 +321,29 @@ export class Renderer {
 
     // --- Projectiles ---
     for (const pr of world.projectiles) {
+      if (pr.team !== 0 && !fog.isVisible(pr.x, pr.y)) continue;
       this.drawProjectile(ctx, camera, pr);
     }
 
     // --- Effects (particles) ---
     effects.update(dt);
     effects.render(ctx, camera);
+
+    // --- Fog overlay (soft-scaled 1px/tile canvas) ---
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(
+      this.fogCanvas,
+      tl.x,
+      tl.y,
+      w / camera.scale,
+      h / camera.scale,
+      0,
+      0,
+      w,
+      h,
+    );
+    ctx.restore();
 
     // --- Drag selection rect (screen space) ---
     if (dragRect) {

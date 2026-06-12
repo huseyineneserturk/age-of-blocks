@@ -10,6 +10,7 @@ import {
   UPGRADES,
 } from '../data/buildings';
 import { findPath } from '../engine/astar';
+import { ENERGY_MAX, ENERGY_REGEN } from './spells';
 import type { Building, PlayerState, World } from './world';
 
 /** Buildings/economy belong to the two players only (never team 2). */
@@ -17,6 +18,11 @@ type PlayerTeam = 0 | 1;
 
 export function updateEconomy(world: World, dt: number): void {
   recalcSupply(world);
+
+  // Commander energy regen.
+  for (const p of world.players) {
+    p.energy = Math.min(ENERGY_MAX, p.energy + ENERGY_REGEN * dt);
+  }
 
   for (const b of world.buildings) {
     if (!b.alive || b.team === 2) continue;

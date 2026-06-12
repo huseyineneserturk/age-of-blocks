@@ -1,9 +1,23 @@
 import { Game } from './game/game';
+import type { Difficulty } from './game/ai';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
-const game = new Game(canvas);
+const menu = document.getElementById('main-menu')!;
+const startBtn = document.getElementById('mm-start')!;
 
-// Expose for debugging in the console.
-(window as unknown as { game: Game }).game = game;
+let difficulty: Difficulty = 'normal';
 
-console.log('⚔ Age of Blocks: War Fronts — RTS çekirdeği yüklendi');
+document.querySelectorAll<HTMLButtonElement>('.mm-diff-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mm-diff-btn').forEach((b) => b.classList.remove('active'));
+    btn.classList.add('active');
+    difficulty = btn.dataset.diff as Difficulty;
+  });
+});
+
+startBtn.addEventListener('click', () => {
+  menu.classList.add('hidden');
+  const game = new Game(canvas, difficulty);
+  (window as unknown as { game: Game }).game = game;
+  console.log('⚔ Age of Blocks: War Fronts — savaş başladı');
+});
