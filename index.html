@@ -64,7 +64,16 @@
         <button class="mm-diff-btn active" data-diff="normal">⚔️ Normal</button>
         <button class="mm-diff-btn" data-diff="hard">💀 Zor</button>
       </div>
-      <button id="mm-start">Savaşa Başla</button>
+      <button id="mm-start">⚔️ Tek Oyunculu Başla</button>
+
+      <div class="mm-sep">— Çok Oyunculu (1v1) —</div>
+      <div class="mm-mp">
+        <button id="mm-create" class="mm-mp-btn">🌐 Oda Kur</button>
+        <input id="mm-code" maxlength="5" placeholder="KOD" autocomplete="off" />
+        <button id="mm-join" class="mm-mp-btn">Katıl</button>
+      </div>
+      <p id="mm-status" class="mm-status hidden"></p>
+
       <p class="mm-hint">
         Üs kur, ordu eğit ve yönet, düşman kalesini yık.<br/>
         🌲 Orman = pusu · ⛰️ Tepe = +menzil · 🪨 Kayayı kır = gizli geçit · 🗿 Kampı temizle = güç

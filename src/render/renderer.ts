@@ -233,6 +233,7 @@ export class Renderer {
     dt: number,
     effects: Effects,
     fog: FogOfWar,
+    myTeam: 0 | 1 = 0,
   ): void {
     const ctx = this.ctx;
     const w = camera.viewW;
@@ -278,7 +279,7 @@ export class Renderer {
     // --- Buildings (under units) ---
     for (const b of world.buildings) {
       // Enemy buildings appear once their ground has been explored.
-      if (b.team !== 0 && !fog.isExplored(b.x + b.w / 2, b.y + b.h / 2)) continue;
+      if (b.team !== myTeam && !fog.isExplored(b.x + b.w / 2, b.y + b.h / 2)) continue;
       this.drawBuilding(ctx, camera, b, b.id === selectedBuildingId);
     }
 
@@ -311,8 +312,8 @@ export class Renderer {
     // drawn; the player's own units inside forests render semi-transparent.
     const sorted = [...world.units].sort((a, b) => a.y - b.y);
     for (const u of sorted) {
-      if (u.team !== 0 && isHiddenFrom(world, u, 0)) continue;
-      if (u.team !== 0 && !fog.isVisible(u.x, u.y)) continue; // fog of war
+      if (u.team !== myTeam && isHiddenFrom(world, u, myTeam)) continue;
+      if (u.team !== myTeam && !fog.isVisible(u.x, u.y)) continue; // fog of war
       const inForest = world.map.get(Math.floor(u.x), Math.floor(u.y)) === Terrain.Forest;
       if (inForest) ctx.globalAlpha = 0.55;
       this.drawUnit(ctx, camera, u, selected.has(u.id), alpha);
@@ -321,7 +322,7 @@ export class Renderer {
 
     // --- Projectiles ---
     for (const pr of world.projectiles) {
-      if (pr.team !== 0 && !fog.isVisible(pr.x, pr.y)) continue;
+      if (pr.team !== myTeam && !fog.isVisible(pr.x, pr.y)) continue;
       this.drawProjectile(ctx, camera, pr);
     }
 

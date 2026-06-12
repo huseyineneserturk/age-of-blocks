@@ -7,12 +7,17 @@ asker eğit, **orduyu kendin yönet**, haritayı kontrol et, düşman kalesini y
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173
+npm run dev        # istemci → http://localhost:5173
+npm run server     # çok oyunculu maç sunucusu → :3001
 npm run typecheck
 npx tsx test/astar.test.ts && npx tsx test/combat.test.ts && \
 npx tsx test/environment.test.ts && npx tsx test/ai.test.ts && \
-npx tsx test/polish.test.ts
+npx tsx test/polish.test.ts && npx tsx test/net.test.ts
 ```
+
+**Çok oyunculu:** Menüden "Oda Kur" → kodu rakibe ver → rakip "Katıl".
+Sunucu otoritelidir: istemciler yalnızca komut gönderir (hile koruması).
+Farklı sunucu adresi: `?server=https://...` URL parametresi.
 
 Eski oyun (v1, canlıdaki sürüm) `legacy/` altındadır.
 

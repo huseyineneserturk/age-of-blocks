@@ -42,7 +42,7 @@ export class Minimap {
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   }
 
-  render(world: World, camera: Camera, fog: FogOfWar): void {
+  render(world: World, camera: Camera, fog: FogOfWar, myTeam: 0 | 1 = 0): void {
     const ctx = this.ctx;
     const W = this.canvas.width;
     const H = this.canvas.height;
@@ -54,14 +54,14 @@ export class Minimap {
 
     // Buildings (explored enemies + always own)
     for (const b of world.buildings) {
-      if (b.team !== 0 && !fog.isExplored(b.x + b.w / 2, b.y + b.h / 2)) continue;
+      if (b.team !== myTeam && !fog.isExplored(b.x + b.w / 2, b.y + b.h / 2)) continue;
       ctx.fillStyle = b.team === 2 ? TEAM_COLORS[2].main : TEAM_COLORS[b.team].main;
       ctx.fillRect(b.x * sx, b.y * sy, Math.max(2, b.w * sx), Math.max(2, b.h * sy));
     }
 
     // Units (visible enemies + always own)
     for (const u of world.units) {
-      if (u.team !== 0 && !fog.isVisible(u.x, u.y)) continue;
+      if (u.team !== myTeam && !fog.isVisible(u.x, u.y)) continue;
       ctx.fillStyle = TEAM_COLORS[u.team].main;
       ctx.fillRect(u.x * sx - 1, u.y * sy - 1, 2.5, 2.5);
     }

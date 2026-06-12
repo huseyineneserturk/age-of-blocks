@@ -1,5 +1,7 @@
-// Game orchestrator: fixed-timestep sim (20 Hz) + interpolated render,
-// camera + input wiring, selection, commands, building placement, economy UI.
+// Game orchestrator. Two modes:
+//  • Single player: runs the 20 Hz sim locally + enemy AI.
+//  • Multiplayer:   passive mirror — sends commands to the authoritative
+//    server, renders interpolated snapshots. No local simulation.
 
 import { Camera } from '../engine/camera';
 import { Input } from '../engine/input';
@@ -12,6 +14,7 @@ import { updateCombat } from './combat';
 import { updateProjectiles } from './projectiles';
 import { updateEconomy, enqueueUnit, pickUpgrade, researchCost, startResearch } from './economy';
 import { issueAttack, issueAttackBuilding, issueAttackMove, issueAttackRock, issueMove } from './commands';
+import { setupCommon, setupSinglePlayer } from './setup';
 import { EnemyAI, type Difficulty } from './ai';
 import { FogOfWar } from './fog';
 import { Renderer, type PlacementGhost } from '../render/renderer';
@@ -19,6 +22,9 @@ import { Minimap } from '../render/minimap';
 import { Effects } from '../render/effects';
 import { Sound } from '../audio/sound';
 import { Hud } from '../ui/hud';
+import { applySnapshot } from '../net/snapshot';
+import { SNAPSHOT_INTERVAL_MS } from '../net/protocol';
+import type { NetConnection } from '../net/client';
 
 const DT = 1 / 20; // sim tick
 
@@ -31,16 +37,18 @@ export class Game {
   private effects = new Effects();
   private sound = new Sound();
   private hud: Hud;
+  private myTeam: 0 | 1;
 
   private selected = new Set<number>();
   private selectedBuildingId: number | null = null;
   private placing: BuildingKind | null = null;
   private attackMoveArmed = false;
   private gameOverShown = false;
-  private ai: EnemyAI;
+  private ai: EnemyAI | null = null;
   private fog: FogOfWar;
   private minimap: Minimap;
   private fogTick = 0;
+  private netFogTimer = 0;
 
   private acc = 0;
   private last = performance.now();
@@ -50,10 +58,12 @@ export class Game {
   constructor(
     private canvas: HTMLCanvasElement,
     difficulty: Difficulty = 'normal',
+    private net: NetConnection | null = null,
   ) {
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('No 2D context');
 
+    this.myTeam = net?.team ?? 0;
     this.gameMap = buildRiverCrossing();
     this.world = new World(this.gameMap.map);
     this.camera = new Camera(this.gameMap.map.w, this.gameMap.map.h);
@@ -61,28 +71,37 @@ export class Game {
     this.hud = new Hud({
       onPickBuilding: (kind) => this.startPlacement(kind),
       onTrain: (kind) => this.train(kind),
-      onResearch: () => {
-        const b = this.selectedBuildingId !== null ? this.world.getBuilding(this.selectedBuildingId) : undefined;
-        if (b && startResearch(this.world, b)) this.sound.play('build');
-      },
-      onPickUpgrade: (id) => {
-        if (pickUpgrade(this.world, 0, id)) this.sound.play('resource');
-      },
+      onResearch: () => this.research(),
+      onPickUpgrade: (id) => this.pickUpgradeAction(id),
       onRestart: () => location.reload(),
     });
 
     this.resize();
     window.addEventListener('resize', () => this.resize());
 
-    this.setupArmies();
-    this.camera.centerOn(this.gameMap.playerStart.x + 6, this.gameMap.playerStart.y);
+    if (this.net) {
+      // World arrives via snapshots; commands go to the server.
+      this.net.onSnapshot = (snap) => applySnapshot(this.world, snap);
+      this.net.onOpponentLeft = () => {
+        if (this.world.winner === null) {
+          this.world.winner = this.myTeam;
+          this.banner('🏳️ Rakip oyundan ayrıldı');
+        }
+      };
+      console.log(`🌐 Çok oyunculu — takım ${this.myTeam === 0 ? 'MAVİ' : 'KIRMIZI'}`);
+    } else {
+      setupCommon(this.world, this.gameMap);
+      setupSinglePlayer(this.world, this.gameMap);
+      this.ai = new EnemyAI(this.world, this.gameMap, difficulty);
+      console.log(`🤖 Düşman AI: ${difficulty}`);
+    }
 
-    this.ai = new EnemyAI(this.world, this.gameMap, difficulty);
-    console.log(`🤖 Düşman AI: ${difficulty}`);
+    const home = this.myTeam === 0 ? this.gameMap.playerStart : this.gameMap.enemyStart;
+    this.camera.centerOn(home.x + (this.myTeam === 0 ? 6 : -6), home.y);
 
     // Fog of war + minimap
     this.fog = new FogOfWar(this.gameMap.map.w, this.gameMap.map.h);
-    this.fog.update(this.world);
+    this.fog.update(this.world, this.myTeam);
     this.renderer.updateFog(this.fog);
     this.minimap = new Minimap(
       document.getElementById('minimap') as HTMLCanvasElement,
@@ -115,44 +134,14 @@ export class Game {
     this.camera.setViewport(window.innerWidth, window.innerHeight);
   }
 
-  /** Castles + small starting forces. The economy game starts here. */
-  private setupArmies(): void {
-    const ps = this.gameMap.playerStart;
-    const es = this.gameMap.enemyStart;
-
-    this.world.placeBuilding(0, 'castle', ps.x - 1, ps.y - 1, true);
-    this.world.placeBuilding(1, 'castle', es.x - 2, es.y - 1, true);
-
-    // Small starting squads.
-    const startKinds: UnitKind[] = ['knight', 'knight', 'spear', 'archer'];
-    startKinds.forEach((k, i) => {
-      this.world.spawnUnit(0, k, ps.x + 3 + (i % 2), ps.y - 1 + Math.floor(i / 2) * 1.5);
-    });
-
-    // Enemy starting defense — the AI builds everything else itself.
-    this.world.placeBuilding(1, 'tower', es.x - 5, es.y - 3, true);
-    this.world.placeBuilding(1, 'tower', es.x - 5, es.y + 2, true);
-    const garrison: UnitKind[] = ['knight', 'spear', 'archer'];
-    garrison.forEach((k, i) => {
-      this.world.spawnUnit(1, k, es.x - 7 - (i % 3) * 1.3, es.y - 1 + Math.floor(i / 3) * 1.5);
-    });
-
-    // --- Environment: cracked rocks seal the top bridge ---
-    for (const r of this.gameMap.crackedRocks) {
-      this.world.addRock(r.x, r.y);
-    }
-
-    // --- Neutral camp guards the middle bridge: golem + wolves ---
-    const camp = this.gameMap.neutralCamp;
-    this.world.spawnUnit(2, 'golem', camp.x, camp.y);
-    this.world.spawnUnit(2, 'wolf', camp.x - 1.6, camp.y - 0.8);
-    this.world.spawnUnit(2, 'wolf', camp.x + 1.6, camp.y + 0.8);
+  private me(): World['players'][number] {
+    return this.world.players[this.myTeam];
   }
 
   // --- Building placement ---
 
   private startPlacement(kind: BuildingKind): void {
-    if (this.world.players[0].gold < BUILDINGS[kind].cost) {
+    if (this.me().gold < BUILDINGS[kind].cost) {
       this.sound.play('click');
       return;
     }
@@ -181,15 +170,19 @@ export class Game {
     const def = BUILDINGS[kind];
     const tx = Math.round(wx - def.w / 2);
     const ty = Math.round(wy - def.h / 2);
-    const p = this.world.players[0];
 
-    if (p.gold < def.cost || !this.world.canPlace(kind, tx, ty)) {
+    if (this.me().gold < def.cost || !this.world.canPlace(kind, tx, ty)) {
       this.sound.play('click');
       return;
     }
-    p.gold -= def.cost;
-    this.world.placeBuilding(0, kind, tx, ty);
-    this.world.events.push({ type: 'build_placed', x: tx + def.w / 2, y: ty + def.h / 2, team: 0 });
+    if (this.net) {
+      this.net.send({ t: 'build', kind, x: tx, y: ty });
+      this.sound.play('build');
+    } else {
+      this.me().gold -= def.cost;
+      this.world.placeBuilding(this.myTeam, kind, tx, ty);
+      this.world.events.push({ type: 'build_placed', x: tx + def.w / 2, y: ty + def.h / 2, team: this.myTeam });
+    }
     // Walls chain-place; other buildings exit placement mode.
     if (kind !== 'wall') this.stopPlacement();
   }
@@ -212,7 +205,7 @@ export class Game {
     let best: Unit | null = null;
     let bestD = 0.8;
     for (const u of this.world.units) {
-      if (u.team !== 0) continue;
+      if (u.team !== this.myTeam) continue;
       const d = Math.hypot(u.x - w.x, u.y - w.y);
       if (d < bestD) {
         bestD = d;
@@ -231,7 +224,7 @@ export class Game {
 
     // Priority 2: own building under the click.
     const b = this.world.buildings.find(
-      (bb) => bb.team === 0 && w.x >= bb.x && w.x < bb.x + bb.w && w.y >= bb.y && w.y < bb.y + bb.h,
+      (bb) => bb.team === this.myTeam && w.x >= bb.x && w.x < bb.x + bb.w && w.y >= bb.y && w.y < bb.y + bb.h,
     );
     if (b) {
       this.selected.clear();
@@ -260,7 +253,7 @@ export class Game {
     if (!additive) this.selected.clear();
     let any = false;
     for (const u of this.world.units) {
-      if (u.team !== 0) continue;
+      if (u.team !== this.myTeam) continue;
       if (u.x >= a.x && u.x <= b.x && u.y >= a.y && u.y <= b.y) {
         this.selected.add(u.id);
         any = true;
@@ -271,6 +264,10 @@ export class Game {
       this.sound.play('select');
     }
     this.updateSelectionInfo();
+  }
+
+  private selectedIds(): number[] {
+    return [...this.selected];
   }
 
   private command(sx: number, sy: number): void {
@@ -284,9 +281,13 @@ export class Game {
     // Building selected → right click sets the rally point.
     if (this.selectedBuildingId !== null && this.selected.size === 0) {
       const b = this.world.getBuilding(this.selectedBuildingId);
-      if (b && BUILDINGS[b.kind].trains) {
-        b.rallyX = w.x;
-        b.rallyY = w.y;
+      if (b && b.team === this.myTeam && BUILDINGS[b.kind].trains) {
+        if (this.net) {
+          this.net.send({ t: 'rally', building: b.id, x: w.x, y: w.y });
+        } else {
+          b.rallyX = w.x;
+          b.rallyY = w.y;
+        }
         this.renderer.addMoveMarker(w.x, w.y, '#5fd0ff');
         this.sound.play('click');
       }
@@ -300,7 +301,7 @@ export class Game {
     let target: Unit | null = null;
     let bestD = 0.85;
     for (const u of this.world.units) {
-      if (u.team === 0) continue;
+      if (u.team === this.myTeam) continue;
       if (!this.fog.isVisible(u.x, u.y)) continue;
       const d = Math.hypot(u.x - w.x, u.y - w.y);
       if (d < bestD) {
@@ -309,7 +310,8 @@ export class Game {
       }
     }
     if (target) {
-      issueAttack(this.world, units, target.id);
+      if (this.net) this.net.send({ t: 'attack', ids: this.selectedIds(), target: target.id });
+      else issueAttack(this.world, units, target.id);
       this.renderer.addMoveMarker(target.x, target.y, '#ff5a5a');
       this.sound.play('click');
       return;
@@ -318,12 +320,13 @@ export class Game {
     // Enemy building under cursor → siege it (must be explored).
     const tb = this.world.buildings.find(
       (bb) =>
-        bb.team !== 0 &&
+        bb.team !== this.myTeam &&
         w.x >= bb.x && w.x < bb.x + bb.w && w.y >= bb.y && w.y < bb.y + bb.h &&
         this.fog.isExplored(bb.x + bb.w / 2, bb.y + bb.h / 2),
     );
     if (tb) {
-      issueAttackBuilding(this.world, units, tb.id);
+      if (this.net) this.net.send({ t: 'attackB', ids: this.selectedIds(), target: tb.id });
+      else issueAttackBuilding(this.world, units, tb.id);
       const c = this.world.buildingCenter(tb);
       this.renderer.addMoveMarker(c.x, c.y, '#ff5a5a');
       this.sound.play('click');
@@ -335,20 +338,26 @@ export class Game {
       (r) => r.alive && w.x >= r.x && w.x < r.x + 1 && w.y >= r.y && w.y < r.y + 1,
     );
     if (rock) {
-      issueAttackRock(this.world, units, rock.id);
+      if (this.net) this.net.send({ t: 'attackR', ids: this.selectedIds(), target: rock.id });
+      else issueAttackRock(this.world, units, rock.id);
       this.renderer.addMoveMarker(rock.x + 0.5, rock.y + 0.5, '#d0c060');
       this.sound.play('click');
       return;
     }
 
-    issueMove(this.world, units, w.x, w.y);
+    if (this.net) this.net.send({ t: 'move', ids: this.selectedIds(), x: w.x, y: w.y });
+    else issueMove(this.world, units, w.x, w.y);
     this.renderer.addMoveMarker(w.x, w.y, '#ffd700');
     this.sound.play('click');
   }
 
   private executeAttackMove(wx: number, wy: number): void {
-    const units = this.world.units.filter((u) => this.selected.has(u.id));
-    issueAttackMove(this.world, units, wx, wy);
+    if (this.net) {
+      this.net.send({ t: 'amove', ids: this.selectedIds(), x: wx, y: wy });
+    } else {
+      const units = this.world.units.filter((u) => this.selected.has(u.id));
+      issueAttackMove(this.world, units, wx, wy);
+    }
     this.renderer.addMoveMarker(wx, wy, '#ff8a3d');
     this.sound.play('click');
     this.disarmAttackMove();
@@ -357,8 +366,34 @@ export class Game {
   private train(kind: UnitKind): void {
     if (this.selectedBuildingId === null) return;
     const b = this.world.getBuilding(this.selectedBuildingId);
-    if (!b) return;
-    if (enqueueUnit(this.world, b, kind)) this.sound.play('click');
+    if (!b || b.team !== this.myTeam) return;
+    if (this.net) {
+      this.net.send({ t: 'train', building: b.id, kind });
+      this.sound.play('click');
+    } else if (enqueueUnit(this.world, b, kind)) {
+      this.sound.play('click');
+    }
+  }
+
+  private research(): void {
+    if (this.selectedBuildingId === null) return;
+    const b = this.world.getBuilding(this.selectedBuildingId);
+    if (!b || b.team !== this.myTeam) return;
+    if (this.net) {
+      this.net.send({ t: 'research', building: b.id });
+      this.sound.play('build');
+    } else if (startResearch(this.world, b)) {
+      this.sound.play('build');
+    }
+  }
+
+  private pickUpgradeAction(id: string): void {
+    if (this.net) {
+      this.net.send({ t: 'pick', id });
+      this.sound.play('resource');
+    } else if (pickUpgrade(this.world, this.myTeam, id)) {
+      this.sound.play('resource');
+    }
   }
 
   private handleKey(e: KeyboardEvent): void {
@@ -415,27 +450,43 @@ export class Game {
   private frame(now: number): void {
     const elapsed = Math.min(0.1, (now - this.last) / 1000);
     this.last = now;
-    this.acc += elapsed;
 
     this.camera.update(elapsed, this.input.keys);
 
-    if (this.world.winner === null) {
-      while (this.acc >= DT) {
-        this.acc -= DT;
-        this.ai.update(DT);
-        updateEconomy(this.world, DT);
-        updateCombat(this.world, DT);
-        updateMovement(this.world, DT);
-        updateProjectiles(this.world, DT);
-        // Fog refresh every 4th tick (5 Hz) — plenty for vision.
-        if (++this.fogTick >= 4) {
-          this.fogTick = 0;
-          this.fog.update(this.world);
-          this.renderer.updateFog(this.fog);
-        }
+    let alpha: number;
+    if (this.net) {
+      // Mirror mode: interpolate between snapshots; advance walk anims locally.
+      alpha = Math.min(1, (now - this.net.lastSnapshotAt) / SNAPSHOT_INTERVAL_MS);
+      for (const u of this.world.units) {
+        if (u.moving) u.animTime += elapsed;
+      }
+      this.netFogTimer += elapsed;
+      if (this.netFogTimer >= 0.2) {
+        this.netFogTimer = 0;
+        this.fog.update(this.world, this.myTeam);
+        this.renderer.updateFog(this.fog);
       }
     } else {
-      this.acc = 0;
+      this.acc += elapsed;
+      if (this.world.winner === null) {
+        while (this.acc >= DT) {
+          this.acc -= DT;
+          this.ai!.update(DT);
+          updateEconomy(this.world, DT);
+          updateCombat(this.world, DT);
+          updateMovement(this.world, DT);
+          updateProjectiles(this.world, DT);
+          // Fog refresh every 4th tick (5 Hz) — plenty for vision.
+          if (++this.fogTick >= 4) {
+            this.fogTick = 0;
+            this.fog.update(this.world, this.myTeam);
+            this.renderer.updateFog(this.fog);
+          }
+        }
+      } else {
+        this.acc = 0;
+      }
+      alpha = this.acc / DT;
     }
 
     // Sim events → particles + sound.
@@ -459,7 +510,7 @@ export class Game {
           case 'camp_cleared':
             this.sound.play('victory');
             this.banner(
-              e.team === 0
+              e.team === this.myTeam
                 ? '🗿 Kamp temizlendi! +150 altın, kalıcı +%10 hasar'
                 : '⚠️ Düşman kampı temizledi ve güçlendi!',
             );
@@ -493,11 +544,10 @@ export class Game {
         kind: this.placing,
         tileX: tx,
         tileY: ty,
-        valid: this.world.canPlace(this.placing, tx, ty) && this.world.players[0].gold >= def.cost,
+        valid: this.world.canPlace(this.placing, tx, ty) && this.me().gold >= def.cost,
       };
     }
 
-    const alpha = this.acc / DT;
     this.renderer.render(
       this.world,
       this.camera,
@@ -509,26 +559,27 @@ export class Game {
       elapsed,
       this.effects,
       this.fog,
+      this.myTeam,
     );
-    this.minimap.render(this.world, this.camera, this.fog);
+    this.minimap.render(this.world, this.camera, this.fog, this.myTeam);
 
     // HUD
-    const p0 = this.world.players[0];
+    const me = this.me();
     const selBuilding = this.selectedBuildingId !== null
       ? (this.world.getBuilding(this.selectedBuildingId) as Building | undefined) ?? null
       : null;
-    this.hud.update(p0, selBuilding, researchCost(p0));
+    this.hud.update(me, selBuilding, researchCost(me));
     let income = 0;
     for (const b of this.world.buildings) {
-      if (b.alive && b.team === 0 && b.buildProgress >= 1) income += BUILDINGS[b.kind].income ?? 0;
+      if (b.alive && b.team === this.myTeam && b.buildProgress >= 1) income += BUILDINGS[b.kind].income ?? 0;
     }
-    this.hud.setIncome(income * p0.upgrades.income);
+    this.hud.setIncome(income * me.upgrades.income);
 
     // Win/lose
     if (this.world.winner !== null && !this.gameOverShown) {
       this.gameOverShown = true;
-      this.hud.showGameOver(this.world.winner === 0);
-      this.sound.play(this.world.winner === 0 ? 'victory' : 'defeat');
+      this.hud.showGameOver(this.world.winner === this.myTeam);
+      this.sound.play(this.world.winner === this.myTeam ? 'victory' : 'defeat');
     }
 
     this.fpsCount++;
