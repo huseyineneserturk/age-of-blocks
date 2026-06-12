@@ -12,10 +12,18 @@ export class NetConnection {
   onSnapshot: (snap: Snapshot) => void = () => {};
   onStart: () => void = () => {};
   onOpponentLeft: () => void = () => {};
+  onOpponentDisconnected: (graceSeconds: number) => void = () => {};
+  onConnectionLost: () => void = () => {};
 
   connect(url: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.socket = io(url, { transports: ['websocket', 'polling'], timeout: 6000 });
+      // No auto-reconnect: a reconnected socket can't rejoin its room, so a
+      // drop is final — surface it clearly instead of leaving a zombie.
+      this.socket = io(url, {
+        transports: ['websocket', 'polling'],
+        timeout: 6000,
+        reconnection: false,
+      });
       this.socket.once('connect', () => resolve());
       this.socket.once('connect_error', (e) => reject(e));
 
@@ -28,6 +36,10 @@ export class NetConnection {
         this.onSnapshot(snap);
       });
       this.socket.on('opponentLeft', () => this.onOpponentLeft());
+      this.socket.on('opponentDisconnected', ({ graceSeconds }: { graceSeconds: number }) =>
+        this.onOpponentDisconnected(graceSeconds),
+      );
+      this.socket.on('disconnect', () => this.onConnectionLost());
     });
   }
 

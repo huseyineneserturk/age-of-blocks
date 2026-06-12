@@ -97,11 +97,15 @@ async function main(): Promise<void> {
   await sleep(300);
   check('geçersiz komut sunucuyu düşürmez', snapsA.length > 0);
 
-  // --- Forfeit ---
+  // --- Forfeit (grace period: warning first, then forfeit) ---
+  const warnPromise = new Promise<void>((r) => a.once('opponentDisconnected', () => r()));
   const leftPromise = new Promise<void>((r) => a.once('opponentLeft', () => r()));
   b.disconnect();
-  await Promise.race([leftPromise.then(() => true), sleep(2000).then(() => false)]).then((ok) =>
-    check('rakip ayrılınca forfeit bildirimi', ok === true),
+  await Promise.race([warnPromise.then(() => true), sleep(3000).then(() => false)]).then((ok) =>
+    check('kopma uyarısı hemen gelir (grace başlar)', ok === true),
+  );
+  await Promise.race([leftPromise.then(() => true), sleep(13000).then(() => false)]).then((ok) =>
+    check('grace bitince forfeit bildirimi', ok === true),
   );
 
   a.disconnect();

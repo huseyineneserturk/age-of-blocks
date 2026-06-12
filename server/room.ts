@@ -29,9 +29,13 @@ export class GameRoom {
   private players = new Map<string, 0 | 1>(); // socket.id → team
   private sockets = new Map<0 | 1, Socket>();
   private simTimer: ReturnType<typeof setInterval> | null = null;
+  private graceTimer: ReturnType<typeof setTimeout> | null = null;
   private snapAccum = 0;
   private started = false;
   finished = false;
+
+  /** Seconds a disconnected player gets before the match is forfeited. */
+  private static readonly FORFEIT_GRACE_S = 10;
 
   constructor(
     code: string,
@@ -170,11 +174,18 @@ export class GameRoom {
     if (team !== undefined) this.sockets.delete(team);
 
     if (this.started && !this.finished && team !== undefined) {
-      // Opponent wins by forfeit.
-      this.finished = true;
-      this.io.to(this.code).emit('opponentLeft');
-      console.log(`[room ${this.code}] player team ${team} left — forfeit`);
-      this.destroy();
+      // Don't end the match on a transient blip: warn the opponent and give
+      // the leaver a grace window before declaring a forfeit.
+      console.log(`[room ${this.code}] team ${team} disconnected — ${GameRoom.FORFEIT_GRACE_S}s grace`);
+      this.io.to(this.code).emit('opponentDisconnected', { graceSeconds: GameRoom.FORFEIT_GRACE_S });
+      if (this.graceTimer) clearTimeout(this.graceTimer);
+      this.graceTimer = setTimeout(() => {
+        if (this.finished) return;
+        this.finished = true;
+        this.io.to(this.code).emit('opponentLeft');
+        console.log(`[room ${this.code}] team ${team} did not return — forfeit`);
+        this.destroy();
+      }, GameRoom.FORFEIT_GRACE_S * 1000);
     } else if (this.players.size === 0) {
       this.destroy();
     }
@@ -182,7 +193,9 @@ export class GameRoom {
 
   destroy(): void {
     if (this.simTimer) clearInterval(this.simTimer);
+    if (this.graceTimer) clearTimeout(this.graceTimer);
     this.simTimer = null;
+    this.graceTimer = null;
     this.onEmpty();
   }
 }

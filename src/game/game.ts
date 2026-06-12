@@ -85,7 +85,16 @@ export class Game {
       this.net.onOpponentLeft = () => {
         if (this.world.winner === null) {
           this.world.winner = this.myTeam;
-          this.banner('🏳️ Rakip oyundan ayrıldı');
+          this.banner('🏳️ Rakip oyundan ayrıldı — zafer senin!');
+        }
+      };
+      this.net.onOpponentDisconnected = (sec) => {
+        this.banner(`⚠️ Rakibin bağlantısı koptu — ${sec}sn bekleniyor...`);
+      };
+      this.net.onConnectionLost = () => {
+        if (this.world.winner === null && !this.gameOverShown) {
+          this.gameOverShown = true;
+          this.hud.showGameOver(false, '🔌 Bağlantı Koptu');
         }
       };
       console.log(`🌐 Çok oyunculu — takım ${this.myTeam === 0 ? 'MAVİ' : 'KIRMIZI'}`);

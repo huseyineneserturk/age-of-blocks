@@ -13,6 +13,9 @@ export function startServer(port: number): { io: Server; close: () => void } {
   });
   const io = new Server(http, {
     cors: { origin: '*', methods: ['GET', 'POST'] },
+    // Tolerate background-tab throttling: don't drop a player for a slow pong.
+    pingInterval: 25000,
+    pingTimeout: 60000,
   });
 
   const rooms = new Map<string, GameRoom>();

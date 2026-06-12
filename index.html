@@ -57,27 +57,31 @@
 
     <!-- Main menu -->
     <div id="main-menu">
-      <h1>⚔ Age of Blocks</h1>
-      <p class="mm-sub">War Fronts — Gerçek Zamanlı Strateji</p>
-      <div class="mm-diff">
-        <button class="mm-diff-btn" data-diff="easy">😌 Kolay</button>
-        <button class="mm-diff-btn active" data-diff="normal">⚔️ Normal</button>
-        <button class="mm-diff-btn" data-diff="hard">💀 Zor</button>
-      </div>
-      <button id="mm-start">⚔️ Tek Oyunculu Başla</button>
+      <canvas id="menu-scene"></canvas>
+      <div class="mm-frame">
+        <div class="mm-ornament">❖ ❖ ❖</div>
+        <h1>AGE OF BLOCKS</h1>
+        <div class="mm-tagline">— WAR FRONTS —</div>
+        <p class="mm-sub">Kur · Yönet · Fethet</p>
 
-      <div class="mm-sep">— Çok Oyunculu (1v1) —</div>
-      <div class="mm-mp">
-        <button id="mm-create" class="mm-mp-btn">🌐 Oda Kur</button>
-        <input id="mm-code" maxlength="5" placeholder="KOD" autocomplete="off" />
-        <button id="mm-join" class="mm-mp-btn">Katıl</button>
-      </div>
-      <p id="mm-status" class="mm-status hidden"></p>
+        <div class="mm-section-title">SEFER (Tek Oyunculu)</div>
+        <div class="mm-diff">
+          <button class="mm-diff-btn" data-diff="easy">Kolay</button>
+          <button class="mm-diff-btn active" data-diff="normal">Normal</button>
+          <button class="mm-diff-btn" data-diff="hard">Zor</button>
+        </div>
+        <button id="mm-start">SAVAŞA BAŞLA</button>
 
-      <p class="mm-hint">
-        Üs kur, ordu eğit ve yönet, düşman kalesini yık.<br/>
-        🌲 Orman = pusu · ⛰️ Tepe = +menzil · 🪨 Kayayı kır = gizli geçit · 🗿 Kampı temizle = güç
-      </p>
+        <div class="mm-section-title">CEPHE (Çok Oyunculu 1v1)</div>
+        <div class="mm-mp">
+          <button id="mm-create" class="mm-mp-btn">Oda Kur</button>
+          <input id="mm-code" maxlength="5" placeholder="KOD" autocomplete="off" />
+          <button id="mm-join" class="mm-mp-btn">Katıl</button>
+        </div>
+        <p id="mm-status" class="mm-status hidden"></p>
+
+        <div class="mm-ornament bottom">❖ ❖ ❖</div>
+      </div>
     </div>
   </div>
   <script type="module" src="/src/main.ts"></script>

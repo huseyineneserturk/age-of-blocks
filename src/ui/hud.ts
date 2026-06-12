@@ -279,8 +279,8 @@ export class Hud {
     }
   }
 
-  showGameOver(won: boolean): void {
-    this.goTitle.textContent = won ? '🏆 Zafer!' : '💀 Yenilgi';
+  showGameOver(won: boolean, titleOverride?: string): void {
+    this.goTitle.textContent = titleOverride ?? (won ? '🏆 Zafer!' : '💀 Yenilgi');
     this.goTitle.classList.toggle('lose', !won);
     this.gameoverEl.classList.remove('hidden');
   }

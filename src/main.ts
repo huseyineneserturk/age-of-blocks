@@ -1,9 +1,12 @@
 import { Game } from './game/game';
 import type { Difficulty } from './game/ai';
 import { NetConnection } from './net/client';
+import { MenuScene } from './ui/menuScene';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const menu = document.getElementById('main-menu')!;
+const menuScene = new MenuScene(document.getElementById('menu-scene') as HTMLCanvasElement);
+menuScene.startLoop();
 const startBtn = document.getElementById('mm-start')!;
 const createBtn = document.getElementById('mm-create')!;
 const joinBtn = document.getElementById('mm-join')!;
@@ -32,6 +35,7 @@ function status(text: string): void {
 }
 
 function launch(net: NetConnection | null): void {
+  menuScene.stop();
   menu.classList.add('hidden');
   const game = new Game(canvas, difficulty, net);
   (window as unknown as { game: Game }).game = game;
