@@ -1,11 +1,10 @@
-// Headless checks for Phase 6: fog of war states, commander spells, kill bounty.
+// Headless checks for Phase 6: fog of war states + kill bounty.
 // Run: npx tsx test/polish.test.ts
 
 import { TileMap } from '../src/engine/grid';
 import { World } from '../src/game/world';
 import { FogOfWar, FOG_UNEXPLORED, FOG_EXPLORED, FOG_VISIBLE } from '../src/game/fog';
-import { castSpell, killBounty } from '../src/game/spells';
-import { updateCombat } from '../src/game/combat';
+import { updateCombat, killBounty } from '../src/game/combat';
 import { issueAttack } from '../src/game/commands';
 import { updateMovement } from '../src/game/movement';
 import { TRAIN } from '../src/data/buildings';
@@ -39,30 +38,6 @@ console.log('\n🌫️ FOG OF WAR');
   fog.update(world);
   check('terk edilen alan "keşfedilmiş"e düşer', fog.at(10, 10) === FOG_EXPLORED);
   check('yeni konum görünür', fog.at(30, 10) === FOG_VISIBLE);
-}
-
-console.log('\n☄️ KOMUTAN BÜYÜLERİ');
-{
-  const map = new TileMap(40, 20);
-  const world = new World(map);
-  world.placeBuilding(0, 'castle', 2, 8, true); // castle required to cast
-  const enemy = world.spawnUnit(1, 'knight', 20, 10);
-  const own = world.spawnUnit(0, 'knight', 20, 12);
-  own.hp = 50;
-
-  const e0 = world.players[0].energy;
-  check('başlangıç enerjisi 40', e0 === 40);
-
-  const okMeteor = castSpell(world, 0, 'meteor', 20, 10);
-  check('meteor enerjisi yetmezken reddedilir', !okMeteor && enemy.hp === enemy.maxHp);
-
-  world.players[0].energy = 100;
-  const ok2 = castSpell(world, 0, 'meteor', 20, 10);
-  check('meteor düşmana hasar verir', ok2 && enemy.hp < enemy.maxHp, `(hp=${Math.round(enemy.hp)})`);
-  check('enerji düşer', world.players[0].energy === 50);
-
-  const ok3 = castSpell(world, 0, 'heal', 20, 12);
-  check('şifa kendi birimini iyileştirir', ok3 && own.hp > 50, `(hp=${Math.round(own.hp)})`);
 }
 
 console.log('\n💰 KILL ÖDÜLÜ');

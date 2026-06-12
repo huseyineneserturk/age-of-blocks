@@ -241,38 +241,6 @@ html, body, #app {
   cursor: pointer;
 }
 
-#top-bar .res.energy b { color: #b78cff; }
-
-/* ---------- Spell bar ---------- */
-#spell-bar {
-  position: absolute;
-  bottom: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 8px;
-  pointer-events: auto;
-}
-.spell {
-  position: relative;
-  width: 58px; height: 58px;
-  border-radius: 50%;
-  border: 2px solid #4a3f7a;
-  background: rgba(35, 28, 60, 0.9);
-  color: var(--text);
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  cursor: pointer;
-}
-.spell:hover { border-color: #b78cff; }
-.spell.active { box-shadow: 0 0 0 3px #b78cff; border-color: #b78cff; }
-.spell.disabled { opacity: 0.45; }
-.spell .ic { font-size: 20px; }
-.spell .cost { font-size: 9px; color: #b78cff; }
-.spell .hot {
-  position: absolute; top: 3px; left: 8px;
-  font-size: 9px; color: #8a7ab0; text-transform: uppercase;
-}
-
 /* ---------- Minimap ---------- */
 #minimap {
   position: absolute;

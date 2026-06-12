@@ -20,7 +20,7 @@ Eski oyun (v1, canlıdaki sürüm) `legacy/` altındadır.
 
 - **Sol tık / sürükle:** seç · **Sağ tık:** yürüt / saldır / rally · **A:** saldırı emri
 - **WASD / orta tuş:** kamera · **Tekerlek:** zoom · **Minimap:** tıkla-git
-- **1-9, 0:** bina kur · **Q/W:** komutan büyüleri (Meteor / Şifa)
+- **1-9, 0:** bina kur
 - Counter döngüsü: kılıç > okçu > mızrak > süvari > kılıç (+ büyücü AoE, mancınık anti-bina)
 - Çevre: 🌲 orman pususu · ⛰️ tepe +menzil · 🪨 kırılabilir kaya geçidi · 🗿 nötr kamp buffı
 - Fog of war, paralı araştırma (3'ten 1 seç), kill ödülü, 3 zorlukta RTS AI
@@ -31,7 +31,7 @@ Eski oyun (v1, canlıdaki sürüm) `legacy/` altındadır.
 src/
   engine/   # kamera, input, grid, A* pathfinding
   data/     # birim/bina/harita tabloları
-  game/     # sim: world, combat, economy, ai, fog, spells (20Hz sabit tick)
+  game/     # sim: world, combat, economy, ai, fog (20Hz sabit tick)
   render/   # canvas renderer, figürler, efektler, minimap
   ui/       # HUD
 test/       # headless sim testleri (tsx)

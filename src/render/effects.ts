@@ -59,14 +59,6 @@ export class Effects {
         case 'rock_destroyed':
           this.explosion(e.x, e.y, 1.2);
           break;
-        case 'spell':
-          if (e.spell === 'meteor') {
-            this.explosion(e.x, e.y, 2.2);
-            this.magicBurst(e.x, e.y, e.team);
-          } else {
-            this.healBurst(e.x, e.y);
-          }
-          break;
         case 'camp_cleared':
           break; // handled by the HUD banner
         case 'arrow_fire':
@@ -231,24 +223,6 @@ export class Effects {
         ax: 0, ay: 1, size: 4 + Math.random() * 4,
         color: [c1, c2, '#ffffff'][Math.floor(Math.random() * 3)],
         life: 0.4 + Math.random() * 0.3, maxLife: 0.7, alpha: 1, shrink: 0.6,
-        type: 'star', rotation: Math.random() * Math.PI,
-      });
-    }
-  }
-
-  healBurst(x: number, y: number): void {
-    this.particles.push({
-      x, y, vx: 0, vy: 0, ax: 0, ay: 0,
-      size: 8, color: '#3ee07a', life: 0.5, maxLife: 0.5, alpha: 1,
-      shrink: -6, type: 'ring', lineWidth: 3,
-    });
-    for (let i = 0; i < 10; i++) {
-      this.particles.push({
-        x: x + (Math.random() - 0.5) * 2, y: y + (Math.random() - 0.5) * 1.5,
-        vx: (Math.random() - 0.5) * 0.5, vy: -1.4 - Math.random(),
-        ax: 0, ay: 0,
-        size: 6 + Math.random() * 4, color: '#5fe07a',
-        life: 0.7 + Math.random() * 0.3, maxLife: 1, alpha: 1, shrink: 0.3,
         type: 'star', rotation: Math.random() * Math.PI,
       });
     }

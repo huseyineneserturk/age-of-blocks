@@ -3,7 +3,6 @@
 
 import { BUILDINGS, BUILD_MENU, RESEARCH_TIME, TRAIN, UPGRADES, type BuildingKind } from '../data/buildings';
 import { UNITS, type UnitKind } from '../data/units';
-import { SPELLS, type SpellKind } from '../game/spells';
 import type { Building, PlayerState } from '../game/world';
 
 export interface HudCallbacks {
@@ -11,7 +10,6 @@ export interface HudCallbacks {
   onTrain(kind: UnitKind): void;
   onResearch(): void;
   onPickUpgrade(id: string): void;
-  onCastSpell(kind: SpellKind): void;
   onRestart(): void;
 }
 
@@ -47,18 +45,13 @@ export class Hud {
   private gameoverEl = document.getElementById('gameover')!;
   private goTitle = document.getElementById('go-title')!;
 
-  private energyEl = document.getElementById('energy')!;
-  private spellBar = document.getElementById('spell-bar')!;
-
   private buildCards = new Map<BuildingKind, HTMLButtonElement>();
-  private spellCards = new Map<SpellKind, HTMLButtonElement>();
   private panelSig = '';
   private offerSig = '';
   private modalDismissed = false;
 
   constructor(private cb: HudCallbacks) {
     this.buildBuildMenu();
-    this.buildSpellBar();
     this.researchFab.addEventListener('click', () => {
       this.modalDismissed = false;
       this.researchModal.classList.remove('hidden');
@@ -106,28 +99,6 @@ export class Hud {
     for (const [k, el] of this.buildCards) el.classList.toggle('active', k === kind);
   }
 
-  // --- Spell bar ---
-
-  private buildSpellBar(): void {
-    this.spellBar.innerHTML = '';
-    for (const s of Object.values(SPELLS)) {
-      const btn = document.createElement('button');
-      btn.className = 'spell';
-      btn.innerHTML =
-        `<span class="hot">${s.hotkey}</span>` +
-        `<span class="ic">${s.icon}</span>` +
-        `<span class="cost">⚡${s.cost}</span>`;
-      btn.title = `${s.label} — kaleden büyü (⚡${s.cost})`;
-      btn.addEventListener('click', () => this.cb.onCastSpell(s.kind));
-      this.spellBar.appendChild(btn);
-      this.spellCards.set(s.kind, btn);
-    }
-  }
-
-  setSpellArmed(kind: SpellKind | null): void {
-    for (const [k, el] of this.spellCards) el.classList.toggle('active', k === kind);
-  }
-
   // --- Per-frame update ---
 
   update(player: PlayerState, selectedBuilding: Building | null, researchPrice: number): void {
@@ -138,11 +109,6 @@ export class Hud {
 
     for (const [k, el] of this.buildCards) {
       el.classList.toggle('disabled', player.gold < BUILDINGS[k].cost);
-    }
-
-    this.energyEl.textContent = String(Math.floor(player.energy));
-    for (const [k, el] of this.spellCards) {
-      el.classList.toggle('disabled', player.energy < SPELLS[k].cost);
     }
 
     this.updateBuildingPanel(player, selectedBuilding, researchPrice);

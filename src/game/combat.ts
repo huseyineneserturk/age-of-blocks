@@ -7,13 +7,17 @@
 import { findPath } from '../engine/astar';
 import { Terrain } from '../engine/grid';
 import { UNITS, counterMultiplier, type Team } from '../data/units';
-import { BUILDINGS, SIEGE_VS_BUILDING } from '../data/buildings';
-import { killBounty } from './spells';
+import { BUILDINGS, SIEGE_VS_BUILDING, TRAIN } from '../data/buildings';
 import type { Building, RockEntity, Unit, World } from './world';
 
 const REPATH_INTERVAL = 0.4;
 const LEASH_EXTRA = 2.0;
 const ATTACK_ANIM = 0.25;
+
+/** Gold bounty for killing an enemy unit (40% of its training cost). */
+export function killBounty(kind: Unit['kind']): number {
+  return Math.round(TRAIN[kind].cost * 0.4);
+}
 const FOREST_REVEAL = 2.2; // enemies closer than this see into the forest
 const HILL_RANGE_BONUS = 1;
 const CAMP_GOLD = 150;

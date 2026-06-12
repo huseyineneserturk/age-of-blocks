@@ -87,7 +87,6 @@ export interface Upgrades {
 export interface PlayerState {
   team: Team;
   gold: number;
-  energy: number; // commander spell resource
   supplyUsed: number;
   supplyCap: number;
   upgrades: Upgrades;
@@ -128,14 +127,12 @@ export type SimEvent =
   | { type: 'train_done'; x: number; y: number; team: Team }
   | { type: 'build_placed'; x: number; y: number; team: Team }
   | { type: 'rock_destroyed'; x: number; y: number }
-  | { type: 'camp_cleared'; team: Team }
-  | { type: 'spell'; spell: 'meteor' | 'heal'; x: number; y: number; team: Team };
+  | { type: 'camp_cleared'; team: Team };
 
 function makePlayer(team: Team): PlayerState {
   return {
     team,
     gold: START_GOLD,
-    energy: 40,
     supplyUsed: 0,
     supplyCap: 0,
     upgrades: { damage: 1, health: 1, speed: 1, income: 1, atkspeed: 1 },

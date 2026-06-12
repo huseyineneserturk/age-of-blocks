@@ -7,7 +7,6 @@ import type { GameMap } from '../data/maps/riverCrossing';
 import { Terrain } from '../engine/grid';
 import { issueAttackMove } from './commands';
 import { enqueueUnit, pickUpgrade, researchCost, startResearch } from './economy';
-import { castSpell, SPELLS } from './spells';
 import type { Building, Unit, World } from './world';
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
@@ -68,37 +67,10 @@ export class EnemyAI {
     if (this.world.winner !== null) return;
 
     this.spendResearch();
-    this.castSpells();
     if (this.defendBase()) return; // defense overrides everything
     this.buildSomething();
     this.trainUnits();
     this.runWaves();
-  }
-
-  /** Drop a meteor on dense player clumps (normal+). */
-  private castSpells(): void {
-    if (this.difficulty === 'easy') return;
-    const p = this.world.players[AI_TEAM];
-    if (p.energy < SPELLS.meteor.cost) return;
-
-    const players = this.world.units.filter((u) => u.alive && u.team === 0);
-    let best: { x: number; y: number; n: number } | null = null;
-    for (const a of players) {
-      let n = 0;
-      let sx = 0;
-      let sy = 0;
-      for (const b of players) {
-        if (Math.hypot(a.x - b.x, a.y - b.y) <= SPELLS.meteor.radius) {
-          n++;
-          sx += b.x;
-          sy += b.y;
-        }
-      }
-      if (!best || n > best.n) best = { x: sx / n, y: sy / n, n };
-    }
-    if (best && best.n >= 4) {
-      castSpell(this.world, AI_TEAM, 'meteor', best.x, best.y);
-    }
   }
 
   // --- Helpers ---

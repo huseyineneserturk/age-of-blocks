@@ -14,7 +14,6 @@ import { updateEconomy, enqueueUnit, pickUpgrade, researchCost, startResearch } 
 import { issueAttack, issueAttackBuilding, issueAttackMove, issueAttackRock, issueMove } from './commands';
 import { EnemyAI, type Difficulty } from './ai';
 import { FogOfWar } from './fog';
-import { castSpell, SPELLS, type SpellKind } from './spells';
 import { Renderer, type PlacementGhost } from '../render/renderer';
 import { Minimap } from '../render/minimap';
 import { Effects } from '../render/effects';
@@ -37,7 +36,6 @@ export class Game {
   private selectedBuildingId: number | null = null;
   private placing: BuildingKind | null = null;
   private attackMoveArmed = false;
-  private spellArmed: SpellKind | null = null;
   private gameOverShown = false;
   private ai: EnemyAI;
   private fog: FogOfWar;
@@ -70,7 +68,6 @@ export class Game {
       onPickUpgrade: (id) => {
         if (pickUpgrade(this.world, 0, id)) this.sound.play('resource');
       },
-      onCastSpell: (kind) => this.armSpell(kind),
       onRestart: () => location.reload(),
     });
 
@@ -206,10 +203,6 @@ export class Game {
       this.tryPlace(w.x, w.y);
       return;
     }
-    if (this.spellArmed) {
-      this.executeSpell(w.x, w.y);
-      return;
-    }
     if (this.attackMoveArmed) {
       this.executeAttackMove(w.x, w.y);
       return;
@@ -283,10 +276,6 @@ export class Game {
   private command(sx: number, sy: number): void {
     if (this.placing) {
       this.stopPlacement();
-      return;
-    }
-    if (this.spellArmed) {
-      this.disarmSpell();
       return;
     }
     if (this.attackMoveArmed) this.disarmAttackMove();
@@ -365,41 +354,6 @@ export class Game {
     this.disarmAttackMove();
   }
 
-  // --- Commander spells ---
-
-  private armSpell(kind: SpellKind): void {
-    if (this.world.players[0].energy < SPELLS[kind].cost) {
-      this.sound.play('click');
-      return;
-    }
-    this.stopPlacement();
-    this.attackMoveArmed = false;
-    this.spellArmed = kind;
-    this.canvas.style.cursor = 'crosshair';
-    this.hud.setSpellArmed(kind);
-    const s = SPELLS[kind];
-    this.hud.setHintOverride(`${s.icon} ${s.label} — görünen bir noktayı tıkla (ESC iptal)`);
-  }
-
-  private disarmSpell(): void {
-    this.spellArmed = null;
-    this.canvas.style.cursor = 'default';
-    this.hud.setSpellArmed(null);
-    this.hud.setHintOverride(null);
-  }
-
-  private executeSpell(wx: number, wy: number): void {
-    if (!this.spellArmed) return;
-    if (!this.fog.isVisible(wx, wy)) {
-      this.banner('🌫️ Orayı göremiyorsun — görünen bir nokta seç');
-      return;
-    }
-    if (castSpell(this.world, 0, this.spellArmed, wx, wy)) {
-      this.sound.play(this.spellArmed === 'meteor' ? 'explosion' : 'magic');
-    }
-    this.disarmSpell();
-  }
-
   private train(kind: UnitKind): void {
     if (this.selectedBuildingId === null) return;
     const b = this.world.getBuilding(this.selectedBuildingId);
@@ -410,30 +364,20 @@ export class Game {
   private handleKey(e: KeyboardEvent): void {
     const k = e.key.toLowerCase();
 
-    // Spell hotkeys (Q/W)
-    const spell = Object.values(SPELLS).find((s) => s.hotkey === k);
-    if (spell) {
-      this.armSpell(spell.kind);
-      return;
-    }
-
     // Build hotkeys
     const byHotkey = BUILD_MENU.find((kind) => BUILDINGS[kind].hotkey === k);
     if (byHotkey) {
-      this.disarmSpell();
       this.startPlacement(byHotkey);
       return;
     }
 
-    if (k === 'a' && this.selected.size > 0 && !this.placing && !this.spellArmed) {
+    if (k === 'a' && this.selected.size > 0 && !this.placing) {
       this.attackMoveArmed = true;
       this.canvas.style.cursor = 'crosshair';
       this.hud.setHintOverride('🎯 Saldırı emri — hedef noktayı tıkla (ESC iptal)');
     } else if (k === 'escape') {
       if (this.placing) {
         this.stopPlacement();
-      } else if (this.spellArmed) {
-        this.disarmSpell();
       } else if (this.attackMoveArmed) {
         this.disarmAttackMove();
       } else {
