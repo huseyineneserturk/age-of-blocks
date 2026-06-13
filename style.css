@@ -304,7 +304,9 @@ html, body, #app {
   background:
     radial-gradient(ellipse at 50% 20%, #1b2335 0%, #0d1119 55%, #06080d 100%);
   z-index: 50;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 16px 0;
 }
 #menu-scene {
   position: absolute; inset: 0;
@@ -325,6 +327,7 @@ html, body, #app {
   display: flex; flex-direction: column; align-items: center; gap: 10px;
   padding: 24px 54px 20px;
   margin-bottom: 27vh;
+  max-width: min(600px, calc(100vw - 24px));
   background: linear-gradient(180deg, rgba(16, 13, 8, 0.82), rgba(10, 9, 6, 0.86));
   border: 1px solid rgba(232, 197, 74, 0.55);
   outline: 4px solid rgba(20, 16, 8, 0.9);
@@ -383,7 +386,7 @@ html, body, #app {
 }
 
 /* Civilization picker */
-.mm-civs { display: flex; gap: 6px; }
+.mm-civs { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
 .mm-civ-btn {
   font-family: 'Cinzel', Georgia, serif;
   font-weight: 700;
@@ -431,7 +434,7 @@ html, body, #app {
 }
 #mm-music.off { color: #5a5240; }
 
-.mm-diff { display: flex; gap: 8px; }
+.mm-diff { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .mm-diff-btn {
   font-family: 'Cinzel', Georgia, serif;
   font-weight: 700;
@@ -468,7 +471,7 @@ html, body, #app {
   box-shadow: 0 10px 30px rgba(232, 197, 74, 0.5), inset 0 1px 0 rgba(255,255,255,0.4);
 }
 
-.mm-mp { display: flex; gap: 8px; align-items: center; }
+.mm-mp { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; }
 .mm-mp-btn {
   font-family: 'Cinzel', Georgia, serif;
   font-weight: 700;
@@ -523,4 +526,55 @@ html, body, #app {
   background: linear-gradient(135deg, #ffd700, #c9a227);
   color: #1a1408;
   cursor: pointer;
+}
+
+/* ==================================================================== */
+/*  Responsive — main menu & HUD adapt to small / short viewports.       */
+/* ==================================================================== */
+
+/* HUD top-bar wraps instead of overflowing on narrow screens. */
+#top-bar { flex-wrap: wrap; justify-content: center; max-width: 96vw; }
+
+/* Short viewports: anchor the menu to the top and scroll, so nothing
+   gets clipped above the fold (flex centering would hide the top). */
+@media (max-height: 760px) {
+  #main-menu { align-items: flex-start; }
+  .mm-frame { margin: 0 auto; }
+}
+
+/* Narrow / phone-width screens. */
+@media (max-width: 600px) {
+  .mm-frame {
+    padding: 18px 16px 16px;
+    margin-bottom: 12vh;
+    gap: 8px;
+  }
+  .mm-ornament { letter-spacing: 10px; margin-right: -10px; }
+  .mm-tagline { letter-spacing: 6px; font-size: 13px; }
+  .mm-sub { letter-spacing: 3px; }
+  .mm-civ-btn { width: 64px; font-size: 10px; }
+  .mm-civ-btn .ce { font-size: 17px; }
+  #mm-start { padding: 13px 36px; font-size: 16px; letter-spacing: 3px; }
+  .mm-diff-btn { padding: 8px 16px; }
+  #mm-music { top: 10px; right: 10px; width: 38px; height: 38px; font-size: 16px; }
+
+  /* HUD: keep the on-screen panels compact and clear of each other. */
+  #top-bar { gap: 8px 10px; padding: 6px 10px; font-size: 12px; top: 6px; }
+  #hint-bar { display: none; }
+  /* Build bar can't fit on a phone — make every building reachable via
+     horizontal scroll instead of clipping the rightmost group off-screen. */
+  #build-menu {
+    left: 6px; bottom: 6px; gap: 6px; padding: 6px 8px 8px;
+    max-width: calc(100vw - 12px);
+    overflow-x: auto;
+  }
+  #minimap { right: 6px; bottom: 6px; }
+  #building-panel { right: 6px; bottom: 6px; width: 200px; }
+  #research-fab { right: 10px; top: 56px; width: 46px; height: 46px; font-size: 18px; }
+}
+
+/* Very short viewports: drop the decorative top ornament to save height. */
+@media (max-height: 620px) {
+  .mm-frame { margin-bottom: 6vh; }
+  .mm-ornament:not(.bottom) { display: none; }
 }
