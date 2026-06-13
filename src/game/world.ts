@@ -4,6 +4,7 @@
 import { TileMap, Terrain } from '../engine/grid';
 import { UNITS, type Team, type UnitKind } from '../data/units';
 import { BUILDINGS, START_GOLD, type BuildingKind } from '../data/buildings';
+import { CIVS, type CivId } from '../data/civs';
 import type { Waypoint } from '../engine/astar';
 
 export type UnitOrder = 'idle' | 'move' | 'attack' | 'attackmove';
@@ -86,6 +87,7 @@ export interface Upgrades {
 
 export interface PlayerState {
   team: Team;
+  civ: CivId;
   gold: number;
   supplyUsed: number;
   supplyCap: number;
@@ -132,6 +134,7 @@ export type SimEvent =
 function makePlayer(team: Team): PlayerState {
   return {
     team,
+    civ: 'rome',
     gold: START_GOLD,
     supplyUsed: 0,
     supplyCap: 0,
@@ -173,9 +176,16 @@ export class World {
     return this.rocks.find((r) => r.id === id && r.alive);
   }
 
+  /** Convenience: a player's civ definition (monsters have none). */
+  civOf(team: Team): (typeof CIVS)[CivId] | null {
+    return team === 2 ? null : CIVS[this.players[team].civ];
+  }
+
   spawnUnit(team: Team, kind: UnitKind, x: number, y: number): Unit {
     const def = UNITS[kind];
-    const hpMul = team === 2 ? 1 : this.players[team].upgrades.health;
+    // Rome: Lejyon Disiplini — sturdier units.
+    const civHp = team === 2 ? 1 : CIVS[this.players[team].civ].unitHpMul ?? 1;
+    const hpMul = (team === 2 ? 1 : this.players[team].upgrades.health) * civHp;
     const u: Unit = {
       id: this.nextId++,
       team,

@@ -15,6 +15,7 @@ import { updateProjectiles } from './projectiles';
 import { updateEconomy, enqueueUnit, pickUpgrade, researchCost, startResearch } from './economy';
 import { issueAttack, issueAttackBuilding, issueAttackMove, issueAttackRock, issueMove } from './commands';
 import { setupCommon, setupSinglePlayer } from './setup';
+import { CIVS, randomCiv, type CivId } from '../data/civs';
 import { EnemyAI, type Difficulty } from './ai';
 import { FogOfWar } from './fog';
 import { Renderer, type PlacementGhost } from '../render/renderer';
@@ -59,6 +60,7 @@ export class Game {
     private canvas: HTMLCanvasElement,
     difficulty: Difficulty = 'normal',
     private net: NetConnection | null = null,
+    playerCiv: CivId = 'rome',
   ) {
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('No 2D context');
@@ -66,6 +68,15 @@ export class Game {
     this.myTeam = net?.team ?? 0;
     this.gameMap = buildRiverCrossing();
     this.world = new World(this.gameMap.map);
+
+    // Civilizations: SP = your pick + a different random foe; MP = from server.
+    if (net) {
+      this.world.players[0].civ = net.civs[0];
+      this.world.players[1].civ = net.civs[1];
+    } else {
+      this.world.players[0].civ = playerCiv;
+      this.world.players[1].civ = randomCiv(playerCiv);
+    }
     this.camera = new Camera(this.gameMap.map.w, this.gameMap.map.h);
     this.renderer = new Renderer(ctx, this.gameMap.map);
     this.hud = new Hud({
@@ -130,6 +141,11 @@ export class Game {
 
     window.addEventListener('pointerdown', () => this.sound.init(), { once: true });
     window.addEventListener('keydown', (e) => this.handleKey(e));
+
+    // Announce the matchup + your civilization bonus.
+    const myCiv = CIVS[this.world.players[this.myTeam].civ];
+    const foeCiv = CIVS[this.world.players[this.myTeam === 0 ? 1 : 0].civ];
+    this.banner(`${myCiv.emblem} ${myCiv.label} — ${myCiv.bonusName}: ${myCiv.bonusDesc} · Rakip: ${foeCiv.label}`);
 
     requestAnimationFrame((t) => this.frame(t));
   }

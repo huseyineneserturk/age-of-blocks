@@ -1,10 +1,12 @@
 // Thin Socket.IO client wrapper for the match server.
 
 import { io, type Socket } from 'socket.io-client';
+import type { CivId } from '../data/civs';
 import type { ClientCommand, Snapshot } from './protocol';
 
 export class NetConnection {
   team: 0 | 1 = 0;
+  civs: [CivId, CivId] = ['rome', 'rome'];
   /** Time (performance.now) of the last applied snapshot, for interpolation. */
   lastSnapshotAt = 0;
   private socket: Socket | null = null;
@@ -27,8 +29,9 @@ export class NetConnection {
       this.socket.once('connect', () => resolve());
       this.socket.once('connect_error', (e) => reject(e));
 
-      this.socket.on('start', ({ team }: { team: 0 | 1 }) => {
+      this.socket.on('start', ({ team, civs }: { team: 0 | 1; civs?: [CivId, CivId] }) => {
         this.team = team;
+        if (civs) this.civs = civs;
         this.onStart();
       });
       this.socket.on('snapshot', (snap: Snapshot) => {
@@ -43,18 +46,18 @@ export class NetConnection {
     });
   }
 
-  createRoom(): Promise<string> {
+  createRoom(civ: CivId): Promise<string> {
     return new Promise((resolve) => {
-      this.socket!.emit('createRoom', (res: { code: string; team: 0 | 1 }) => {
+      this.socket!.emit('createRoom', { civ }, (res: { code: string; team: 0 | 1 }) => {
         this.team = res.team;
         resolve(res.code);
       });
     });
   }
 
-  joinRoom(code: string): Promise<{ ok: boolean; error?: string }> {
+  joinRoom(code: string, civ: CivId): Promise<{ ok: boolean; error?: string }> {
     return new Promise((resolve) => {
-      this.socket!.emit('joinRoom', code, (res: { ok: boolean; team?: 0 | 1; error?: string }) => {
+      this.socket!.emit('joinRoom', { code, civ }, (res: { ok: boolean; team?: 0 | 1; error?: string }) => {
         if (res.ok && res.team !== undefined) this.team = res.team;
         resolve(res);
       });

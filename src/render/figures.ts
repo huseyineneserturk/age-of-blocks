@@ -3,6 +3,7 @@
 // then mirror with scale(-1,1) for left-facing. `s` is the base half-size in px.
 
 import type { UnitKind } from '../data/units';
+import { CIVS, type CivId } from '../data/civs';
 
 const PAL = {
   skin: '#e8b88a',
@@ -23,6 +24,7 @@ export function drawFigure(
   dark: string,
   walk: number, // -1..1 leg swing
   atk: number, // 0 or 1 attack pose
+  civ?: CivId,
 ): void {
   switch (kind) {
     case 'cavalry': figCavalry(ctx, s, col, dark, walk, atk); break;
@@ -33,6 +35,111 @@ export function drawFigure(
     case 'golem': figGolem(ctx, s, atk); break;
     case 'wolf': figWolf(ctx, s, walk, atk); break;
     default: figKnight(ctx, s, col, dark, walk, atk); break;
+  }
+  if (civ) civAccent(ctx, kind, s, civ);
+}
+
+// --------------------------------------------------------------------
+// Civilization accents: a distinctive headdress/crest + shield mark
+// layered over the base figure, so each civ's army reads differently.
+// --------------------------------------------------------------------
+
+function civAccent(ctx: Ctx, kind: UnitKind, s: number, civ: CivId): void {
+  const accent = CIVS[civ].accent;
+
+  // Head positions differ per figure.
+  let hx = 0;
+  let hy = -s * 0.62;
+  let hr = s * 0.26;
+  if (kind === 'cavalry') {
+    hx = -s * 0.05;
+    hy = -s * 0.74;
+    hr = s * 0.18;
+  }
+  if (kind === 'golem' || kind === 'wolf' || kind === 'catapult' || kind === 'mage') {
+    // Mage keeps the arcane hat; war machines get a pennant instead.
+    if (kind === 'catapult') {
+      ctx.fillStyle = accent;
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 0.3);
+      ctx.lineTo(s * 0.34, -s * 0.2);
+      ctx.lineTo(0, -s * 0.1);
+      ctx.closePath();
+      ctx.fill();
+    }
+    return;
+  }
+
+  switch (civ) {
+    case 'rome': {
+      // Red crest over the helmet.
+      ctx.fillStyle = '#c0392b';
+      ctx.beginPath();
+      ctx.arc(hx, hy - hr * 0.45, hr * 1.05, Math.PI * 1.15, Math.PI * 1.85);
+      ctx.fill();
+      break;
+    }
+    case 'ottoman': {
+      // White turban wrap with a small crest dot.
+      ctx.fillStyle = '#f1ece0';
+      ctx.beginPath();
+      ctx.ellipse(hx, hy - hr * 0.35, hr * 1.05, hr * 0.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = accent;
+      ctx.beginPath();
+      ctx.arc(hx, hy - hr * 0.85, hr * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'china': {
+      // Red tassel plume curving back.
+      ctx.strokeStyle = '#e04a3a';
+      ctx.lineWidth = s * 0.06;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(hx, hy - hr * 0.9);
+      ctx.quadraticCurveTo(hx - hr * 0.7, hy - hr * 1.7, hx - hr * 1.2, hy - hr * 1.1);
+      ctx.stroke();
+      ctx.fillStyle = PAL.gold;
+      ctx.beginPath();
+      ctx.arc(hx, hy - hr * 0.9, hr * 0.18, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'viking': {
+      // Iron helm ridge + nose guard.
+      ctx.strokeStyle = '#737f92';
+      ctx.lineWidth = s * 0.05;
+      ctx.beginPath();
+      ctx.moveTo(hx, hy - hr * 1.05);
+      ctx.lineTo(hx, hy + hr * 0.25);
+      ctx.stroke();
+      break;
+    }
+    case 'celt': {
+      // Wild red hair spikes over the helmet line + woad face stripe.
+      ctx.fillStyle = '#b4502e';
+      ctx.beginPath();
+      ctx.arc(hx, hy - hr * 0.3, hr * 0.95, Math.PI * 1.05, Math.PI * 1.95);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(74, 158, 255, 0.55)';
+      ctx.lineWidth = s * 0.035;
+      ctx.beginPath();
+      ctx.moveTo(hx - hr * 0.5, hy + hr * 0.05);
+      ctx.lineTo(hx + hr * 0.5, hy + hr * 0.05);
+      ctx.stroke();
+      break;
+    }
+  }
+
+  // Shield mark for shield-bearing infantry.
+  if (kind === 'knight' || kind === 'spear') {
+    const shx = kind === 'knight' ? -s * 0.34 : -s * 0.32;
+    const shy = -s * 0.05;
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    ctx.arc(shx, shy, s * 0.08, 0, Math.PI * 2);
+    ctx.fill();
   }
 }
 

@@ -58,6 +58,7 @@ export function encodeSnapshot(world: World): Snapshot {
 function encodePlayer(world: World, team: 0 | 1): Snapshot['players'][number] {
   const p = world.players[team];
   return {
+    civ: p.civ,
     gold: Math.floor(p.gold),
     supplyUsed: p.supplyUsed,
     supplyCap: p.supplyCap,
@@ -176,6 +177,7 @@ export function applySnapshot(world: World, snap: Snapshot): void {
   for (const team of [0, 1] as const) {
     const p = world.players[team];
     const s = snap.players[team];
+    p.civ = s.civ;
     p.gold = s.gold;
     p.supplyUsed = s.supplyUsed;
     p.supplyCap = s.supplyCap;

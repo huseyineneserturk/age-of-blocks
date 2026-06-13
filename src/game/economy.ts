@@ -10,6 +10,7 @@ import {
   UPGRADES,
 } from '../data/buildings';
 import { findPath } from '../engine/astar';
+import { CIVS } from '../data/civs';
 import type { Building, PlayerState, World } from './world';
 
 /** Buildings/economy belong to the two players only (never team 2). */
@@ -55,7 +56,9 @@ export function updateEconomy(world: World, dt: number): void {
     if (b.queue.length > 0) {
       const kind = b.queue[0];
       b.trainProgress += dt;
-      if (b.trainProgress >= TRAIN[kind].time) {
+      // Ottoman — Devşirme Ocağı: faster training.
+      const trainTime = TRAIN[kind].time * (CIVS[world.players[team].civ].trainTimeMul ?? 1);
+      if (b.trainProgress >= trainTime) {
         b.trainProgress = 0;
         b.queue.shift();
         spawnTrained(world, b, kind);
@@ -68,9 +71,12 @@ function recalcSupply(world: World): void {
   for (const team of [0, 1] as PlayerTeam[]) {
     const p = world.players[team];
     let cap = 0;
+    const civ = CIVS[world.players[team].civ];
     for (const b of world.buildings) {
       if (b.alive && b.team === team && b.buildProgress >= 1) {
         cap += BUILDINGS[b.kind].supply ?? 0;
+        // China — Hanedan Bilgeliği: roomier houses.
+        if (b.kind === 'house') cap += civ.houseSupplyBonus ?? 0;
       }
     }
     let used = 0;
@@ -135,7 +141,9 @@ function spawnTrained(world: World, b: Building, kind: keyof typeof TRAIN): void
 
 /** Current price of the next research (escalates with each one bought). */
 export function researchCost(p: PlayerState): number {
-  return RESEARCH_BASE_COST + RESEARCH_COST_STEP * (p.usedUpgrades.length + p.researchPoints);
+  const base = RESEARCH_BASE_COST + RESEARCH_COST_STEP * (p.usedUpgrades.length + p.researchPoints);
+  // China — Hanedan Bilgeliği: cheaper research.
+  return Math.round(base * (CIVS[p.civ].researchCostMul ?? 1));
 }
 
 /** Pay gold to start a research at this building. */

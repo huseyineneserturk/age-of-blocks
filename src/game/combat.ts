@@ -83,8 +83,10 @@ export function updateCombat(world: World, dt: number): void {
       u.alive = false;
       world.events.push({ type: 'death', x: u.x, y: u.y, team: u.team });
       // Kill bounty: the killing player earns gold for enemy units.
+      // Viking — Yağma: double loot.
       if ((u.lastHitBy === 0 || u.lastHitBy === 1) && u.lastHitBy !== u.team) {
-        world.players[u.lastHitBy].gold += killBounty(u.kind);
+        const mul = world.civOf(u.lastHitBy)?.bountyMul ?? 1;
+        world.players[u.lastHitBy].gold += killBounty(u.kind) * mul;
       }
       if (u.team === 2 && !world.campRewardGiven) {
         const remaining = world.units.some((m) => m.alive && m.team === 2 && m.id !== u.id);

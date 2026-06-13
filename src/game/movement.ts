@@ -4,6 +4,7 @@
 // stuck detector that forces a repath toward the remaining destination.
 
 import { findPath } from '../engine/astar';
+import { Terrain } from '../engine/grid';
 import { UNITS } from '../data/units';
 import type { Unit, World } from './world';
 
@@ -60,7 +61,16 @@ export function updateMovement(world: World, dt: number): void {
     }
 
     const speedMul = u.team === 2 ? 1 : world.players[u.team].upgrades.speed;
-    const speed = def.speed * world.map.speedAt(u.x, u.y) * speedMul;
+    let terrainMul = world.map.speedAt(u.x, u.y);
+    // Celt — Orman Halkı: forests never slow them down.
+    if (
+      terrainMul < 1 &&
+      world.civOf(u.team)?.forestFullSpeed &&
+      world.map.get(Math.floor(u.x), Math.floor(u.y)) === Terrain.Forest
+    ) {
+      terrainMul = 1;
+    }
+    const speed = def.speed * terrainMul * speedMul;
     const step = Math.min(dist, speed * dt);
     const nx = u.x + (dx / dist) * step;
     const ny = u.y + (dy / dist) * step;

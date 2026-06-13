@@ -2,25 +2,82 @@ import { Game } from './game/game';
 import type { Difficulty } from './game/ai';
 import { NetConnection } from './net/client';
 import { MenuScene } from './ui/menuScene';
+import { CIVS, CIV_LIST, type CivId } from './data/civs';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const menu = document.getElementById('main-menu')!;
-const menuScene = new MenuScene(document.getElementById('menu-scene') as HTMLCanvasElement);
-menuScene.startLoop();
 const startBtn = document.getElementById('mm-start')!;
 const createBtn = document.getElementById('mm-create')!;
 const joinBtn = document.getElementById('mm-join')!;
 const codeInput = document.getElementById('mm-code') as HTMLInputElement;
 const statusEl = document.getElementById('mm-status')!;
+const civsEl = document.getElementById('mm-civs')!;
+const civBonusEl = document.getElementById('mm-civ-bonus')!;
 
 let difficulty: Difficulty = 'normal';
+let selectedCiv: CivId = 'rome';
 let starting = false;
 
-// Match server URL: ?server=... override, else same host on :3001.
-const SERVER_URL =
-  new URLSearchParams(location.search).get('server') ??
-  `${location.protocol}//${location.hostname}:3001`;
+const menuScene = new MenuScene(document.getElementById('menu-scene') as HTMLCanvasElement);
+menuScene.startLoop();
 
+// --- Menu music (starts on first interaction — browsers block autoplay) ---
+const music = document.getElementById('menu-music') as HTMLAudioElement;
+const musicBtn = document.getElementById('mm-music')!;
+music.volume = 0.45;
+let musicWanted = true;
+
+function tryPlayMusic(): void {
+  if (musicWanted && music.paused) void music.play().catch(() => {});
+}
+window.addEventListener('pointerdown', tryPlayMusic, { once: true });
+window.addEventListener('keydown', tryPlayMusic, { once: true });
+musicBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  musicWanted = !musicWanted;
+  musicBtn.classList.toggle('off', !musicWanted);
+  musicBtn.textContent = musicWanted ? '♪' : '♪̸';
+  if (musicWanted) void music.play().catch(() => {});
+  else music.pause();
+});
+
+function fadeOutMusic(): void {
+  const step = (): void => {
+    if (music.volume > 0.05) {
+      music.volume = Math.max(0, music.volume - 0.05);
+      setTimeout(step, 80);
+    } else {
+      music.pause();
+    }
+  };
+  step();
+}
+
+// --- Civilization picker ---
+function buildCivPicker(): void {
+  civsEl.innerHTML = '';
+  for (const id of CIV_LIST) {
+    const civ = CIVS[id];
+    const btn = document.createElement('button');
+    btn.className = 'mm-civ-btn' + (id === selectedCiv ? ' active' : '');
+    btn.innerHTML = `<span class="ce">${civ.emblem}</span>${civ.label.toUpperCase()}`;
+    btn.addEventListener('click', () => {
+      selectedCiv = id;
+      civsEl.querySelectorAll('.mm-civ-btn').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      updateCivBonus();
+    });
+    civsEl.appendChild(btn);
+  }
+  updateCivBonus();
+}
+function updateCivBonus(): void {
+  const civ = CIVS[selectedCiv];
+  civBonusEl.textContent = `${civ.bonusName} — ${civ.bonusDesc}`;
+}
+buildCivPicker();
+
+// --- Difficulty ---
 document.querySelectorAll<HTMLButtonElement>('.mm-diff-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.mm-diff-btn').forEach((b) => b.classList.remove('active'));
@@ -36,10 +93,16 @@ function status(text: string): void {
 
 function launch(net: NetConnection | null): void {
   menuScene.stop();
+  fadeOutMusic();
   menu.classList.add('hidden');
-  const game = new Game(canvas, difficulty, net);
+  const game = new Game(canvas, difficulty, net, selectedCiv);
   (window as unknown as { game: Game }).game = game;
 }
+
+// Match server URL: ?server=... override, else same host on :3001.
+const SERVER_URL =
+  new URLSearchParams(location.search).get('server') ??
+  `${location.protocol}//${location.hostname}:3001`;
 
 // --- Single player ---
 startBtn.addEventListener('click', () => {
@@ -69,7 +132,7 @@ createBtn.addEventListener('click', async () => {
     return;
   }
   net.onStart = () => launch(net);
-  const code = await net.createRoom();
+  const code = await net.createRoom(selectedCiv);
   status(`Oda kodu: ${code} — rakibin bu kodla katılmasını bekle...`);
 });
 
@@ -87,7 +150,7 @@ joinBtn.addEventListener('click', async () => {
     return;
   }
   net.onStart = () => launch(net);
-  const res = await net.joinRoom(code);
+  const res = await net.joinRoom(code, selectedCiv);
   if (!res.ok) {
     status(`❌ ${res.error ?? 'Katılamadı'}`);
     net.disconnect();

@@ -4,6 +4,7 @@
 import type { Server, Socket } from 'socket.io';
 import { buildRiverCrossing, type GameMap } from '../src/data/maps/riverCrossing';
 import { BUILDINGS } from '../src/data/buildings';
+import { CIVS, randomCiv, type CivId } from '../src/data/civs';
 import { World, type Unit } from '../src/game/world';
 import { setupCommon, setupSymmetric } from '../src/game/setup';
 import { updateCombat } from '../src/game/combat';
@@ -53,12 +54,16 @@ export class GameRoom {
     return this.players.size;
   }
 
-  addPlayer(socket: Socket): 0 | 1 | null {
+  addPlayer(socket: Socket, civ?: CivId): 0 | 1 | null {
     if (this.started || this.players.size >= 2) return null;
     const team: 0 | 1 = this.players.size === 0 ? 0 : 1;
     this.players.set(socket.id, team);
     this.sockets.set(team, socket);
     socket.join(this.code);
+
+    // Validate + apply the chosen civilization.
+    const chosen: CivId = civ && CIVS[civ] ? civ : randomCiv();
+    this.world.players[team].civ = chosen;
 
     socket.on('command', (cmd: ClientCommand) => this.handleCommand(team, cmd));
     socket.on('disconnect', () => this.handleLeave(socket));
@@ -69,11 +74,12 @@ export class GameRoom {
 
   private start(): void {
     this.started = true;
+    const civs: [CivId, CivId] = [this.world.players[0].civ, this.world.players[1].civ];
     for (const [team, socket] of this.sockets) {
-      socket.emit('start', { team, map: this.gameMap.name });
+      socket.emit('start', { team, map: this.gameMap.name, civs });
     }
     this.simTimer = setInterval(() => this.tick(), DT * 1000);
-    console.log(`[room ${this.code}] match started`);
+    console.log(`[room ${this.code}] match started (${civs[0]} vs ${civs[1]})`);
   }
 
   private tick(): void {

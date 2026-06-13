@@ -30,30 +30,43 @@ export function startServer(port: number): { io: Server; close: () => void } {
   }
 
   io.on('connection', (socket) => {
-    socket.on('createRoom', (cb: (res: { code: string; team: number }) => void) => {
+    socket.on('createRoom', (payload: { civ?: string } | undefined, cb: (res: { code: string; team: number }) => void) => {
+      // Back-compat: payload may be the callback itself.
+      if (typeof payload === 'function') {
+        cb = payload as unknown as typeof cb;
+        payload = undefined;
+      }
       if (typeof cb !== 'function') return;
       const code = makeCode();
       const room = new GameRoom(code, io, () => rooms.delete(code));
       rooms.set(code, room);
-      const team = room.addPlayer(socket);
+      const team = room.addPlayer(socket, payload?.civ as never);
       console.log(`[server] room ${code} created`);
       cb({ code, team: team ?? 0 });
     });
 
-    socket.on('joinRoom', (code: string, cb: (res: { ok: boolean; team?: number; error?: string }) => void) => {
-      if (typeof cb !== 'function') return;
-      const room = rooms.get(String(code).toUpperCase().trim());
-      if (!room) {
-        cb({ ok: false, error: 'Oda bulunamadı' });
-        return;
-      }
-      const team = room.addPlayer(socket);
-      if (team === null) {
-        cb({ ok: false, error: 'Oda dolu veya oyun başladı' });
-        return;
-      }
-      cb({ ok: true, team });
-    });
+    socket.on(
+      'joinRoom',
+      (
+        payload: { code: string; civ?: string } | string,
+        cb: (res: { ok: boolean; team?: number; error?: string }) => void,
+      ) => {
+        if (typeof cb !== 'function') return;
+        const code = typeof payload === 'string' ? payload : payload?.code;
+        const civ = typeof payload === 'object' ? payload?.civ : undefined;
+        const room = rooms.get(String(code).toUpperCase().trim());
+        if (!room) {
+          cb({ ok: false, error: 'Oda bulunamadı' });
+          return;
+        }
+        const team = room.addPlayer(socket, civ as never);
+        if (team === null) {
+          cb({ ok: false, error: 'Oda dolu veya oyun başladı' });
+          return;
+        }
+        cb({ ok: true, team });
+      },
+    );
   });
 
   http.listen(port, () => {

@@ -1,11 +1,13 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&display=swap');
+
 :root {
-  --gold: #ffd700;
+  --gold: #e8c54a;
   --gold-dim: #b8962e;
   --bg: #0b0e16;
-  --panel: rgba(13, 17, 27, 0.88);
-  --panel-border: rgba(255, 215, 0, 0.35);
-  --text: #e8e6df;
-  --text-dim: #9aa3b5;
+  --panel: rgba(17, 13, 8, 0.9);
+  --panel-border: rgba(232, 197, 74, 0.4);
+  --text: #e8e2d2;
+  --text-dim: #a39a82;
   --player: #4a9eff;
   --enemy: #ff4a4a;
 }
@@ -47,10 +49,14 @@ html, body, #app {
   border-radius: 10px;
   font-size: 14px;
 }
+#top-bar {
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5), inset 0 0 14px rgba(0, 0, 0, 0.4);
+}
 #top-bar .logo {
+  font-family: 'Cinzel', Georgia, serif;
   color: var(--gold);
   font-weight: 700;
-  letter-spacing: 1px;
+  letter-spacing: 2px;
 }
 #selection-info { color: var(--text-dim); min-width: 140px; }
 #fps { color: var(--text-dim); font-size: 12px; }
@@ -111,8 +117,8 @@ html, body, #app {
   cursor: pointer;
   font-family: inherit;
 }
-.bcard:hover { background: rgba(255, 215, 0, 0.12); border-color: var(--gold); }
-.bcard.active { background: rgba(255, 215, 0, 0.22); border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold); }
+.bcard:hover { background: rgba(232, 197, 74, 0.14); border-color: var(--gold); transform: translateY(-1px); }
+.bcard.active { background: rgba(232, 197, 74, 0.24); border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold), 0 0 12px rgba(232,197,74,0.3); }
 .bcard.disabled { opacity: 0.4; }
 .bcard .ic { font-size: 20px; }
 .bcard .nm { font-size: 8.5px; color: var(--text-dim); }
@@ -134,7 +140,7 @@ html, body, #app {
   border-radius: 12px;
   pointer-events: auto;
 }
-#bp-title { color: var(--gold); font-weight: 700; font-size: 15px; margin-bottom: 8px; }
+#bp-title { font-family: 'Cinzel', Georgia, serif; color: var(--gold); font-weight: 700; font-size: 15px; margin-bottom: 8px; letter-spacing: 1px; }
 #bp-trains { display: flex; gap: 6px; flex-wrap: wrap; }
 .tcard {
   position: relative;
@@ -213,7 +219,7 @@ html, body, #app {
   padding: 22px 26px;
   text-align: center;
 }
-.research-box h3 { color: var(--gold); font-size: 22px; margin-bottom: 4px; }
+.research-box h3 { font-family: 'Cinzel', Georgia, serif; color: var(--gold); font-size: 22px; margin-bottom: 4px; letter-spacing: 2px; }
 .research-sub { color: var(--text-dim); font-size: 13px; margin-bottom: 16px; }
 #research-choices { display: flex; gap: 12px; }
 .upcard {
@@ -255,8 +261,6 @@ html, body, #app {
 #building-panel { right: 232px; }
 
 /* ---------- Main menu — medieval ---------- */
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&display=swap');
-
 #main-menu {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
@@ -341,6 +345,55 @@ html, body, #app {
   border-bottom: 1px solid rgba(232, 197, 74, 0.25);
 }
 
+/* Civilization picker */
+.mm-civs { display: flex; gap: 6px; }
+.mm-civ-btn {
+  font-family: 'Cinzel', Georgia, serif;
+  font-weight: 700;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  width: 78px;
+  padding: 8px 4px 6px;
+  border: 1px solid rgba(232, 197, 74, 0.25);
+  background: linear-gradient(180deg, #221d12, #141007);
+  color: #9a8d6c;
+  font-size: 11px;
+  letter-spacing: 1px;
+  cursor: pointer;
+}
+.mm-civ-btn .ce {
+  font-size: 19px;
+  line-height: 1;
+  font-family: Georgia, serif;
+}
+.mm-civ-btn:hover { color: #e8c54a; border-color: rgba(232, 197, 74, 0.6); }
+.mm-civ-btn.active {
+  color: #f6e09a;
+  border-color: #e8c54a;
+  background: linear-gradient(180deg, #3a3018, #221b0a);
+  box-shadow: 0 0 14px rgba(232, 197, 74, 0.25), inset 0 0 10px rgba(232, 197, 74, 0.12);
+}
+.mm-civ-bonus {
+  font-size: 12px;
+  color: #b8a26a;
+  min-height: 16px;
+  letter-spacing: 0.4px;
+}
+
+/* Music toggle */
+#mm-music {
+  position: absolute;
+  top: 16px; right: 18px;
+  z-index: 3;
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  border: 1px solid rgba(232, 197, 74, 0.45);
+  background: rgba(12, 10, 6, 0.8);
+  color: #e8c54a;
+  font-size: 18px;
+  cursor: pointer;
+}
+#mm-music.off { color: #5a5240; }
+
 .mm-diff { display: flex; gap: 8px; }
 .mm-diff-btn {
   font-family: 'Cinzel', Georgia, serif;
@@ -424,7 +477,7 @@ html, body, #app {
   pointer-events: auto;
   z-index: 40;
 }
-#go-title { font-size: 64px; color: var(--gold); text-shadow: 0 0 30px rgba(255,215,0,0.5); }
+#go-title { font-family: 'Cinzel', Georgia, serif; font-size: 64px; color: var(--gold); text-shadow: 0 0 30px rgba(232,197,74,0.5); letter-spacing: 4px; }
 #go-title.lose { color: var(--enemy); text-shadow: 0 0 30px rgba(255,74,74,0.5); }
 #go-restart {
   padding: 14px 36px;

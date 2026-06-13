@@ -3,6 +3,7 @@
 
 import { BUILDINGS, BUILD_MENU, RESEARCH_TIME, TRAIN, UPGRADES, type BuildingKind } from '../data/buildings';
 import { UNITS, type UnitKind } from '../data/units';
+import { CIVS } from '../data/civs';
 import type { Building, PlayerState } from '../game/world';
 
 export interface HudCallbacks {
@@ -143,6 +144,7 @@ export class Hud {
           const t = TRAIN[kind];
           const card = document.createElement('button');
           card.className = 'tcard';
+          card.dataset.train = kind;
           card.innerHTML =
             `<span class="ic">${UNIT_ICONS[kind]}</span>` +
             `<span class="nm">${UNITS[kind].label}</span>` +
@@ -189,7 +191,8 @@ export class Hud {
     if (b.queue.length > 0) {
       const prog = this.bpQueue.querySelector('.prog') as HTMLElement | null;
       if (prog) {
-        const frac = Math.min(1, b.trainProgress / TRAIN[b.queue[0]].time);
+        const tTime = TRAIN[b.queue[0]].time * (CIVS[player.civ].trainTimeMul ?? 1);
+        const frac = Math.min(1, b.trainProgress / tTime);
         prog.style.width = `${frac * 100}%`;
       }
     }
@@ -201,10 +204,11 @@ export class Hud {
       const buy = this.bpTrains.querySelector('.research-buy');
       if (buy) buy.classList.toggle('disabled', player.gold < researchPrice);
     }
-    const trainCards = this.bpTrains.querySelectorAll<HTMLButtonElement>('.tcard');
-    const trains = def.trains ?? [];
-    trainCards.forEach((el, i) => {
-      const t = TRAIN[trains[i]];
+    // Only real training cards carry data-train; the research-buy card is excluded.
+    const trainCards = this.bpTrains.querySelectorAll<HTMLButtonElement>('.tcard[data-train]');
+    trainCards.forEach((el) => {
+      const t = TRAIN[el.dataset.train as UnitKind];
+      if (!t) return;
       const blocked =
         player.gold < t.cost ||
         player.supplyUsed + t.supply > player.supplyCap ||

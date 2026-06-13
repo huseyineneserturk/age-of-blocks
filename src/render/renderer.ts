@@ -6,6 +6,7 @@ import { Camera, TILE } from '../engine/camera';
 import { Terrain, TileMap } from '../engine/grid';
 import { TEAM_COLORS } from '../data/units';
 import { BUILDINGS, type BuildingKind } from '../data/buildings';
+import { CIVS, type CivId } from '../data/civs';
 import type { SelectRect } from '../engine/input';
 import type { Building, Projectile, RockEntity, Unit, World } from '../game/world';
 import { isHiddenFrom } from '../game/combat';
@@ -117,12 +118,31 @@ export class Renderer {
 
     switch (t) {
       case Terrain.Grass: {
-        c.fillStyle = h > 0.66 ? COLORS.grassLight : h > 0.33 ? COLORS.grass : COLORS.grassDark;
+        // 4-tone patchwork
+        c.fillStyle = h > 0.75 ? COLORS.grassLight : h > 0.45 ? COLORS.grass : h > 0.2 ? '#1b452a' : COLORS.grassDark;
         c.fillRect(px, py, TILE, TILE);
-        if (h > 0.92) {
-          c.fillStyle = 'rgba(255,255,255,0.05)';
+        // grass blade tufts
+        const h2 = tileHash(x * 5 + 1, y * 3 + 2);
+        if (h2 > 0.55) {
+          c.strokeStyle = 'rgba(120, 170, 90, 0.35)';
+          c.lineWidth = 1;
+          const gx = px + 5 + h2 * (TILE - 12);
+          const gy = py + 6 + h * (TILE - 12);
           c.beginPath();
-          c.arc(px + h * TILE, py + (1 - h) * TILE, 2.5, 0, Math.PI * 2);
+          c.moveTo(gx, gy + 4);
+          c.lineTo(gx - 2, gy - 2);
+          c.moveTo(gx + 2, gy + 4);
+          c.lineTo(gx + 3, gy - 2);
+          c.stroke();
+        }
+        // occasional tiny flowers / pebbles
+        if (h > 0.93) {
+          c.fillStyle = '#d8d06a';
+          c.fillRect(px + h2 * (TILE - 6) + 2, py + h * (TILE - 8), 2.5, 2.5);
+        } else if (h < 0.05) {
+          c.fillStyle = 'rgba(160,160,170,0.4)';
+          c.beginPath();
+          c.ellipse(px + TILE * 0.5 + (h2 - 0.5) * 10, py + TILE * 0.6, 3, 2, 0, 0, Math.PI * 2);
           c.fill();
         }
         break;
@@ -130,12 +150,20 @@ export class Renderer {
       case Terrain.Forest: {
         c.fillStyle = COLORS.forest;
         c.fillRect(px, py, TILE, TILE);
-        // 2 deterministic trees per tile
+        // 2 deterministic trees per tile, with ground shadows
         for (let i = 0; i < 2; i++) {
           const hx = tileHash(x * 3 + i, y * 7 + i);
           const tx = px + 6 + hx * (TILE - 14);
           const ty = py + 6 + tileHash(y * 5 + i, x * 11) * (TILE - 14);
           const r = 5 + hx * 4;
+          // shadow
+          c.fillStyle = 'rgba(0,0,0,0.3)';
+          c.beginPath();
+          c.ellipse(tx + r * 0.25, ty + r * 1.05, r * 0.8, r * 0.3, 0, 0, Math.PI * 2);
+          c.fill();
+          // trunk
+          c.fillStyle = '#3d2c1a';
+          c.fillRect(tx + r * 0.28, ty + r * 0.4, r * 0.22, r * 0.6);
           c.fillStyle = COLORS.treeDark;
           c.beginPath();
           c.moveTo(tx, ty + r);
@@ -148,6 +176,14 @@ export class Renderer {
           c.moveTo(tx - r * 0.4, ty + r);
           c.lineTo(tx + r * 0.4, ty + r);
           c.lineTo(tx, ty - r);
+          c.closePath();
+          c.fill();
+          // canopy highlight
+          c.fillStyle = 'rgba(120, 200, 120, 0.18)';
+          c.beginPath();
+          c.moveTo(tx - r * 0.15, ty + r * 0.1);
+          c.lineTo(tx + r * 0.12, ty + r * 0.1);
+          c.lineTo(tx, ty - r * 0.8);
           c.closePath();
           c.fill();
         }
@@ -166,18 +202,30 @@ export class Renderer {
         break;
       }
       case Terrain.Water: {
-        c.fillStyle = COLORS.water;
+        // depth-varied blue + double wave + sparkle
+        const deep = h > 0.5 ? COLORS.water : '#142f4e';
+        c.fillStyle = deep;
         c.fillRect(px, py, TILE, TILE);
         c.strokeStyle = COLORS.waterLight;
         c.lineWidth = 1.5;
+        const wy = py + TILE * (0.25 + h * 0.35);
         c.beginPath();
-        const wy = py + TILE * (0.3 + h * 0.4);
         c.moveTo(px + 4, wy);
         c.quadraticCurveTo(px + TILE / 2, wy - 3, px + TILE - 4, wy);
         c.stroke();
+        c.strokeStyle = 'rgba(120, 170, 220, 0.35)';
+        c.beginPath();
+        c.moveTo(px + 7, wy + TILE * 0.32);
+        c.quadraticCurveTo(px + TILE / 2, wy + TILE * 0.32 - 2.5, px + TILE - 7, wy + TILE * 0.32);
+        c.stroke();
+        if (h > 0.85) {
+          c.fillStyle = 'rgba(200, 230, 255, 0.6)';
+          c.fillRect(px + h * (TILE - 8) + 2, py + (1 - h) * (TILE - 8) + 2, 2, 2);
+        }
         break;
       }
       case Terrain.Bridge: {
+        // wooden planks + side rails
         c.fillStyle = COLORS.bridge;
         c.fillRect(px, py, TILE, TILE);
         c.strokeStyle = COLORS.bridgeDark;
@@ -185,9 +233,21 @@ export class Renderer {
         for (let i = 1; i < 4; i++) {
           c.beginPath();
           c.moveTo(px + (TILE / 4) * i, py);
-          c.lineTo(px + (TILE / 4) * i, py + TILE);
+          c.lineTo(px + (TILE / 4) * i + 1, py + TILE);
           c.stroke();
         }
+        // plank grain
+        c.strokeStyle = 'rgba(60, 40, 20, 0.25)';
+        c.beginPath();
+        c.moveTo(px, py + TILE * (0.3 + h * 0.4));
+        c.lineTo(px + TILE, py + TILE * (0.3 + h * 0.4));
+        c.stroke();
+        // rails along the water edge (top/bottom of the bridge band)
+        const above = map.inBounds(x, y - 1) && map.get(x, y - 1) === Terrain.Water;
+        const below = map.inBounds(x, y + 1) && map.get(x, y + 1) === Terrain.Water;
+        c.fillStyle = '#4e3315';
+        if (above) c.fillRect(px, py, TILE, 3.5);
+        if (below) c.fillRect(px, py + TILE - 3.5, TILE, 3.5);
         break;
       }
       case Terrain.Rock: {
@@ -280,7 +340,7 @@ export class Renderer {
     for (const b of world.buildings) {
       // Enemy buildings appear once their ground has been explored.
       if (b.team !== myTeam && !fog.isExplored(b.x + b.w / 2, b.y + b.h / 2)) continue;
-      this.drawBuilding(ctx, camera, b, b.id === selectedBuildingId);
+      this.drawBuilding(ctx, camera, b, b.id === selectedBuildingId, world.civOf(b.team)?.id);
     }
 
     // --- Cracked rocks (destructible) ---
@@ -316,7 +376,7 @@ export class Renderer {
       if (u.team !== myTeam && !fog.isVisible(u.x, u.y)) continue; // fog of war
       const inForest = world.map.get(Math.floor(u.x), Math.floor(u.y)) === Terrain.Forest;
       if (inForest) ctx.globalAlpha = 0.55;
-      this.drawUnit(ctx, camera, u, selected.has(u.id), alpha);
+      this.drawUnit(ctx, camera, u, selected.has(u.id), alpha, world.civOf(u.team)?.id);
       ctx.globalAlpha = 1;
     }
 
@@ -358,7 +418,7 @@ export class Renderer {
     }
   }
 
-  private drawBuilding(ctx: CanvasRenderingContext2D, camera: Camera, b: Building, isSelected: boolean): void {
+  private drawBuilding(ctx: CanvasRenderingContext2D, camera: Camera, b: Building, isSelected: boolean, civ?: CivId): void {
     const def = BUILDINGS[b.kind];
     const p0 = camera.worldToScreen(b.x, b.y);
     const wpx = b.w * camera.scale;
@@ -387,6 +447,11 @@ export class Renderer {
       for (let i = 0; i < teeth; i++) {
         ctx.fillRect(p0.x + pad + (i * (wpx - pad * 2)) / teeth, p0.y + pad, (wpx - pad * 2) / (teeth * 2), camera.scale * 0.18);
       }
+    }
+
+    // Civilization architecture (roofs/crests) — skip walls, they are plain.
+    if (civ && b.kind !== 'wall' && b.buildProgress >= 1) {
+      this.drawCivRoof(ctx, civ, p0.x + pad, p0.y + pad, wpx - pad * 2, hpx - pad * 2, b.kind === 'castle', camera.scale);
     }
 
     // Icon
@@ -439,6 +504,128 @@ export class Renderer {
       ctx.setLineDash([]);
       ctx.font = `${camera.scale * 0.7}px serif`;
       ctx.fillText('🚩', rp.x, rp.y);
+    }
+  }
+
+  /** Civilization rooflines: each civ's base reads differently at a glance. */
+  private drawCivRoof(
+    ctx: CanvasRenderingContext2D,
+    civ: CivId,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    isCastle: boolean,
+    scale: number,
+  ): void {
+    const accent = CIVS[civ].accent;
+    const cx = x + w / 2;
+
+    switch (civ) {
+      case 'ottoman': {
+        // Dome with a crescent finial.
+        const r = Math.min(w * 0.28, scale * 0.5);
+        ctx.fillStyle = '#d8dde6';
+        ctx.beginPath();
+        ctx.arc(cx, y + 1, r, Math.PI, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = accent;
+        ctx.lineWidth = Math.max(1, scale * 0.04);
+        ctx.stroke();
+        if (isCastle) {
+          ctx.strokeStyle = '#f1ece0';
+          ctx.lineWidth = Math.max(1.5, scale * 0.06);
+          ctx.beginPath();
+          ctx.arc(cx + r * 0.12, y - r - scale * 0.18, scale * 0.14, Math.PI * 0.35, Math.PI * 1.65);
+          ctx.stroke();
+        }
+        break;
+      }
+      case 'china': {
+        // Curved pagoda eaves (double for the castle).
+        const layers = isCastle ? 2 : 1;
+        for (let i = 0; i < layers; i++) {
+          const yy = y - i * scale * 0.22;
+          const ww = w * (1 - i * 0.22);
+          ctx.fillStyle = '#8f1d1d';
+          ctx.beginPath();
+          ctx.moveTo(cx - ww / 2 - scale * 0.1, yy + scale * 0.1);
+          ctx.quadraticCurveTo(cx, yy - scale * 0.34, cx + ww / 2 + scale * 0.1, yy + scale * 0.1);
+          ctx.quadraticCurveTo(cx, yy - scale * 0.1, cx - ww / 2 - scale * 0.1, yy + scale * 0.1);
+          ctx.fill();
+        }
+        ctx.fillStyle = COLORS.gold;
+        ctx.beginPath();
+        ctx.arc(cx, y - (layers - 1) * scale * 0.22 - scale * 0.3, scale * 0.07, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      }
+      case 'rome': {
+        // Stone pediment + column hints on the castle.
+        ctx.fillStyle = '#cfc9bb';
+        ctx.beginPath();
+        ctx.moveTo(x + w * 0.08, y + 2);
+        ctx.lineTo(cx, y - scale * 0.32);
+        ctx.lineTo(x + w * 0.92, y + 2);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#8f8878';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        if (isCastle) {
+          ctx.fillStyle = 'rgba(207, 201, 187, 0.5)';
+          for (let i = 0; i < 3; i++) {
+            ctx.fillRect(x + w * (0.25 + i * 0.25) - scale * 0.04, y + h * 0.25, scale * 0.08, h * 0.5);
+          }
+        }
+        break;
+      }
+      case 'viking': {
+        // Steep timber gable with crossed beams.
+        ctx.fillStyle = '#54422f';
+        ctx.beginPath();
+        ctx.moveTo(x - scale * 0.06, y + scale * 0.12);
+        ctx.lineTo(cx, y - scale * 0.38);
+        ctx.lineTo(x + w + scale * 0.06, y + scale * 0.12);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#33261a';
+        ctx.lineWidth = Math.max(1, scale * 0.05);
+        ctx.beginPath();
+        ctx.moveTo(cx - scale * 0.16, y - scale * 0.42);
+        ctx.lineTo(cx + scale * 0.1, y - scale * 0.16);
+        ctx.moveTo(cx + scale * 0.16, y - scale * 0.42);
+        ctx.lineTo(cx - scale * 0.1, y - scale * 0.16);
+        ctx.stroke();
+        break;
+      }
+      case 'celt': {
+        // Thatched round roof + standing-stone hint for the castle.
+        ctx.fillStyle = '#b09a4e';
+        ctx.beginPath();
+        ctx.arc(cx, y + 2, w * 0.42, Math.PI, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#8a763a';
+        ctx.lineWidth = 1;
+        for (let i = 1; i <= 2; i++) {
+          ctx.beginPath();
+          ctx.arc(cx, y + 2, w * 0.42 * (i / 3), Math.PI, Math.PI * 2);
+          ctx.stroke();
+        }
+        if (isCastle) {
+          ctx.fillStyle = accent;
+          ctx.beginPath();
+          for (let k = 0; k < 3; k++) {
+            const a0 = (k / 3) * Math.PI * 2;
+            ctx.moveTo(cx, y - w * 0.2);
+            ctx.arc(cx + Math.cos(a0) * scale * 0.08, y - w * 0.2 + Math.sin(a0) * scale * 0.08, scale * 0.08, a0 + Math.PI, a0 + Math.PI * 1.7);
+          }
+          ctx.strokeStyle = COLORS.gold;
+          ctx.lineWidth = Math.max(1, scale * 0.035);
+          ctx.stroke();
+        }
+        break;
+      }
     }
   }
 
@@ -529,7 +716,7 @@ export class Renderer {
     }
   }
 
-  private drawUnit(ctx: CanvasRenderingContext2D, camera: Camera, u: Unit, isSelected: boolean, alpha: number): void {
+  private drawUnit(ctx: CanvasRenderingContext2D, camera: Camera, u: Unit, isSelected: boolean, alpha: number, civ?: CivId): void {
     const wx = u.prevX + (u.x - u.prevX) * alpha;
     const wy = u.prevY + (u.y - u.prevY) * alpha;
     const p = camera.worldToScreen(wx, wy);
@@ -563,7 +750,7 @@ export class Renderer {
       ctx.shadowColor = tc.glow;
       ctx.shadowBlur = 10;
     }
-    drawFigure(ctx, u.kind, s, tc.main, tc.dark, walk, u.attacking ? 1 : 0);
+    drawFigure(ctx, u.kind, s, tc.main, tc.dark, walk, u.attacking ? 1 : 0, civ);
     ctx.shadowBlur = 0;
     ctx.restore();
 

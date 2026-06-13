@@ -4,6 +4,7 @@
 
 import type { BuildingKind } from '../data/buildings';
 import type { Team, UnitKind } from '../data/units';
+import type { CivId } from '../data/civs';
 import type { SimEvent, Upgrades } from '../game/world';
 
 export const SNAPSHOT_INTERVAL_MS = 100; // 10 Hz state broadcast
@@ -73,6 +74,7 @@ export interface SnapProjectile {
 }
 
 export interface SnapPlayer {
+  civ: CivId;
   gold: number;
   supplyUsed: number;
   supplyCap: number;
