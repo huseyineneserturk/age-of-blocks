@@ -99,10 +99,17 @@ function launch(net: NetConnection | null): void {
   (window as unknown as { game: Game }).game = game;
 }
 
-// Match server URL: ?server=... override, else same host on :3001.
+// Match server URL: ?server=... override wins. In local dev we hit the
+// match server on :3001 of the same host; in production it lives behind the
+// `server.<domain>` subdomain (nginx → localhost:3001), so derive that.
+const serverOverride = new URLSearchParams(location.search).get('server');
+const isLocalHost =
+  location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const SERVER_URL =
-  new URLSearchParams(location.search).get('server') ??
-  `${location.protocol}//${location.hostname}:3001`;
+  serverOverride ??
+  (isLocalHost
+    ? `${location.protocol}//${location.hostname}:3001`
+    : `https://server.${location.hostname.replace(/^www\./, '')}`);
 
 // --- Single player ---
 startBtn.addEventListener('click', () => {
