@@ -6,12 +6,13 @@ import { Camera, TILE } from '../engine/camera';
 import { Terrain, TileMap } from '../engine/grid';
 import { TEAM_COLORS } from '../data/units';
 import { BUILDINGS, type BuildingKind } from '../data/buildings';
-import { CIVS, type CivId } from '../data/civs';
+import type { CivId } from '../data/civs';
 import type { SelectRect } from '../engine/input';
 import type { Building, Projectile, RockEntity, Unit, World } from '../game/world';
 import { isHiddenFrom } from '../game/combat';
 import { FOG_EXPLORED, FOG_UNEXPLORED, type FogOfWar } from '../game/fog';
 import { drawFigure } from './figures';
+import { drawStructure } from './buildings';
 import type { Effects } from './effects';
 
 export interface PlacementGhost {
@@ -419,57 +420,18 @@ export class Renderer {
   }
 
   private drawBuilding(ctx: CanvasRenderingContext2D, camera: Camera, b: Building, isSelected: boolean, civ?: CivId): void {
-    const def = BUILDINGS[b.kind];
     const p0 = camera.worldToScreen(b.x, b.y);
     const wpx = b.w * camera.scale;
     const hpx = b.h * camera.scale;
     if (p0.x > camera.viewW + 40 || p0.y > camera.viewH + 40 || p0.x + wpx < -40 || p0.y + hpx < -40) return;
-
-    const tc = TEAM_COLORS[b.team];
     const pad = camera.scale * 0.06;
 
-    // Shadow + body
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    ctx.fillRect(p0.x + pad * 2, p0.y + pad * 2, wpx - pad * 2, hpx - pad * 2);
-    const grad = ctx.createLinearGradient(p0.x, p0.y, p0.x, p0.y + hpx);
-    grad.addColorStop(0, tc.main);
-    grad.addColorStop(1, tc.dark);
-    ctx.fillStyle = grad;
-    ctx.fillRect(p0.x + pad, p0.y + pad, wpx - pad * 2, hpx - pad * 2);
-    ctx.strokeStyle = isSelected ? COLORS.gold : 'rgba(255,255,255,0.3)';
-    ctx.lineWidth = isSelected ? 2.5 : 1.5;
-    ctx.strokeRect(p0.x + pad, p0.y + pad, wpx - pad * 2, hpx - pad * 2);
-
-    // Castle battlements
-    if (b.kind === 'castle') {
-      ctx.fillStyle = 'rgba(255,255,255,0.22)';
-      const teeth = 6;
-      for (let i = 0; i < teeth; i++) {
-        ctx.fillRect(p0.x + pad + (i * (wpx - pad * 2)) / teeth, p0.y + pad, (wpx - pad * 2) / (teeth * 2), camera.scale * 0.18);
-      }
-    }
-
-    // Civilization architecture (roofs/crests) — skip walls, they are plain.
-    if (civ && b.kind !== 'wall' && b.buildProgress >= 1) {
-      this.drawCivRoof(ctx, civ, p0.x + pad, p0.y + pad, wpx - pad * 2, hpx - pad * 2, b.kind === 'castle', camera.scale);
-    }
-
-    // Icon
-    ctx.font = `${Math.min(wpx, hpx) * 0.5}px serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.globalAlpha = b.buildProgress < 1 ? 0.45 : 1;
-    ctx.fillText(def.icon, p0.x + wpx / 2, p0.y + hpx / 2);
-    ctx.globalAlpha = 1;
-
-    // Construction overlay (fills bottom-up)
-    if (b.buildProgress < 1) {
-      ctx.fillStyle = 'rgba(0,0,0,0.5)';
-      const remaining = (1 - b.buildProgress) * (hpx - pad * 2);
-      ctx.fillRect(p0.x + pad, p0.y + pad, wpx - pad * 2, remaining);
-      ctx.fillStyle = COLORS.gold;
-      ctx.fillRect(p0.x + pad, p0.y + hpx - pad - 3, (wpx - pad * 2) * b.buildProgress, 3);
-    }
+    // Composite civ structure (walls + roof + team pennant + outline).
+    drawStructure(ctx, b.kind, civ ?? 'rome', b.team, p0.x, p0.y, wpx, hpx, camera.scale, {
+      selected: isSelected,
+      constructing: b.buildProgress < 1,
+      progress: b.buildProgress,
+    });
 
     // Production progress bar
     if (b.queue.length > 0 && b.buildProgress >= 1) {
@@ -477,7 +439,6 @@ export class Renderer {
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
       ctx.fillRect(p0.x + pad, p0.y + hpx - pad - 4, wpx - pad * 2, 4);
       ctx.fillStyle = '#5fd0ff';
-      // trainProgress fraction is shown by hud; here a subtle pulsing strip per queued count
       ctx.fillRect(p0.x + pad, p0.y + hpx - pad - 4, (wpx - pad * 2) * Math.min(1, total / 5), 4);
     }
 
@@ -504,128 +465,6 @@ export class Renderer {
       ctx.setLineDash([]);
       ctx.font = `${camera.scale * 0.7}px serif`;
       ctx.fillText('🚩', rp.x, rp.y);
-    }
-  }
-
-  /** Civilization rooflines: each civ's base reads differently at a glance. */
-  private drawCivRoof(
-    ctx: CanvasRenderingContext2D,
-    civ: CivId,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    isCastle: boolean,
-    scale: number,
-  ): void {
-    const accent = CIVS[civ].accent;
-    const cx = x + w / 2;
-
-    switch (civ) {
-      case 'ottoman': {
-        // Dome with a crescent finial.
-        const r = Math.min(w * 0.28, scale * 0.5);
-        ctx.fillStyle = '#d8dde6';
-        ctx.beginPath();
-        ctx.arc(cx, y + 1, r, Math.PI, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = accent;
-        ctx.lineWidth = Math.max(1, scale * 0.04);
-        ctx.stroke();
-        if (isCastle) {
-          ctx.strokeStyle = '#f1ece0';
-          ctx.lineWidth = Math.max(1.5, scale * 0.06);
-          ctx.beginPath();
-          ctx.arc(cx + r * 0.12, y - r - scale * 0.18, scale * 0.14, Math.PI * 0.35, Math.PI * 1.65);
-          ctx.stroke();
-        }
-        break;
-      }
-      case 'china': {
-        // Curved pagoda eaves (double for the castle).
-        const layers = isCastle ? 2 : 1;
-        for (let i = 0; i < layers; i++) {
-          const yy = y - i * scale * 0.22;
-          const ww = w * (1 - i * 0.22);
-          ctx.fillStyle = '#8f1d1d';
-          ctx.beginPath();
-          ctx.moveTo(cx - ww / 2 - scale * 0.1, yy + scale * 0.1);
-          ctx.quadraticCurveTo(cx, yy - scale * 0.34, cx + ww / 2 + scale * 0.1, yy + scale * 0.1);
-          ctx.quadraticCurveTo(cx, yy - scale * 0.1, cx - ww / 2 - scale * 0.1, yy + scale * 0.1);
-          ctx.fill();
-        }
-        ctx.fillStyle = COLORS.gold;
-        ctx.beginPath();
-        ctx.arc(cx, y - (layers - 1) * scale * 0.22 - scale * 0.3, scale * 0.07, 0, Math.PI * 2);
-        ctx.fill();
-        break;
-      }
-      case 'rome': {
-        // Stone pediment + column hints on the castle.
-        ctx.fillStyle = '#cfc9bb';
-        ctx.beginPath();
-        ctx.moveTo(x + w * 0.08, y + 2);
-        ctx.lineTo(cx, y - scale * 0.32);
-        ctx.lineTo(x + w * 0.92, y + 2);
-        ctx.closePath();
-        ctx.fill();
-        ctx.strokeStyle = '#8f8878';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        if (isCastle) {
-          ctx.fillStyle = 'rgba(207, 201, 187, 0.5)';
-          for (let i = 0; i < 3; i++) {
-            ctx.fillRect(x + w * (0.25 + i * 0.25) - scale * 0.04, y + h * 0.25, scale * 0.08, h * 0.5);
-          }
-        }
-        break;
-      }
-      case 'viking': {
-        // Steep timber gable with crossed beams.
-        ctx.fillStyle = '#54422f';
-        ctx.beginPath();
-        ctx.moveTo(x - scale * 0.06, y + scale * 0.12);
-        ctx.lineTo(cx, y - scale * 0.38);
-        ctx.lineTo(x + w + scale * 0.06, y + scale * 0.12);
-        ctx.closePath();
-        ctx.fill();
-        ctx.strokeStyle = '#33261a';
-        ctx.lineWidth = Math.max(1, scale * 0.05);
-        ctx.beginPath();
-        ctx.moveTo(cx - scale * 0.16, y - scale * 0.42);
-        ctx.lineTo(cx + scale * 0.1, y - scale * 0.16);
-        ctx.moveTo(cx + scale * 0.16, y - scale * 0.42);
-        ctx.lineTo(cx - scale * 0.1, y - scale * 0.16);
-        ctx.stroke();
-        break;
-      }
-      case 'celt': {
-        // Thatched round roof + standing-stone hint for the castle.
-        ctx.fillStyle = '#b09a4e';
-        ctx.beginPath();
-        ctx.arc(cx, y + 2, w * 0.42, Math.PI, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#8a763a';
-        ctx.lineWidth = 1;
-        for (let i = 1; i <= 2; i++) {
-          ctx.beginPath();
-          ctx.arc(cx, y + 2, w * 0.42 * (i / 3), Math.PI, Math.PI * 2);
-          ctx.stroke();
-        }
-        if (isCastle) {
-          ctx.fillStyle = accent;
-          ctx.beginPath();
-          for (let k = 0; k < 3; k++) {
-            const a0 = (k / 3) * Math.PI * 2;
-            ctx.moveTo(cx, y - w * 0.2);
-            ctx.arc(cx + Math.cos(a0) * scale * 0.08, y - w * 0.2 + Math.sin(a0) * scale * 0.08, scale * 0.08, a0 + Math.PI, a0 + Math.PI * 1.7);
-          }
-          ctx.strokeStyle = COLORS.gold;
-          ctx.lineWidth = Math.max(1, scale * 0.035);
-          ctx.stroke();
-        }
-        break;
-      }
     }
   }
 
