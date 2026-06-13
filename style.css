@@ -286,8 +286,8 @@ html, body, #app {
   position: relative;
   z-index: 2;
   display: flex; flex-direction: column; align-items: center; gap: 10px;
-  padding: 26px 54px 22px;
-  margin-bottom: 14vh;
+  padding: 24px 54px 20px;
+  margin-bottom: 27vh;
   background: linear-gradient(180deg, rgba(16, 13, 8, 0.82), rgba(10, 9, 6, 0.86));
   border: 1px solid rgba(232, 197, 74, 0.55);
   outline: 4px solid rgba(20, 16, 8, 0.9);

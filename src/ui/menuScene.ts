@@ -77,15 +77,39 @@ export class MenuScene {
     this.drawSky(ctx, w, h, t);
     this.drawGround(ctx, w, h);
 
-    // --- The five civilizations ---
+    // --- The five civilizations: larger, on a stone ground band ---
     const civs = CIVS;
-    const groundY = h * 0.84;
-    const s = Math.max(20, Math.min(w * 0.034, h * 0.085, 42));
+    const groundY = h * 0.93;
+    const s = Math.max(36, Math.min(w * 0.052, h * 0.125, 92));
+
+    // Stone plinth band running across the bottom, behind the figures.
+    const bandTop = groundY - s * 0.1;
+    const bg = ctx.createLinearGradient(0, bandTop, 0, h);
+    bg.addColorStop(0, '#2a2c33');
+    bg.addColorStop(1, '#16171c');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, bandTop, w, h - bandTop);
+    ctx.strokeStyle = 'rgba(232,197,74,0.25)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, bandTop);
+    ctx.lineTo(w, bandTop);
+    ctx.stroke();
+
+    // Flanking torches with flickering light pools.
+    this.drawTorch(ctx, w * 0.045, groundY, s, t);
+    this.drawTorch(ctx, w * 0.955, groundY, s, t + 1.3);
+
     for (let i = 0; i < civs.length; i++) {
-      const cx = w * (0.5 + (i - 2) * 0.18);
-      const bob = Math.sin(t * 1.4 + i * 1.7) * s * 0.03;
+      const cx = w * (0.5 + (i - 2) * 0.185);
+      const bob = Math.sin(t * 1.4 + i * 1.7) * s * 0.025;
+      // cast shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.beginPath();
+      ctx.ellipse(cx, groundY + s * 0.05, s * 0.8, s * 0.18, 0, 0, Math.PI * 2);
+      ctx.fill();
       this.drawPedestal(ctx, cx, groundY, s, civs[i].name);
-      this.drawFlag(ctx, cx - s * 1.35, groundY, s, t, i, civs[i].flag);
+      this.drawFlag(ctx, cx - s * 1.5, groundY, s, t, i, civs[i].flag);
       ctx.save();
       ctx.translate(cx, groundY - s * 1.05 + bob);
       civs[i].draw(ctx, s, t + i);
@@ -270,6 +294,54 @@ export class MenuScene {
     ctx.translate(px + fw / 2, topY + s * 0.1 + midWave + fh / 2);
     flag.emblem(ctx, s);
     ctx.restore();
+  }
+
+  private drawTorch(ctx: Ctx, x: number, groundY: number, s: number, t: number): void {
+    const poleTop = groundY - s * 2.2;
+    // light pool on the ground
+    const flick = 0.75 + Math.sin(t * 11) * 0.12 + Math.sin(t * 23) * 0.06;
+    const pool = ctx.createRadialGradient(x, poleTop, 0, x, poleTop, s * 3.2 * flick);
+    pool.addColorStop(0, 'rgba(255, 170, 70, 0.28)');
+    pool.addColorStop(1, 'rgba(255, 150, 60, 0)');
+    ctx.fillStyle = pool;
+    ctx.beginPath();
+    ctx.arc(x, poleTop, s * 3.2 * flick, 0, Math.PI * 2);
+    ctx.fill();
+    // pole
+    ctx.strokeStyle = '#3a2a18';
+    ctx.lineWidth = s * 0.16;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x, groundY);
+    ctx.lineTo(x, poleTop);
+    ctx.stroke();
+    // iron basket
+    ctx.fillStyle = '#2c2c30';
+    ctx.beginPath();
+    ctx.moveTo(x - s * 0.28, poleTop);
+    ctx.lineTo(x + s * 0.28, poleTop);
+    ctx.lineTo(x + s * 0.18, poleTop + s * 0.3);
+    ctx.lineTo(x - s * 0.18, poleTop + s * 0.3);
+    ctx.closePath();
+    ctx.fill();
+    // flame (layered)
+    const fh = s * (0.9 + Math.sin(t * 13) * 0.12);
+    const grad = ctx.createLinearGradient(x, poleTop - fh, x, poleTop);
+    grad.addColorStop(0, 'rgba(255,240,160,0.95)');
+    grad.addColorStop(0.5, '#ff9b30');
+    grad.addColorStop(1, '#d83a12');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(x - s * 0.22, poleTop);
+    ctx.quadraticCurveTo(x - s * 0.26, poleTop - fh * 0.5, x + Math.sin(t * 9) * s * 0.06, poleTop - fh);
+    ctx.quadraticCurveTo(x + s * 0.26, poleTop - fh * 0.5, x + s * 0.22, poleTop);
+    ctx.closePath();
+    ctx.fill();
+    // bright core
+    ctx.fillStyle = 'rgba(255,245,200,0.85)';
+    ctx.beginPath();
+    ctx.ellipse(x, poleTop - fh * 0.4, s * 0.1, fh * 0.28, 0, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   private drawEmbers(ctx: Ctx, w: number, h: number, t: number): void {
