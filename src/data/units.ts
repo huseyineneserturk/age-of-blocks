@@ -18,15 +18,18 @@ export interface UnitDef {
   aoeRadius?: number;
 }
 
+// speed: tiles/sec. Tuned down ~25-30% from the early build for a more
+// grounded march pace — infantry plod, cavalry is clearly faster, siege crawls.
+// Relative ordering (and thus the counter feel) is preserved.
 export const UNITS: Record<UnitKind, UnitDef> = {
-  knight:   { kind: 'knight',   label: 'Knight',   hp: 150, damage: 14, range: 1.1, speed: 2.8, attackCooldown: 1.0,  radius: 0.32, aggro: 5 },
-  spear:    { kind: 'spear',    label: 'Spearman', hp: 115, damage: 10, range: 1.5, speed: 2.4, attackCooldown: 1.0,  radius: 0.32, aggro: 5 },
-  archer:   { kind: 'archer',   label: 'Archer',   hp: 80,  damage: 13, range: 4.8, speed: 2.6, attackCooldown: 1.2,  radius: 0.3,  aggro: 5.5 },
-  cavalry:  { kind: 'cavalry',  label: 'Cavalry',  hp: 160, damage: 16, range: 1.2, speed: 4.2, attackCooldown: 1.05, radius: 0.42, aggro: 5 },
-  mage:     { kind: 'mage',     label: 'Mage',     hp: 70,  damage: 24, range: 4.2, speed: 2.2, attackCooldown: 1.9,  radius: 0.3,  aggro: 5, aoeRadius: 1.5 },
-  catapult: { kind: 'catapult', label: 'Catapult', hp: 170, damage: 40, range: 5.5, speed: 1.4, attackCooldown: 3.0,  radius: 0.46, aggro: 5.5 },
-  golem:    { kind: 'golem',    label: 'Golem',    hp: 750, damage: 32, range: 1.3, speed: 1.6, attackCooldown: 1.6,  radius: 0.5,  aggro: 4 },
-  wolf:     { kind: 'wolf',     label: 'Kurt',     hp: 180, damage: 14, range: 1.0, speed: 3.8, attackCooldown: 0.8,  radius: 0.3,  aggro: 4.5 },
+  knight:   { kind: 'knight',   label: 'Knight',   hp: 150, damage: 14, range: 1.1, speed: 2.0, attackCooldown: 1.0,  radius: 0.32, aggro: 5 },
+  spear:    { kind: 'spear',    label: 'Spearman', hp: 115, damage: 10, range: 1.5, speed: 1.8, attackCooldown: 1.0,  radius: 0.32, aggro: 5 },
+  archer:   { kind: 'archer',   label: 'Archer',   hp: 80,  damage: 13, range: 4.8, speed: 1.9, attackCooldown: 1.2,  radius: 0.3,  aggro: 5.5 },
+  cavalry:  { kind: 'cavalry',  label: 'Cavalry',  hp: 160, damage: 16, range: 1.2, speed: 3.0, attackCooldown: 1.05, radius: 0.42, aggro: 5 },
+  mage:     { kind: 'mage',     label: 'Mage',     hp: 70,  damage: 24, range: 4.2, speed: 1.7, attackCooldown: 1.9,  radius: 0.3,  aggro: 5, aoeRadius: 1.5 },
+  catapult: { kind: 'catapult', label: 'Catapult', hp: 170, damage: 40, range: 5.5, speed: 1.0, attackCooldown: 3.0,  radius: 0.46, aggro: 5.5 },
+  golem:    { kind: 'golem',    label: 'Golem',    hp: 750, damage: 32, range: 1.3, speed: 1.2, attackCooldown: 1.6,  radius: 0.5,  aggro: 4 },
+  wolf:     { kind: 'wolf',     label: 'Kurt',     hp: 180, damage: 14, range: 1.0, speed: 2.7, attackCooldown: 0.8,  radius: 0.3,  aggro: 4.5 },
 };
 
 // Counter multipliers (attacker → defender). Not overwhelming; micro decides.

@@ -9,6 +9,12 @@ import type { SimEvent, Upgrades } from '../game/world';
 
 export const SNAPSHOT_INTERVAL_MS = 100; // 10 Hz state broadcast
 
+/** Lobby state pushed to every connected client (online count + open rooms). */
+export interface LobbyState {
+  online: number;
+  rooms: Array<{ code: string; civ: CivId }>;
+}
+
 export type ClientCommand =
   | { t: 'move'; ids: number[]; x: number; y: number }
   | { t: 'amove'; ids: number[]; x: number; y: number }

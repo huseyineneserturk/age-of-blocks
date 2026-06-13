@@ -10,6 +10,27 @@
 
 Age of Blocks combines classic strategy mechanics with a minimalist and modern block design. Instead of dealing with complex menus or waiting for long downloads, you can jump straight into tactical action.
 
+**Çok oyunculu (lobi):** Menüde sağ üstte canlı çevrimiçi oyuncu sayısı görünür.
+"Oda Kur" ile açık oda aç (rakip bekler) ya da **Açık Odalar** listesinden birine
+tıkla-katıl — kod yok. Sunucu otoritelidir: istemciler yalnızca komut gönderir
+(hile koruması). Farklı sunucu adresi: `?server=https://...` URL parametresi.
+Üretimde istemci `https://server.<domain>` adresine bağlanır.
+
+**Dil:** Türkçe / İngilizce — sağ üstten değiştirilir (tarayıcıdan otomatik
+algılanır, seçim `localStorage`'da saklanır). Çeviriler [src/i18n.ts](src/i18n.ts).
+
+## Deploy
+
+Droplet'ta tek komut (git pull + build + sunucu yeniden başlatma):
+
+```bash
+bash /var/www/age-of-blocks/scripts/deploy.sh
+```
+
+Mimari ve sunucu kurulumu için bkz. `scripts/deploy.sh`.
+
+Eski oyun (v1) `legacy/` altındadır.
+
 ### ✨ Key Features
 
 * **Instant Play:** No installation or high system specifications required. Just open your browser and start playing.

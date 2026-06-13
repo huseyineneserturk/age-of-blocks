@@ -2,7 +2,7 @@
 
 import { io, type Socket } from 'socket.io-client';
 import type { CivId } from '../data/civs';
-import type { ClientCommand, Snapshot } from './protocol';
+import type { ClientCommand, LobbyState, Snapshot } from './protocol';
 
 export class NetConnection {
   team: 0 | 1 = 0;
@@ -16,6 +16,7 @@ export class NetConnection {
   onOpponentLeft: () => void = () => {};
   onOpponentDisconnected: (graceSeconds: number) => void = () => {};
   onConnectionLost: () => void = () => {};
+  onLobby: (state: LobbyState) => void = () => {};
 
   connect(url: string): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -42,8 +43,19 @@ export class NetConnection {
       this.socket.on('opponentDisconnected', ({ graceSeconds }: { graceSeconds: number }) =>
         this.onOpponentDisconnected(graceSeconds),
       );
+      this.socket.on('lobby', (state: LobbyState) => this.onLobby(state));
       this.socket.on('disconnect', () => this.onConnectionLost());
     });
+  }
+
+  /** Leave a room we created while still waiting for an opponent. */
+  leaveRoom(): void {
+    this.socket?.emit('leaveRoom');
+  }
+
+  /** Ask the server to re-send the current lobby state (manual refresh). */
+  requestLobby(): void {
+    this.socket?.emit('listLobby', (state: LobbyState) => this.onLobby(state));
   }
 
   createRoom(civ: CivId): Promise<string> {

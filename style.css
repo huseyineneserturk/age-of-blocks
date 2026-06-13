@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Spectral:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
 
 :root {
   --gold: #e8c54a;
@@ -19,7 +19,7 @@ html, body, #app {
   height: 100%;
   overflow: hidden;
   background: var(--bg);
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: 'Spectral', Georgia, 'Times New Roman', serif;
   color: var(--text);
   user-select: none;
 }
@@ -297,16 +297,16 @@ html, body, #app {
   box-shadow: 0 8px 26px rgba(0, 0, 0, 0.6), inset 0 0 18px rgba(0, 0, 0, 0.4);
 }
 
-/* ---------- Main menu — medieval ---------- */
+/* ---------- Main menu ---------- */
 #main-menu {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
   background:
-    radial-gradient(ellipse at 50% 20%, #1b2335 0%, #0d1119 55%, #06080d 100%);
+    radial-gradient(ellipse at 50% 18%, #1b2335 0%, #0d1119 55%, #06080d 100%);
   z-index: 50;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: 16px 0;
+  padding: 64px 16px 16px;
 }
 #menu-scene {
   position: absolute; inset: 0;
@@ -318,93 +318,136 @@ html, body, #app {
   content: '';
   position: absolute; inset: 0;
   pointer-events: none;
-  background: radial-gradient(ellipse at 50% 45%, transparent 45%, rgba(0,0,0,0.55) 100%);
+  background: radial-gradient(ellipse at 50% 42%, transparent 42%, rgba(0,0,0,0.6) 100%);
 }
 
+/* Top bar — online count · language · music */
+.mm-topbar {
+  position: absolute; top: 0; left: 0; right: 0;
+  z-index: 4;
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px;
+}
+.mm-online {
+  display: flex; align-items: center; gap: 7px;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 12px; letter-spacing: 1px;
+  color: #b8a26a;
+  padding: 6px 13px;
+  border: 1px solid rgba(232,197,74,0.3);
+  border-radius: 20px;
+  background: rgba(12,10,6,0.72);
+}
+.mm-online .mm-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #5a5240;
+  transition: background 0.3s;
+}
+.mm-online.online .mm-dot {
+  background: #54d98c;
+  box-shadow: 0 0 8px rgba(84,217,140,0.8);
+}
+.mm-lang { margin-left: auto; display: flex; gap: 4px; }
+.mm-lang-btn {
+  font-family: 'Cinzel', Georgia, serif; font-weight: 700;
+  width: 38px; padding: 6px 0; font-size: 12px; letter-spacing: 1px;
+  border: 1px solid rgba(232,197,74,0.3);
+  background: rgba(12,10,6,0.72);
+  color: #9a8d6c; cursor: pointer; border-radius: 8px;
+}
+.mm-lang-btn:hover { color: #e8c54a; border-color: rgba(232,197,74,0.6); }
+.mm-lang-btn.active {
+  color: #1a1408;
+  background: linear-gradient(180deg, #e8c54a, #b08c28);
+  border-color: #f6e09a;
+}
+#mm-music {
+  width: 38px; height: 38px; border-radius: 50%;
+  border: 1px solid rgba(232,197,74,0.3);
+  background: rgba(12,10,6,0.72);
+  color: #e8c54a; font-size: 16px; cursor: pointer;
+}
+#mm-music.off { color: #5a5240; }
+
+/* Frame */
 .mm-frame {
-  position: relative;
-  z-index: 2;
-  display: flex; flex-direction: column; align-items: center; gap: 10px;
-  padding: 24px 54px 20px;
-  margin-bottom: 27vh;
-  max-width: min(600px, calc(100vw - 24px));
-  background: linear-gradient(180deg, rgba(16, 13, 8, 0.82), rgba(10, 9, 6, 0.86));
-  border: 1px solid rgba(232, 197, 74, 0.55);
-  outline: 4px solid rgba(20, 16, 8, 0.9);
+  position: relative; z-index: 2;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  width: min(720px, calc(100vw - 32px));
+  padding: 26px 30px 24px;
+  margin-bottom: 16vh;
+  background: linear-gradient(180deg, rgba(16, 13, 8, 0.88), rgba(10, 9, 6, 0.92));
+  border: 1px solid rgba(232, 197, 74, 0.5);
+  border-radius: 10px;
+  outline: 3px solid rgba(20, 16, 8, 0.9);
   outline-offset: 3px;
   box-shadow:
-    0 0 0 1px rgba(232, 197, 74, 0.25),
-    0 24px 70px rgba(0, 0, 0, 0.75),
+    0 0 0 1px rgba(232, 197, 74, 0.2),
+    0 24px 70px rgba(0, 0, 0, 0.78),
     inset 0 0 60px rgba(0, 0, 0, 0.5);
 }
-.mm-ornament {
-  color: rgba(232, 197, 74, 0.7);
-  font-size: 11px;
-  letter-spacing: 14px;
-  margin-right: -14px;
+.mm-crest {
+  font-size: 22px; color: #e8c54a; line-height: 1;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.8));
 }
-.mm-ornament.bottom { margin-top: 4px; }
-
-#main-menu h1 {
+.mm-title {
   font-family: 'Cinzel', Georgia, 'Times New Roman', serif;
   font-weight: 900;
-  font-size: clamp(34px, 5.4vw, 62px);
-  letter-spacing: 6px;
-  color: #e8c54a;
-  background: linear-gradient(180deg, #f6e09a 15%, #d4a531 55%, #9a7218 90%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.9));
-  line-height: 1.1;
+  font-size: clamp(30px, 6vw, 58px);
+  letter-spacing: 5px; line-height: 1.05;
+  margin: 0; text-align: center;
+  color: #f0d98c; /* solid fallback if background-clip unsupported */
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.85));
+}
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .mm-title {
+    background: linear-gradient(180deg, #f9e9b0 12%, #e3b94a 52%, #9a7218 92%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
 }
 .mm-tagline {
-  font-family: 'Cinzel', Georgia, serif;
-  font-weight: 700;
-  font-size: 15px;
-  letter-spacing: 10px;
-  color: #b8a26a;
-  margin-top: -4px;
+  font-family: 'Cinzel', Georgia, serif; font-weight: 700;
+  font-size: 14px; letter-spacing: 9px; color: #b8a26a;
+  margin-top: -2px; padding-left: 9px;
 }
 .mm-sub {
   font-family: 'Cinzel', Georgia, serif;
-  color: #8d8268;
-  font-size: 13px;
-  letter-spacing: 4px;
-  margin-bottom: 6px;
+  color: #8d8268; font-size: 12.5px; letter-spacing: 3px;
 }
 
-.mm-section-title {
+.mm-section {
+  width: 100%;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+.mm-label {
   font-family: 'Cinzel', Georgia, serif;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 4px;
-  color: rgba(232, 197, 74, 0.75);
-  margin-top: 10px;
-  padding-bottom: 3px;
-  border-bottom: 1px solid rgba(232, 197, 74, 0.25);
+  font-size: 11px; font-weight: 700; letter-spacing: 3px;
+  color: rgba(232, 197, 74, 0.78);
+  text-align: center;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(232, 197, 74, 0.22);
+  align-self: stretch;
 }
 
 /* Civilization picker */
-.mm-civs { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.mm-civs { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .mm-civ-btn {
   font-family: 'Cinzel', Georgia, serif;
   font-weight: 700;
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
-  width: 78px;
-  padding: 8px 4px 6px;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  width: 80px;
+  padding: 9px 4px 7px;
   border: 1px solid rgba(232, 197, 74, 0.25);
+  border-radius: 7px;
   background: linear-gradient(180deg, #221d12, #141007);
   color: #9a8d6c;
   font-size: 11px;
   letter-spacing: 1px;
   cursor: pointer;
 }
-.mm-civ-btn .ce {
-  font-size: 19px;
-  line-height: 1;
-  font-family: Georgia, serif;
-}
+.mm-civ-btn .ce { font-size: 19px; line-height: 1; font-family: Georgia, serif; }
 .mm-civ-btn:hover { color: #e8c54a; border-color: rgba(232, 197, 74, 0.6); }
 .mm-civ-btn.active {
   color: #f6e09a;
@@ -413,33 +456,30 @@ html, body, #app {
   box-shadow: 0 0 14px rgba(232, 197, 74, 0.25), inset 0 0 10px rgba(232, 197, 74, 0.12);
 }
 .mm-civ-bonus {
-  font-size: 12px;
+  font-size: 12.5px;
   color: #b8a26a;
-  min-height: 16px;
-  letter-spacing: 0.4px;
+  min-height: 18px;
+  text-align: center;
+  letter-spacing: 0.3px;
 }
 
-/* Music toggle */
-#mm-music {
-  position: absolute;
-  top: 16px; right: 18px;
-  z-index: 3;
-  width: 42px; height: 42px;
-  border-radius: 50%;
-  border: 1px solid rgba(232, 197, 74, 0.45);
-  background: rgba(12, 10, 6, 0.8);
-  color: #e8c54a;
-  font-size: 18px;
-  cursor: pointer;
+/* Two columns: campaign | multiplayer */
+.mm-cols {
+  display: flex; gap: 22px; width: 100%; align-items: stretch;
+  margin-top: 2px;
 }
-#mm-music.off { color: #5a5240; }
+.mm-col {
+  flex: 1 1 0; min-width: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
 
 .mm-diff { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .mm-diff-btn {
   font-family: 'Cinzel', Georgia, serif;
   font-weight: 700;
-  padding: 8px 20px;
+  padding: 8px 18px;
   border: 1px solid rgba(232, 197, 74, 0.35);
+  border-radius: 7px;
   background: linear-gradient(180deg, #2a2418, #181307);
   color: #b8a26a;
   font-size: 13px;
@@ -456,10 +496,13 @@ html, body, #app {
 #mm-start {
   font-family: 'Cinzel', Georgia, serif;
   font-weight: 900;
-  padding: 14px 52px;
-  font-size: 18px;
-  letter-spacing: 4px;
+  width: 100%;
+  margin-top: auto;
+  padding: 14px 20px;
+  font-size: 17px;
+  letter-spacing: 3px;
   border: 1px solid #f6e09a;
+  border-radius: 8px;
   background: linear-gradient(180deg, #e8c54a 0%, #c9a227 55%, #9a7218 100%);
   color: #1a1408;
   cursor: pointer;
@@ -471,41 +514,74 @@ html, body, #app {
   box-shadow: 0 10px 30px rgba(232, 197, 74, 0.5), inset 0 1px 0 rgba(255,255,255,0.4);
 }
 
-.mm-mp { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; }
+/* Multiplayer lobby */
+.mm-lobby { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+.mm-lobby-head {
+  display: flex; align-items: center; justify-content: space-between;
+  font-family: 'Cinzel', Georgia, serif; font-size: 11px; letter-spacing: 1px;
+  color: #9a8d6c;
+}
+.mm-mini-btn {
+  font-family: 'Cinzel', Georgia, serif; font-size: 10px; letter-spacing: 1px;
+  padding: 4px 11px; border-radius: 6px;
+  border: 1px solid rgba(140, 160, 190, 0.35);
+  background: rgba(20, 26, 38, 0.6); color: #9fb4d0; cursor: pointer;
+}
+.mm-mini-btn:hover { color: #d7e4f5; border-color: rgba(140,160,190,0.7); }
+.mm-room-list {
+  min-height: 100px; max-height: 168px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 8px; border-radius: 8px;
+  border: 1px solid rgba(232, 197, 74, 0.18);
+  background: rgba(0, 0, 0, 0.32);
+}
+.mm-room-empty {
+  margin: auto; text-align: center; font-size: 12px; color: #6c6450;
+  padding: 10px; line-height: 1.4;
+}
+.mm-room {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 7px;
+  border: 1px solid rgba(232, 197, 74, 0.2);
+  background: linear-gradient(180deg, #221d12, #161108);
+}
+.mm-room-civ {
+  display: flex; align-items: center; gap: 7px;
+  font-family: 'Cinzel', Georgia, serif; color: #d8c98a; font-size: 13px;
+}
+.mm-room-civ .ce { font-size: 18px; line-height: 1; }
+.mm-room-status { margin-left: auto; font-size: 11px; color: #8d8268; font-style: italic; }
+.mm-join-btn {
+  font-family: 'Cinzel', Georgia, serif; font-weight: 700;
+  padding: 6px 16px; border-radius: 6px; font-size: 12px; letter-spacing: 1px;
+  border: 1px solid rgba(140, 160, 190, 0.55);
+  background: linear-gradient(180deg, #25324a, #141a28);
+  color: #cfe0f5; cursor: pointer;
+}
+.mm-join-btn:hover { color: #fff; border-color: #7fa8e0; background: linear-gradient(180deg, #2f3f5e, #1a2235); }
 .mm-mp-btn {
   font-family: 'Cinzel', Georgia, serif;
   font-weight: 700;
-  padding: 9px 18px;
-  border: 1px solid rgba(140, 160, 190, 0.4);
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: 1px solid rgba(140, 160, 190, 0.45);
   background: linear-gradient(180deg, #1d2433, #11141d);
   color: #9fb4d0;
   font-size: 13px;
   letter-spacing: 2px;
   cursor: pointer;
 }
-.mm-mp-btn:hover { color: #d7e4f5; border-color: rgba(140, 160, 190, 0.8); }
-#mm-code {
-  width: 88px;
-  padding: 9px;
-  border: 1px solid rgba(232, 197, 74, 0.35);
-  background: rgba(0, 0, 0, 0.45);
-  color: #e8c54a;
-  font-family: 'Cinzel', Georgia, serif;
-  font-size: 16px;
-  font-weight: 700;
-  text-align: center;
-  text-transform: uppercase;
-  letter-spacing: 3px;
-  outline: none;
-}
-#mm-code:focus { border-color: rgba(232, 197, 74, 0.8); }
+.mm-mp-btn:hover { color: #d7e4f5; border-color: rgba(140, 160, 190, 0.85); }
+.mm-mp-btn.cancel { border-color: rgba(220,120,120,0.5); color: #e6a3a3; }
+.mm-mp-btn.cancel:hover { color: #ffd0d0; border-color: rgba(220,120,120,0.85); }
+.mm-mp-btn:disabled { opacity: 0.45; cursor: default; }
 .mm-status {
-  font-size: 13px;
+  font-size: 12.5px;
   color: #e8c54a;
   background: rgba(232, 197, 74, 0.07);
   border: 1px solid rgba(232, 197, 74, 0.3);
-  padding: 8px 18px;
-  max-width: 420px;
+  border-radius: 7px;
+  padding: 8px 14px;
   text-align: center;
 }
 
@@ -543,20 +619,20 @@ html, body, #app {
 }
 
 /* Narrow / phone-width screens. */
-@media (max-width: 600px) {
+@media (max-width: 640px) {
   .mm-frame {
     padding: 18px 16px 16px;
-    margin-bottom: 12vh;
-    gap: 8px;
+    margin-bottom: 10vh;
+    gap: 9px;
   }
-  .mm-ornament { letter-spacing: 10px; margin-right: -10px; }
+  .mm-cols { flex-direction: column; gap: 14px; }
   .mm-tagline { letter-spacing: 6px; font-size: 13px; }
-  .mm-sub { letter-spacing: 3px; }
-  .mm-civ-btn { width: 64px; font-size: 10px; }
+  .mm-sub { letter-spacing: 2px; }
+  .mm-civ-btn { width: 66px; font-size: 10px; }
   .mm-civ-btn .ce { font-size: 17px; }
-  #mm-start { padding: 13px 36px; font-size: 16px; letter-spacing: 3px; }
+  .mm-room-list { max-height: 128px; }
+  #mm-start { padding: 13px 20px; font-size: 16px; letter-spacing: 2px; }
   .mm-diff-btn { padding: 8px 16px; }
-  #mm-music { top: 10px; right: 10px; width: 38px; height: 38px; font-size: 16px; }
 
   /* HUD: keep the on-screen panels compact and clear of each other. */
   #top-bar { gap: 8px 10px; padding: 6px 10px; font-size: 12px; top: 6px; }
@@ -573,8 +649,8 @@ html, body, #app {
   #research-fab { right: 10px; top: 56px; width: 46px; height: 46px; font-size: 18px; }
 }
 
-/* Very short viewports: drop the decorative top ornament to save height. */
+/* Very short viewports: trim vertical breathing room. */
 @media (max-height: 620px) {
-  .mm-frame { margin-bottom: 6vh; }
-  .mm-ornament:not(.bottom) { display: none; }
+  .mm-frame { margin-bottom: 4vh; gap: 8px; }
+  .mm-crest { display: none; }
 }

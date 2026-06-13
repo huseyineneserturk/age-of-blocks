@@ -29,7 +29,33 @@ export function startServer(port: number): { io: Server; close: () => void } {
     return code;
   }
 
+  // --- Lobby: open-room listing + live online count, pushed to every socket ---
+  function lobbyState(): { online: number; rooms: Array<{ code: string; civ: string }> } {
+    const open: Array<{ code: string; civ: string }> = [];
+    for (const room of rooms.values()) {
+      if (room.open) open.push({ code: room.code, civ: room.hostCiv });
+    }
+    return { online: io.engine.clientsCount, rooms: open };
+  }
+  function broadcastLobby(): void {
+    io.emit('lobby', lobbyState());
+  }
+
   io.on('connection', (socket) => {
+    // New arrival: send them the current lobby, and refresh everyone's count.
+    socket.emit('lobby', lobbyState());
+    broadcastLobby();
+    socket.on('disconnect', () => broadcastLobby());
+    socket.on('listLobby', (cb: (s: ReturnType<typeof lobbyState>) => void) => {
+      if (typeof cb === 'function') cb(lobbyState());
+    });
+    socket.on('leaveRoom', () => {
+      for (const room of rooms.values()) {
+        if (room.open) room.leave(socket);
+      }
+      broadcastLobby();
+    });
+
     socket.on('createRoom', (payload: { civ?: string } | undefined, cb: (res: { code: string; team: number }) => void) => {
       // Back-compat: payload may be the callback itself.
       if (typeof payload === 'function') {
@@ -38,11 +64,15 @@ export function startServer(port: number): { io: Server; close: () => void } {
       }
       if (typeof cb !== 'function') return;
       const code = makeCode();
-      const room = new GameRoom(code, io, () => rooms.delete(code));
+      const room = new GameRoom(code, io, () => {
+        rooms.delete(code);
+        broadcastLobby();
+      });
       rooms.set(code, room);
       const team = room.addPlayer(socket, payload?.civ as never);
       console.log(`[server] room ${code} created`);
       cb({ code, team: team ?? 0 });
+      broadcastLobby();
     });
 
     socket.on(
@@ -65,6 +95,7 @@ export function startServer(port: number): { io: Server; close: () => void } {
           return;
         }
         cb({ ok: true, team });
+        broadcastLobby(); // room is now full → drops off the open list
       },
     );
   });

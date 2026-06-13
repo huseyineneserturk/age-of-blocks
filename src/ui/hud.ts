@@ -2,9 +2,10 @@
 // research modal, game-over overlay.
 
 import { BUILDINGS, BUILD_MENU, RESEARCH_TIME, TRAIN, UPGRADES, type BuildingKind } from '../data/buildings';
-import { UNITS, type UnitKind } from '../data/units';
+import { type UnitKind } from '../data/units';
 import { CIVS } from '../data/civs';
 import type { Building, PlayerState } from '../game/world';
+import { t, civLabel, civBonus, unitLabel, buildingLabel, upgradeText } from '../i18n';
 
 export interface HudCallbacks {
   onPickBuilding(kind: BuildingKind): void;
@@ -29,7 +30,7 @@ export class Hud {
   private selectionEl = document.getElementById('selection-info')!;
   private fpsEl = document.getElementById('fps')!;
   private hintEl = document.getElementById('hint-bar')!;
-  private defaultHint = this.hintEl.innerHTML;
+  private defaultHint = '';
   private goldEl = document.getElementById('gold')!;
   private incomeEl = document.getElementById('income')!;
   private supplyEl = document.getElementById('supply')!;
@@ -54,6 +55,10 @@ export class Hud {
   private modalDismissed = false;
 
   constructor(private cb: HudCallbacks) {
+    // Localize the static bits the HTML ships with Turkish defaults for.
+    this.hintEl.innerHTML = t('hint.controls');
+    this.defaultHint = this.hintEl.innerHTML;
+    document.getElementById('go-restart')!.textContent = t('go.restart');
     this.buildBuildMenu();
     this.researchFab.addEventListener('click', () => {
       this.modalDismissed = false;
@@ -71,9 +76,9 @@ export class Hud {
   private buildBuildMenu(): void {
     this.buildMenuEl.innerHTML = '';
     const groups: Array<{ label: string; kinds: BuildingKind[] }> = [
-      { label: 'EKONOMİ', kinds: ['house', 'mine', 'research'] },
-      { label: 'ASKER', kinds: ['barracks', 'archery', 'stable', 'magetower', 'siegeworks'] },
-      { label: 'SAVUNMA', kinds: ['tower', 'wall'] },
+      { label: t('grp.economy'), kinds: ['house', 'mine', 'research'] },
+      { label: t('grp.military'), kinds: ['barracks', 'archery', 'stable', 'magetower', 'siegeworks'] },
+      { label: t('grp.defense'), kinds: ['tower', 'wall'] },
     ];
     groups.forEach((g, gi) => {
       const grp = document.createElement('div');
@@ -88,7 +93,7 @@ export class Hud {
         card.innerHTML =
           `<span class="hot">${def.hotkey ?? ''}</span>` +
           `<span class="ic">${def.icon}</span>` +
-          `<span class="nm">${def.label}</span>` +
+          `<span class="nm">${buildingLabel(kind)}</span>` +
           `<span class="cost">🪙${def.cost}</span>`;
         card.title = this.buildTooltip(kind);
         card.addEventListener('click', () => this.cb.onPickBuilding(kind));
@@ -111,13 +116,13 @@ export class Hud {
 
   private buildTooltip(kind: BuildingKind): string {
     const def = BUILDINGS[kind];
-    const bits: string[] = [def.label];
-    if (def.trains) bits.push(`Üretir: ${def.trains.map((t) => UNITS[t].label).join(', ')}`);
-    if (def.income) bits.push(`+${def.income} altın/sn`);
-    if (def.supply) bits.push(`+${def.supply} nüfus`);
-    if (def.onGold) bits.push('Altın madenine kurulur');
-    if (kind === 'tower') bits.push('Yakındaki düşmanlara ok atar');
-    if (kind === 'research') bits.push('Geliştirme puanı üretir');
+    const bits: string[] = [buildingLabel(kind)];
+    if (def.trains) bits.push(t('tip.trains', { x: def.trains.map((u) => unitLabel(u)).join(', ') }));
+    if (def.income) bits.push(t('tip.income', { x: def.income }));
+    if (def.supply) bits.push(t('tip.supply', { x: def.supply }));
+    if (def.onGold) bits.push(t('tip.onGold'));
+    if (kind === 'tower') bits.push(t('tip.tower'));
+    if (kind === 'research') bits.push(t('tip.research'));
     return bits.join(' · ');
   }
 
@@ -131,9 +136,10 @@ export class Hud {
     if (!this.civBadgeSet) {
       this.civBadgeSet = true;
       const civ = CIVS[player.civ];
+      const bonus = civBonus(player.civ);
       (this.civBadge.querySelector('.cb-emblem') as HTMLElement).textContent = civ.emblem;
-      (this.civBadge.querySelector('.cb-name') as HTMLElement).textContent = civ.label;
-      this.civBadge.setAttribute('title', `${civ.bonusName}: ${civ.bonusDesc}`);
+      (this.civBadge.querySelector('.cb-name') as HTMLElement).textContent = civLabel(player.civ);
+      this.civBadge.setAttribute('title', `${bonus.name}: ${bonus.desc}`);
     }
     this.goldEl.textContent = String(Math.floor(player.gold));
     this.supplyEl.textContent = `${player.supplyUsed}/${player.supplyCap}`;
@@ -149,7 +155,7 @@ export class Hud {
   }
 
   setIncome(perSec: number): void {
-    this.incomeEl.textContent = `+${perSec.toFixed(1)}/sn`;
+    this.incomeEl.textContent = t('hud.income', { x: perSec.toFixed(1) });
   }
 
   // --- Building panel ---
@@ -166,46 +172,46 @@ export class Hud {
     const sig = `${b.id}:${b.buildProgress >= 1 ? 1 : 0}:${b.queue.join(',')}:${b.researching ? 1 : 0}:${researchPrice}`;
     if (sig !== this.panelSig) {
       this.panelSig = sig;
-      this.bpTitle.textContent = `${def.icon} ${def.label}`;
+      this.bpTitle.textContent = `${def.icon} ${buildingLabel(b.kind)}`;
       this.bpTrains.innerHTML = '';
 
       if (b.buildProgress < 1) {
-        this.bpHint.textContent = 'İnşa ediliyor...';
+        this.bpHint.textContent = t('hud.constructing');
       } else if (def.trains) {
         for (const kind of def.trains) {
-          const t = TRAIN[kind];
+          const tr = TRAIN[kind];
           const card = document.createElement('button');
           card.className = 'tcard';
           card.dataset.train = kind;
           card.innerHTML =
             `<span class="ic">${UNIT_ICONS[kind]}</span>` +
-            `<span class="nm">${UNITS[kind].label}</span>` +
-            `<span class="cost">🪙${t.cost} 👥${t.supply}</span>`;
-          card.title = `${UNITS[kind].label} — ${t.time}sn`;
+            `<span class="nm">${unitLabel(kind)}</span>` +
+            `<span class="cost">🪙${tr.cost} 👥${tr.supply}</span>`;
+          card.title = t('tip.trainTime', { x: unitLabel(kind), t: tr.time });
           card.addEventListener('click', () => this.cb.onTrain(kind));
           this.bpTrains.appendChild(card);
         }
-        this.bpHint.textContent = 'Sağ tık: toplanma noktası belirle';
+        this.bpHint.textContent = t('hud.rallyHint');
       } else if (b.kind === 'research') {
         const card = document.createElement('button');
         card.className = 'tcard research-buy';
         if (b.researching) {
           card.innerHTML =
             `<span class="ic">🔬</span>` +
-            `<span class="nm">Araştırılıyor</span>` +
+            `<span class="nm">${t('hud.researching')}</span>` +
             `<span class="cost"><span class="rprog">0%</span></span>`;
           card.classList.add('disabled');
         } else {
           card.innerHTML =
             `<span class="ic">🔬</span>` +
-            `<span class="nm">Araştır</span>` +
+            `<span class="nm">${t('hud.research')}</span>` +
             `<span class="cost">🪙${researchPrice}</span>`;
           card.addEventListener('click', () => this.cb.onResearch());
         }
         this.bpTrains.appendChild(card);
         this.bpHint.textContent = b.researching
-          ? 'Araştırma sürüyor...'
-          : 'Altın karşılığı geliştirme puanı al (her seferinde pahalanır)';
+          ? t('hud.researchingHint')
+          : t('hud.researchBuyHint');
       } else {
         this.bpHint.textContent = '';
       }
@@ -263,12 +269,13 @@ export class Hud {
       for (const id of player.offer) {
         const def = UPGRADES.find((u) => u.id === id);
         if (!def) continue;
+        const txt = upgradeText(id);
         const card = document.createElement('button');
         card.className = 'upcard';
         card.innerHTML =
           `<span class="ic">${def.icon}</span>` +
-          `<span class="nm">${def.name}</span>` +
-          `<span class="desc">${def.desc}</span>`;
+          `<span class="nm">${txt.name}</span>` +
+          `<span class="desc">${txt.desc}</span>`;
         card.addEventListener('click', () => {
           this.cb.onPickUpgrade(id);
           this.researchModal.classList.add('hidden');
@@ -288,13 +295,13 @@ export class Hud {
 
   setSelection(labels: string[]): void {
     if (labels.length === 0) {
-      this.selectionEl.textContent = 'Birim seçilmedi';
+      this.selectionEl.textContent = t('hud.noSelection');
       return;
     }
     const counts = new Map<string, number>();
     for (const l of labels) counts.set(l, (counts.get(l) ?? 0) + 1);
     const parts = [...counts.entries()].map(([l, n]) => (n > 1 ? `${n}× ${l}` : l));
-    this.selectionEl.textContent = `Seçili: ${parts.join(', ')}`;
+    this.selectionEl.textContent = t('hud.selected', { x: parts.join(', ') });
   }
 
   setSelectionText(text: string): void {
@@ -302,7 +309,7 @@ export class Hud {
   }
 
   setFps(fps: number): void {
-    this.fpsEl.textContent = `${fps} fps`;
+    this.fpsEl.textContent = t('hud.fps', { x: fps });
   }
 
   setHintOverride(text: string | null): void {
@@ -316,7 +323,7 @@ export class Hud {
   }
 
   showGameOver(won: boolean, titleOverride?: string): void {
-    this.goTitle.textContent = titleOverride ?? (won ? '🏆 Zafer!' : '💀 Yenilgi');
+    this.goTitle.textContent = titleOverride ?? (won ? t('go.victory') : t('go.defeat'));
     this.goTitle.classList.toggle('lose', !won);
     this.gameoverEl.classList.remove('hidden');
   }

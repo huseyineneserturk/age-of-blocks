@@ -29,6 +29,8 @@ export class GameRoom {
   private gameMap: GameMap;
   private players = new Map<string, 0 | 1>(); // socket.id → team
   private sockets = new Map<0 | 1, Socket>();
+  // Per-socket listeners, kept so an explicit leave can detach them cleanly.
+  private handlers = new Map<string, { onCommand: (c: ClientCommand) => void; onDisconnect: () => void }>();
   private simTimer: ReturnType<typeof setInterval> | null = null;
   private graceTimer: ReturnType<typeof setTimeout> | null = null;
   private snapAccum = 0;
@@ -54,6 +56,16 @@ export class GameRoom {
     return this.players.size;
   }
 
+  /** Open = waiting for an opponent, joinable from the lobby. */
+  get open(): boolean {
+    return !this.started && !this.finished && this.players.size === 1;
+  }
+
+  /** The host (team 0) civilization — shown in the lobby listing. */
+  get hostCiv(): CivId {
+    return this.world.players[0].civ;
+  }
+
   addPlayer(socket: Socket, civ?: CivId): 0 | 1 | null {
     if (this.started || this.players.size >= 2) return null;
     const team: 0 | 1 = this.players.size === 0 ? 0 : 1;
@@ -65,11 +77,25 @@ export class GameRoom {
     const chosen: CivId = civ && CIVS[civ] ? civ : randomCiv();
     this.world.players[team].civ = chosen;
 
-    socket.on('command', (cmd: ClientCommand) => this.handleCommand(team, cmd));
-    socket.on('disconnect', () => this.handleLeave(socket));
+    const onCommand = (cmd: ClientCommand): void => this.handleCommand(team, cmd);
+    const onDisconnect = (): void => this.leave(socket);
+    this.handlers.set(socket.id, { onCommand, onDisconnect });
+    socket.on('command', onCommand);
+    socket.on('disconnect', onDisconnect);
 
     if (this.players.size === 2) this.start();
     return team;
+  }
+
+  /** Explicit departure (host cancels a waiting room, or a real disconnect). */
+  leave(socket: Socket): void {
+    const h = this.handlers.get(socket.id);
+    if (h) {
+      socket.off('command', h.onCommand);
+      socket.off('disconnect', h.onDisconnect);
+      this.handlers.delete(socket.id);
+    }
+    this.handleLeave(socket);
   }
 
   private start(): void {

@@ -2,10 +2,13 @@
 // — Celt, Ottoman, Chinese, Roman, Viking — each with their waving banner on
 // a stone pedestal, under a moonlit sky with drifting embers.
 
+import { civLabel } from '../i18n';
+import type { CivId } from '../data/civs';
+
 type Ctx = CanvasRenderingContext2D;
 
 interface Civ {
-  name: string;
+  id: CivId;
   draw: (ctx: Ctx, s: number, t: number) => void;
   flag: { field: string; trim: string; emblem: (ctx: Ctx, s: number) => void };
 }
@@ -108,7 +111,7 @@ export class MenuScene {
       ctx.beginPath();
       ctx.ellipse(cx, groundY + s * 0.05, s * 0.8, s * 0.18, 0, 0, Math.PI * 2);
       ctx.fill();
-      this.drawPedestal(ctx, cx, groundY, s, civs[i].name);
+      this.drawPedestal(ctx, cx, groundY, s, civLabel(civs[i].id).toLocaleUpperCase('tr'));
       this.drawFlag(ctx, cx - s * 1.5, groundY, s, t, i, civs[i].flag);
       ctx.save();
       ctx.translate(cx, groundY - s * 1.05 + bob);
@@ -401,7 +404,7 @@ function head(ctx: Ctx, s: number): void {
 const CIVS: Civ[] = [
   // ----------------------------------------------------------- KELT
   {
-    name: 'KELT',
+    id: 'celt',
     draw: (ctx, s) => {
       legs(ctx, s, '#5d4a32');
       boots(ctx, s, '#3c2f1f');
@@ -475,7 +478,7 @@ const CIVS: Civ[] = [
 
   // ----------------------------------------------------------- OSMANLI
   {
-    name: 'OSMANLI',
+    id: 'ottoman',
     draw: (ctx, s) => {
       legs(ctx, s, '#7a2430'); // şalvar
       boots(ctx, s, '#caa24a'); // yellow boots
@@ -569,7 +572,7 @@ const CIVS: Civ[] = [
 
   // ----------------------------------------------------------- ÇİN
   {
-    name: 'ÇİN',
+    id: 'china',
     draw: (ctx, s) => {
       legs(ctx, s, '#2c3a4c');
       boots(ctx, s, '#1d2733');
@@ -663,7 +666,7 @@ const CIVS: Civ[] = [
 
   // ----------------------------------------------------------- ROMA
   {
-    name: 'ROMA',
+    id: 'rome',
     draw: (ctx, s) => {
       legs(ctx, s, SKIN_DARK); // bare legs + sandal straps
       ctx.strokeStyle = '#6e4a26';
@@ -776,7 +779,7 @@ const CIVS: Civ[] = [
 
   // ----------------------------------------------------------- VİKİNG
   {
-    name: 'VİKİNG',
+    id: 'viking',
     draw: (ctx, s) => {
       legs(ctx, s, '#4c3a28');
       boots(ctx, s, '#33261a');

@@ -58,35 +58,59 @@
     <!-- Main menu -->
     <div id="main-menu">
       <canvas id="menu-scene"></canvas>
-      <div class="mm-frame">
-        <div class="mm-ornament">❖ ❖ ❖</div>
-        <h1>AGE OF BLOCKS</h1>
-        <div class="mm-tagline">— WAR FRONTS —</div>
-        <p class="mm-sub">Kur · Yönet · Fethet</p>
 
-        <div class="mm-section-title">MEDENİYETİNİ SEÇ</div>
-        <div class="mm-civs" id="mm-civs"></div>
-        <p class="mm-civ-bonus" id="mm-civ-bonus"></p>
-
-        <div class="mm-section-title">SEFER (Tek Oyunculu)</div>
-        <div class="mm-diff">
-          <button class="mm-diff-btn" data-diff="easy">Kolay</button>
-          <button class="mm-diff-btn active" data-diff="normal">Normal</button>
-          <button class="mm-diff-btn" data-diff="hard">Zor</button>
+      <!-- Top bar: online count · language · music -->
+      <div class="mm-topbar">
+        <div class="mm-online" id="mm-online" title="">
+          <span class="mm-dot"></span><span id="mm-online-text">—</span>
         </div>
-        <button id="mm-start">SAVAŞA BAŞLA</button>
-
-        <div class="mm-section-title">CEPHE (Çok Oyunculu 1v1)</div>
-        <div class="mm-mp">
-          <button id="mm-create" class="mm-mp-btn">Oda Kur</button>
-          <input id="mm-code" maxlength="5" placeholder="KOD" autocomplete="off" />
-          <button id="mm-join" class="mm-mp-btn">Katıl</button>
+        <div class="mm-lang" id="mm-lang">
+          <button class="mm-lang-btn" data-lang="tr">TR</button>
+          <button class="mm-lang-btn" data-lang="en">EN</button>
         </div>
-        <p id="mm-status" class="mm-status hidden"></p>
-
-        <div class="mm-ornament bottom">❖ ❖ ❖</div>
+        <button id="mm-music" title="">♪</button>
       </div>
-      <button id="mm-music" title="Müzik">♪</button>
+
+      <div class="mm-frame">
+        <div class="mm-crest">⚔</div>
+        <h1 class="mm-title">AGE OF BLOCKS</h1>
+        <div class="mm-tagline">WAR FRONTS</div>
+        <p class="mm-sub" data-i18n="menu.sub"></p>
+
+        <section class="mm-section">
+          <div class="mm-label" data-i18n="menu.chooseCiv"></div>
+          <div class="mm-civs" id="mm-civs"></div>
+          <p class="mm-civ-bonus" id="mm-civ-bonus"></p>
+        </section>
+
+        <div class="mm-cols">
+          <!-- Single player -->
+          <section class="mm-col">
+            <div class="mm-label" data-i18n="menu.campaign"></div>
+            <div class="mm-diff" id="mm-diff">
+              <button class="mm-diff-btn" data-diff="easy" data-i18n="diff.easy"></button>
+              <button class="mm-diff-btn active" data-diff="normal" data-i18n="diff.normal"></button>
+              <button class="mm-diff-btn" data-diff="hard" data-i18n="diff.hard"></button>
+            </div>
+            <button id="mm-start" data-i18n="menu.start"></button>
+          </section>
+
+          <!-- Multiplayer lobby -->
+          <section class="mm-col">
+            <div class="mm-label" data-i18n="menu.front"></div>
+            <div class="mm-lobby">
+              <div class="mm-lobby-head">
+                <span data-i18n="menu.openRooms"></span>
+                <button id="mm-refresh" class="mm-mini-btn" data-i18n="menu.refresh"></button>
+              </div>
+              <div class="mm-room-list" id="mm-room-list"></div>
+              <button id="mm-create" class="mm-mp-btn" data-i18n="menu.createRoom"></button>
+            </div>
+            <p id="mm-status" class="mm-status hidden"></p>
+          </section>
+        </div>
+      </div>
+
       <audio id="menu-music" src="/audio/menu-theme.mp3" loop preload="auto"></audio>
     </div>
   </div>

@@ -6,9 +6,9 @@
 import { Camera } from '../engine/camera';
 import { Input } from '../engine/input';
 import { buildRiverCrossing, type GameMap } from '../data/maps/riverCrossing';
-import { UNITS, type UnitKind } from '../data/units';
+import { type UnitKind } from '../data/units';
 import { BUILDINGS, BUILD_MENU, type BuildingKind } from '../data/buildings';
-import { World, type Building, type Unit } from './world';
+import { World, type Building, type Unit, type SimEvent } from './world';
 import { updateMovement } from './movement';
 import { updateCombat } from './combat';
 import { updateProjectiles } from './projectiles';
@@ -23,6 +23,7 @@ import { Minimap } from '../render/minimap';
 import { Effects } from '../render/effects';
 import { Sound } from '../audio/sound';
 import { Hud } from '../ui/hud';
+import { t, civLabel, civBonus, unitLabel, buildingLabel } from '../i18n';
 import { applySnapshot } from '../net/snapshot';
 import { SNAPSHOT_INTERVAL_MS } from '../net/protocol';
 import type { NetConnection } from '../net/client';
@@ -96,16 +97,16 @@ export class Game {
       this.net.onOpponentLeft = () => {
         if (this.world.winner === null) {
           this.world.winner = this.myTeam;
-          this.banner('🏳️ Rakip oyundan ayrıldı — zafer senin!');
+          this.banner(t('banner.opponentLeft'));
         }
       };
       this.net.onOpponentDisconnected = (sec) => {
-        this.banner(`⚠️ Rakibin bağlantısı koptu — ${sec}sn bekleniyor...`);
+        this.banner(t('banner.opponentDc', { sec }));
       };
       this.net.onConnectionLost = () => {
         if (this.world.winner === null && !this.gameOverShown) {
           this.gameOverShown = true;
-          this.hud.showGameOver(false, '🔌 Bağlantı Koptu');
+          this.hud.showGameOver(false, t('go.connLost'));
         }
       };
       console.log(`🌐 Çok oyunculu — takım ${this.myTeam === 0 ? 'MAVİ' : 'KIRMIZI'}`);
@@ -143,9 +144,18 @@ export class Game {
     window.addEventListener('keydown', (e) => this.handleKey(e));
 
     // Announce the matchup + your civilization bonus.
-    const myCiv = CIVS[this.world.players[this.myTeam].civ];
-    const foeCiv = CIVS[this.world.players[this.myTeam === 0 ? 1 : 0].civ];
-    this.banner(`${myCiv.emblem} ${myCiv.label} — ${myCiv.bonusName}: ${myCiv.bonusDesc} · Rakip: ${foeCiv.label}`);
+    const myId = this.world.players[this.myTeam].civ;
+    const foeId = this.world.players[this.myTeam === 0 ? 1 : 0].civ;
+    const bonus = civBonus(myId);
+    this.banner(
+      t('banner.matchup', {
+        emblem: CIVS[myId].emblem,
+        civ: civLabel(myId),
+        bonusName: bonus.name,
+        bonusDesc: bonus.desc,
+        foe: civLabel(foeId),
+      }),
+    );
 
     requestAnimationFrame((t) => this.frame(t));
   }
@@ -176,9 +186,10 @@ export class Game {
     this.hud.setBuildSelection(kind);
     const def = BUILDINGS[kind];
     this.hud.setHintOverride(
-      def.onGold
-        ? `${def.icon} ${def.label} — altın madeni üzerine tıkla (ESC iptal)`
-        : `${def.icon} ${def.label} — yerleştirmek için tıkla (ESC iptal)`,
+      t(def.onGold ? 'hint.placeGold' : 'hint.place', {
+        icon: def.icon,
+        label: buildingLabel(kind),
+      }),
     );
   }
 
@@ -255,7 +266,7 @@ export class Game {
       this.selected.clear();
       this.selectedBuildingId = b.id;
       this.sound.play('select');
-      this.hud.setSelectionText(`Seçili: ${BUILDINGS[b.kind].icon} ${BUILDINGS[b.kind].label}`);
+      this.hud.setSelectionText(t('hud.selectedBuilding', { x: `${BUILDINGS[b.kind].icon} ${buildingLabel(b.kind)}` }));
       return;
     }
 
@@ -434,7 +445,7 @@ export class Game {
     if (k === 'a' && this.selected.size > 0 && !this.placing) {
       this.attackMoveArmed = true;
       this.canvas.style.cursor = 'crosshair';
-      this.hud.setHintOverride('🎯 Saldırı emri — hedef noktayı tıkla (ESC iptal)');
+      this.hud.setHintOverride(t('hint.attackMove'));
     } else if (k === 'escape') {
       if (this.placing) {
         this.stopPlacement();
@@ -467,7 +478,7 @@ export class Game {
 
   private updateSelectionInfo(): void {
     const units = this.world.units.filter((u) => this.selected.has(u.id));
-    this.hud.setSelection(units.map((u) => UNITS[u.kind].label));
+    this.hud.setSelection(units.map((u) => unitLabel(u.kind)));
   }
 
   // --- Loop ---
@@ -514,10 +525,26 @@ export class Game {
       alpha = this.acc / DT;
     }
 
-    // Sim events → particles + sound.
+    // Sim events → particles + sound. Only surface what the local player could
+    // actually perceive: events are gated by the fog of war, so you hear/see
+    // your own base (always visible) but NOT the opponent's hidden training,
+    // building or skirmishes. Coordinate-less events are handled per-case.
     if (this.world.events.length > 0) {
-      this.effects.consume(this.world.events);
-      for (const e of this.world.events) {
+      const events = this.world.events;
+      const visible = (e: SimEvent): boolean =>
+        'x' in e && 'y' in e ? this.fog.isVisible(e.x, e.y) : false;
+
+      this.effects.consume(events.filter(visible));
+
+      for (const e of events) {
+        if (e.type === 'camp_cleared') {
+          // Notable map event: always inform via banner, but only the owner
+          // gets the triumphant fanfare.
+          this.banner(t(e.team === this.myTeam ? 'banner.campOwn' : 'banner.campEnemy'));
+          if (e.team === this.myTeam) this.sound.play('victory');
+          continue;
+        }
+        if (!visible(e)) continue;
         switch (e.type) {
           case 'melee_hit': this.sound.play('hit'); break;
           case 'arrow_fire': this.sound.play('arrow'); break;
@@ -530,15 +557,7 @@ export class Game {
           case 'build_placed': this.sound.play('build'); break;
           case 'rock_destroyed':
             this.sound.play('explosion');
-            this.banner('🪨 Geçit açıldı!');
-            break;
-          case 'camp_cleared':
-            this.sound.play('victory');
-            this.banner(
-              e.team === this.myTeam
-                ? '🗿 Kamp temizlendi! +150 altın, kalıcı +%10 hasar'
-                : '⚠️ Düşman kampı temizledi ve güçlendi!',
-            );
+            this.banner(t('banner.passageOpen'));
             break;
         }
       }
