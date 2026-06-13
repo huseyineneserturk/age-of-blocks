@@ -109,6 +109,50 @@ export class Renderer {
         this.drawTile(c, map, x, y);
       }
     }
+    // Decorative prop pass: bushes / flower patches scattered on open grass.
+    for (let y = 0; y < map.h; y++) {
+      for (let x = 0; x < map.w; x++) {
+        if (map.get(x, y) !== Terrain.Grass) continue;
+        const r = tileHash(x * 11 + 7, y * 13 + 3);
+        if (r > 0.93) this.drawBush(c, x * TILE, y * TILE, tileHash(x + 2, y + 5));
+        else if (r > 0.86) this.drawFlowers(c, x * TILE, y * TILE, tileHash(x + 9, y + 1));
+      }
+    }
+  }
+
+  private drawBush(c: CanvasRenderingContext2D, px: number, py: number, hh: number): void {
+    const cx = px + TILE * (0.3 + hh * 0.4);
+    const cy = py + TILE * (0.5 + hh * 0.3);
+    const r = TILE * (0.16 + hh * 0.1);
+    c.fillStyle = 'rgba(0,0,0,0.28)';
+    c.beginPath();
+    c.ellipse(cx, cy + r * 0.7, r * 1.1, r * 0.4, 0, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = '#1c4a26';
+    c.beginPath();
+    c.arc(cx - r * 0.5, cy, r * 0.7, 0, Math.PI * 2);
+    c.arc(cx + r * 0.5, cy, r * 0.7, 0, Math.PI * 2);
+    c.arc(cx, cy - r * 0.4, r * 0.8, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = 'rgba(120, 200, 120, 0.18)';
+    c.beginPath();
+    c.arc(cx, cy - r * 0.5, r * 0.5, 0, Math.PI * 2);
+    c.fill();
+  }
+
+  private drawFlowers(c: CanvasRenderingContext2D, px: number, py: number, hh: number): void {
+    const colors = ['#e8d06a', '#e07a9a', '#d8d0e8'];
+    const col = colors[Math.floor(hh * colors.length) % colors.length];
+    for (let i = 0; i < 4; i++) {
+      const fx = px + TILE * (0.2 + ((i * 0.27 + hh) % 0.6));
+      const fy = py + TILE * (0.3 + ((i * 0.19 + hh * 1.3) % 0.5));
+      c.fillStyle = col;
+      c.beginPath();
+      c.arc(fx, fy, 1.8, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = 'rgba(255,255,255,0.5)';
+      c.fillRect(fx - 0.5, fy - 0.5, 1, 1);
+    }
   }
 
   private drawTile(c: CanvasRenderingContext2D, map: TileMap, x: number, y: number): void {
