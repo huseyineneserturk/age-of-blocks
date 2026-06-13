@@ -33,6 +33,8 @@ export class Hud {
   private goldEl = document.getElementById('gold')!;
   private incomeEl = document.getElementById('income')!;
   private supplyEl = document.getElementById('supply')!;
+  private civBadge = document.getElementById('civ-badge')!;
+  private civBadgeSet = false;
   private buildMenuEl = document.getElementById('build-menu')!;
   private bPanel = document.getElementById('building-panel')!;
   private bpTitle = document.getElementById('bp-title')!;
@@ -68,20 +70,43 @@ export class Hud {
 
   private buildBuildMenu(): void {
     this.buildMenuEl.innerHTML = '';
-    for (const kind of BUILD_MENU) {
-      const def = BUILDINGS[kind];
-      const card = document.createElement('button');
-      card.className = 'bcard';
-      card.innerHTML =
-        `<span class="hot">${def.hotkey ?? ''}</span>` +
-        `<span class="ic">${def.icon}</span>` +
-        `<span class="nm">${def.label}</span>` +
-        `<span class="cost">🪙${def.cost}</span>`;
-      card.title = this.buildTooltip(kind);
-      card.addEventListener('click', () => this.cb.onPickBuilding(kind));
-      this.buildMenuEl.appendChild(card);
-      this.buildCards.set(kind, card);
-    }
+    const groups: Array<{ label: string; kinds: BuildingKind[] }> = [
+      { label: 'EKONOMİ', kinds: ['house', 'mine', 'research'] },
+      { label: 'ASKER', kinds: ['barracks', 'archery', 'stable', 'magetower', 'siegeworks'] },
+      { label: 'SAVUNMA', kinds: ['tower', 'wall'] },
+    ];
+    groups.forEach((g, gi) => {
+      const grp = document.createElement('div');
+      grp.className = 'build-group';
+      const cards = document.createElement('div');
+      cards.className = 'build-group-cards';
+      for (const kind of g.kinds) {
+        if (!BUILD_MENU.includes(kind)) continue;
+        const def = BUILDINGS[kind];
+        const card = document.createElement('button');
+        card.className = 'bcard';
+        card.innerHTML =
+          `<span class="hot">${def.hotkey ?? ''}</span>` +
+          `<span class="ic">${def.icon}</span>` +
+          `<span class="nm">${def.label}</span>` +
+          `<span class="cost">🪙${def.cost}</span>`;
+        card.title = this.buildTooltip(kind);
+        card.addEventListener('click', () => this.cb.onPickBuilding(kind));
+        cards.appendChild(card);
+        this.buildCards.set(kind, card);
+      }
+      const label = document.createElement('div');
+      label.className = 'build-group-label';
+      label.textContent = g.label;
+      grp.appendChild(label);
+      grp.appendChild(cards);
+      this.buildMenuEl.appendChild(grp);
+      if (gi < groups.length - 1) {
+        const sep = document.createElement('div');
+        sep.className = 'build-sep';
+        this.buildMenuEl.appendChild(sep);
+      }
+    });
   }
 
   private buildTooltip(kind: BuildingKind): string {
@@ -103,6 +128,13 @@ export class Hud {
   // --- Per-frame update ---
 
   update(player: PlayerState, selectedBuilding: Building | null, researchPrice: number): void {
+    if (!this.civBadgeSet) {
+      this.civBadgeSet = true;
+      const civ = CIVS[player.civ];
+      (this.civBadge.querySelector('.cb-emblem') as HTMLElement).textContent = civ.emblem;
+      (this.civBadge.querySelector('.cb-name') as HTMLElement).textContent = civ.label;
+      this.civBadge.setAttribute('title', `${civ.bonusName}: ${civ.bonusDesc}`);
+    }
     this.goldEl.textContent = String(Math.floor(player.gold));
     this.supplyEl.textContent = `${player.supplyUsed}/${player.supplyCap}`;
     (this.supplyEl as HTMLElement).style.color =
