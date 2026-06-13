@@ -2,8 +2,9 @@
 // All figures are drawn facing right around origin (0,0); callers translate,
 // then mirror with scale(-1,1) for left-facing. `s` is the base half-size in px.
 
-import type { UnitKind } from '../data/units';
+import type { Team, UnitKind } from '../data/units';
 import { CIVS, type CivId } from '../data/civs';
+import { CIV_PAL } from './civArt';
 
 const PAL = {
   skin: '#e8b88a',
@@ -16,16 +17,23 @@ const PAL = {
 
 type Ctx = CanvasRenderingContext2D;
 
+/**
+ * Draw a unit. The BODY uses the civilization's cloth palette (so a Roman and
+ * an Ottoman knight look materially different); ownership is conveyed by the
+ * team ground-ring drawn in the renderer + civ-specific kit accents here.
+ */
 export function drawFigure(
   ctx: Ctx,
   kind: UnitKind,
+  civ: CivId | undefined,
+  team: Team,
   s: number,
-  col: string,
-  dark: string,
   walk: number, // -1..1 leg swing
   atk: number, // 0 or 1 attack pose
-  civ?: CivId,
 ): void {
+  const pal = civ ? CIV_PAL[civ] : CIV_PAL.rome;
+  const col = pal.cloth;
+  const dark = pal.clothDark;
   switch (kind) {
     case 'cavalry': figCavalry(ctx, s, col, dark, walk, atk); break;
     case 'catapult': figCatapult(ctx, s, col, atk); break;
@@ -36,7 +44,7 @@ export function drawFigure(
     case 'wolf': figWolf(ctx, s, walk, atk); break;
     default: figKnight(ctx, s, col, dark, walk, atk); break;
   }
-  if (civ) civAccent(ctx, kind, s, civ);
+  if (civ) civAccent(ctx, kind, s, civ, team);
 }
 
 // --------------------------------------------------------------------
@@ -44,8 +52,9 @@ export function drawFigure(
 // layered over the base figure, so each civ's army reads differently.
 // --------------------------------------------------------------------
 
-function civAccent(ctx: Ctx, kind: UnitKind, s: number, civ: CivId): void {
+function civAccent(ctx: Ctx, kind: UnitKind, s: number, civ: CivId, team: Team): void {
   const accent = CIVS[civ].accent;
+  const teamCol = team === 0 ? '#7ab8ff' : team === 1 ? '#ff8a8a' : '#c3a6e6';
 
   // Head positions differ per figure.
   let hx = 0;
@@ -132,13 +141,18 @@ function civAccent(ctx: Ctx, kind: UnitKind, s: number, civ: CivId): void {
     }
   }
 
-  // Shield mark for shield-bearing infantry.
+  // Shield mark for shield-bearing infantry: civ emblem on a team-colour rim.
   if (kind === 'knight' || kind === 'spear') {
     const shx = kind === 'knight' ? -s * 0.34 : -s * 0.32;
     const shy = -s * 0.05;
+    ctx.strokeStyle = teamCol;
+    ctx.lineWidth = s * 0.05;
+    ctx.beginPath();
+    ctx.arc(shx, shy, s * 0.12, 0, Math.PI * 2);
+    ctx.stroke();
     ctx.fillStyle = accent;
     ctx.beginPath();
-    ctx.arc(shx, shy, s * 0.08, 0, Math.PI * 2);
+    ctx.arc(shx, shy, s * 0.07, 0, Math.PI * 2);
     ctx.fill();
   }
 }

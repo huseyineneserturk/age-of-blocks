@@ -566,20 +566,21 @@ export class Renderer {
 
     const tc = TEAM_COLORS[u.team];
 
-    // Selection ring
-    if (isSelected) {
-      ctx.strokeStyle = COLORS.gold;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.ellipse(p.x, p.y + s * 0.85, s * 0.95, s * 0.4, 0, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-
     // Shadow
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.beginPath();
     ctx.ellipse(p.x, p.y + s * 0.92, s * 0.7, s * 0.22, 0, 0, Math.PI * 2);
     ctx.fill();
+
+    // Team ground-ring (ALWAYS shown — primary ownership cue now that the
+    // body uses the civ palette). Selected units get a brighter gold ring.
+    ctx.strokeStyle = isSelected ? COLORS.gold : tc.main;
+    ctx.lineWidth = isSelected ? 2.4 : 1.8;
+    ctx.globalAlpha = isSelected ? 1 : 0.85;
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y + s * 0.88, s * 0.7, s * 0.28, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
 
     const walk = u.moving ? Math.sin(u.animTime * 11) : 0;
     ctx.save();
@@ -589,7 +590,7 @@ export class Renderer {
       ctx.shadowColor = tc.glow;
       ctx.shadowBlur = 10;
     }
-    drawFigure(ctx, u.kind, s, tc.main, tc.dark, walk, u.attacking ? 1 : 0, civ);
+    drawFigure(ctx, u.kind, civ, u.team, s, walk, u.attacking ? 1 : 0);
     ctx.shadowBlur = 0;
     ctx.restore();
 
