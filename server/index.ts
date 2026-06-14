@@ -30,10 +30,15 @@ export function startServer(port: number): { io: Server; close: () => void } {
   }
 
   // --- Lobby: open-room listing + live online count, pushed to every socket ---
-  function lobbyState(): { online: number; rooms: Array<{ code: string; civ: string }> } {
-    const open: Array<{ code: string; civ: string }> = [];
+  function lobbyState(): {
+    online: number;
+    rooms: Array<{ code: string; civ: string; name: string; locked: boolean }>;
+  } {
+    const open: Array<{ code: string; civ: string; name: string; locked: boolean }> = [];
     for (const room of rooms.values()) {
-      if (room.open) open.push({ code: room.code, civ: room.hostCiv });
+      if (room.open) {
+        open.push({ code: room.code, civ: room.hostCiv, name: room.name, locked: room.locked });
+      }
     }
     return { online: io.engine.clientsCount, rooms: open };
   }
@@ -56,42 +61,60 @@ export function startServer(port: number): { io: Server; close: () => void } {
       broadcastLobby();
     });
 
-    socket.on('createRoom', (payload: { civ?: string } | undefined, cb: (res: { code: string; team: number }) => void) => {
-      // Back-compat: payload may be the callback itself.
-      if (typeof payload === 'function') {
-        cb = payload as unknown as typeof cb;
-        payload = undefined;
-      }
-      if (typeof cb !== 'function') return;
-      const code = makeCode();
-      const room = new GameRoom(code, io, () => {
-        rooms.delete(code);
+    socket.on(
+      'createRoom',
+      (
+        payload: { civ?: string; name?: string; password?: string } | undefined,
+        cb: (res: { code: string; team: number }) => void,
+      ) => {
+        // Back-compat: payload may be the callback itself.
+        if (typeof payload === 'function') {
+          cb = payload as unknown as typeof cb;
+          payload = undefined;
+        }
+        if (typeof cb !== 'function') return;
+        const code = makeCode();
+        const room = new GameRoom(
+          code,
+          io,
+          () => {
+            rooms.delete(code);
+            broadcastLobby();
+          },
+          payload?.name,
+          payload?.password,
+        );
+        rooms.set(code, room);
+        const team = room.addPlayer(socket, payload?.civ as never);
+        console.log(`[server] room ${code} created (${room.name}${room.locked ? ', locked' : ''})`);
+        cb({ code, team: team ?? 0 });
         broadcastLobby();
-      });
-      rooms.set(code, room);
-      const team = room.addPlayer(socket, payload?.civ as never);
-      console.log(`[server] room ${code} created`);
-      cb({ code, team: team ?? 0 });
-      broadcastLobby();
-    });
+      },
+    );
 
     socket.on(
       'joinRoom',
       (
-        payload: { code: string; civ?: string } | string,
+        payload: { code: string; civ?: string; password?: string } | string,
         cb: (res: { ok: boolean; team?: number; error?: string }) => void,
       ) => {
         if (typeof cb !== 'function') return;
         const code = typeof payload === 'string' ? payload : payload?.code;
         const civ = typeof payload === 'object' ? payload?.civ : undefined;
+        const password = typeof payload === 'object' ? payload?.password : undefined;
         const room = rooms.get(String(code).toUpperCase().trim());
-        if (!room) {
-          cb({ ok: false, error: 'Oda bulunamadı' });
+        // Error strings are codes; the client localizes them.
+        if (!room || !room.open) {
+          cb({ ok: false, error: 'not_found' });
+          return;
+        }
+        if (!room.verifyPassword(password)) {
+          cb({ ok: false, error: 'bad_password' });
           return;
         }
         const team = room.addPlayer(socket, civ as never);
         if (team === null) {
-          cb({ ok: false, error: 'Oda dolu veya oyun başladı' });
+          cb({ ok: false, error: 'full' });
           return;
         }
         cb({ ok: true, team });

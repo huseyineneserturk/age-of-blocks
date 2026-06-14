@@ -118,15 +118,17 @@ export class Sound {
   }
 
   private hit(t: number): void {
-    this.osc('sawtooth', 150 + Math.random() * 50, 50, t, 0.1, 0.2);
+    this.osc('triangle', 200 + Math.random() * 80, 80, t, 0.08, 0.25);
+    this.osc('sine', 800 + Math.random() * 400, 200, t, 0.05, 0.15); // sword ring
   }
 
   private death(t: number): void {
-    this.noise(t, 0.3, 0.3, 'lowpass', 1000, 100);
+    this.noise(t, 0.35, 0.3, 'lowpass', 600, 60);
+    this.osc('sine', 150, 40, t, 0.3, 0.2); // deep body fall sub
   }
 
   private arrow(t: number): void {
-    this.noise(t, 0.15, 0.1, 'highpass', 2000, 500);
+    this.noise(t, 0.12, 0.12, 'highpass', 2400, 900); // whizz
   }
 
   private magic(t: number): void {
@@ -135,11 +137,14 @@ export class Sound {
   }
 
   private explosion(t: number): void {
-    this.noise(t, 0.4, 0.35, 'lowpass', 800, 60);
+    this.noise(t, 0.5, 0.45, 'lowpass', 500, 40);
+    this.noise(t, 0.2, 0.25, 'bandpass', 1200, 200); // crackle
+    this.osc('sine', 120, 30, t, 0.45, 0.45); // shockwave rumble
   }
 
   private select(t: number): void {
-    this.osc('sine', 400, 600, t, 0.1, 0.12);
+    this.osc('sine', 523.25, 659.25, t, 0.12, 0.15);
+    this.osc('sine', 783.99, 783.99, t + 0.05, 0.15, 0.1);
   }
 
   private click(t: number): void {

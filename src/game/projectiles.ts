@@ -31,6 +31,7 @@ export function updateProjectiles(world: World, dt: number): void {
       const b = world.getBuilding(p.targetBuildingId);
       if (b) {
         b.hp -= p.damage;
+        b.lastHitBy = p.team;
         if (p.splash > 0) {
           world.events.push({ type: 'boulder_hit', x: p.tx, y: p.ty, radius: p.splash });
         } else {
@@ -60,6 +61,7 @@ export function updateProjectiles(world: World, dt: number): void {
         if (!b.alive || b.team === p.team) continue;
         if (world.distToBuilding(p.tx, p.ty, b) <= p.splash) {
           b.hp -= p.damage * 0.5;
+          b.lastHitBy = p.team;
         }
       }
     } else {

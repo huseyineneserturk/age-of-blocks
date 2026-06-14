@@ -127,6 +127,7 @@ export function applySnapshot(world: World, snap: Snapshot): void {
         atkTimer: 0,
         researching: s.researching,
         researchTimer: s.researchTimer,
+        lastHitBy: null,
       };
     } else {
       b.hp = s.hp;
@@ -138,7 +139,7 @@ export function applySnapshot(world: World, snap: Snapshot): void {
       b.researching = s.researching;
       b.researchTimer = s.researchTimer;
     }
-    nextBuildings.push(b);
+    nextBuildings.push(b!);
   }
   world.buildings = nextBuildings;
 

@@ -60,7 +60,7 @@ async function main(): Promise<void> {
 
   const first = snapsA[snapsA.length - 1];
   const castles = first.buildings.filter((x) => x.kind === 'castle').length;
-  check('dünya simetrik kuruldu (2 kale)', castles === 2);
+  check('dünya simetrik kuruldu (3 kale)', castles === 3);
   check('başlangıç birlikleri var', first.units.filter((u) => u.team === 0).length >= 4);
 
   // --- Commands: move own units ---

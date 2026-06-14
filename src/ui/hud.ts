@@ -2,10 +2,10 @@
 // research modal, game-over overlay.
 
 import { BUILDINGS, BUILD_MENU, RESEARCH_TIME, TRAIN, UPGRADES, type BuildingKind } from '../data/buildings';
-import { type UnitKind } from '../data/units';
-import { CIVS } from '../data/civs';
-import type { Building, PlayerState } from '../game/world';
-import { t, civLabel, civBonus, unitLabel, buildingLabel, upgradeText } from '../i18n';
+import { type UnitKind, UNITS } from '../data/units';
+import { CIVS, type CivId } from '../data/civs';
+import type { Building, PlayerState, Unit } from '../game/world';
+import { t, civLabel, civBonus, unitLabel, unitDesc, buildingLabel, upgradeText } from '../i18n';
 
 export interface HudCallbacks {
   onPickBuilding(kind: BuildingKind): void;
@@ -20,13 +20,28 @@ const UNIT_ICONS: Record<UnitKind, string> = {
   spear: '🔱',
   archer: '🏹',
   cavalry: '🐴',
-  mage: '🔮',
+  villager: '🧑‍🌾',
+  commander: '👑',
   catapult: '🛠️',
   golem: '🗿',
   wolf: '🐺',
+  pirate: '🏴‍☠️',
+  gladiator: '🛡️',
+  janissary: '💥',
+  berserker: '🪓',
+  druid: '🔮',
+};
+
+const CIV_UNIQUE_BUILDINGS: Record<CivId, { economy: BuildingKind[]; military: BuildingKind[]; defense: BuildingKind[] }> = {
+  rome: { economy: ['forum'], military: ['colosseum'], defense: [] },
+  ottoman: { economy: ['caravanserai'], military: ['mosque'], defense: [] },
+  china: { economy: ['pagoda'], military: [], defense: ['bastion'] },
+  viking: { economy: [], military: ['longhouse', 'shrine'], defense: [] },
+  celt: { economy: ['stone_circle'], military: ['grove'], defense: [] },
 };
 
 export class Hud {
+  private civ: CivId = 'rome';
   private selectionEl = document.getElementById('selection-info')!;
   private fpsEl = document.getElementById('fps')!;
   private hintEl = document.getElementById('hint-bar')!;
@@ -54,6 +69,11 @@ export class Hud {
   private offerSig = '';
   private modalDismissed = false;
 
+  initCiv(civ: CivId): void {
+    this.civ = civ;
+    this.buildBuildMenu();
+  }
+
   constructor(private cb: HudCallbacks) {
     // Localize the static bits the HTML ships with Turkish defaults for.
     this.hintEl.innerHTML = t('hint.controls');
@@ -74,11 +94,13 @@ export class Hud {
   // --- Build menu ---
 
   private buildBuildMenu(): void {
+    this.buildCards.clear();
     this.buildMenuEl.innerHTML = '';
+    const unique = CIV_UNIQUE_BUILDINGS[this.civ] || { economy: [], military: [], defense: [] };
     const groups: Array<{ label: string; kinds: BuildingKind[] }> = [
-      { label: t('grp.economy'), kinds: ['house', 'mine', 'research'] },
-      { label: t('grp.military'), kinds: ['barracks', 'archery', 'stable', 'magetower', 'siegeworks'] },
-      { label: t('grp.defense'), kinds: ['tower', 'wall'] },
+      { label: t('grp.economy'), kinds: ['house', 'mine', 'research', ...unique.economy] },
+      { label: t('grp.military'), kinds: ['barracks', 'archery', 'stable', 'siegeworks', ...unique.military] },
+      { label: t('grp.defense'), kinds: ['tower', 'wall', ...unique.defense] },
     ];
     groups.forEach((g, gi) => {
       const grp = document.createElement('div');
@@ -293,18 +315,95 @@ export class Hud {
 
   // --- Misc ---
 
-  setSelection(labels: string[]): void {
-    if (labels.length === 0) {
+  setSelection(
+    units: Unit[],
+    teamCivs: Record<number, CivId>,
+    onSelectOnly: (unitId: number) => void,
+    onSelectAllOfKind: (kind: UnitKind) => void
+  ): void {
+    const panel = document.getElementById('selection-panel')!;
+    const selSingle = document.getElementById('sel-single')!;
+    const selMulti = document.getElementById('sel-multi')!;
+    const selGrid = document.getElementById('sel-grid')!;
+    const selMultiSummary = document.getElementById('sel-multi-summary')!;
+
+    if (units.length === 0) {
+      panel.classList.add('hidden');
       this.selectionEl.textContent = t('hud.noSelection');
       return;
     }
-    const counts = new Map<string, number>();
-    for (const l of labels) counts.set(l, (counts.get(l) ?? 0) + 1);
-    const parts = [...counts.entries()].map(([l, n]) => (n > 1 ? `${n}× ${l}` : l));
-    this.selectionEl.textContent = t('hud.selected', { x: parts.join(', ') });
+
+    panel.classList.remove('hidden');
+
+    if (units.length === 1) {
+      selSingle.classList.remove('hidden');
+      selMulti.classList.add('hidden');
+
+      const u = units[0];
+      const kind = u.kind;
+      const portrait = document.getElementById('sel-portrait')!;
+      portrait.textContent = UNIT_ICONS[kind] || '⚔️';
+
+      const nameEl = document.getElementById('sel-name')!;
+      const civ = teamCivs[u.team];
+      nameEl.textContent = kind === 'commander' ? t(`comm.${civ}`) : unitLabel(kind);
+
+      const hpEl = document.getElementById('sel-hp')!;
+      hpEl.textContent = `${Math.floor(u.hp)}/${u.maxHp}`;
+
+      // Get stats
+      const def = UNITS[kind];
+      const atkEl = document.getElementById('sel-atk')!;
+      const rangeEl = document.getElementById('sel-range')!;
+      const speedEl = document.getElementById('sel-speed')!;
+
+      atkEl.textContent = String(def.damage);
+      rangeEl.textContent = String(def.range);
+      speedEl.textContent = String(def.speed.toFixed(1));
+
+      const descEl = document.getElementById('sel-desc')!;
+      descEl.textContent = unitDesc(kind);
+
+      this.selectionEl.textContent = t('hud.selected', { x: nameEl.textContent });
+    } else {
+      selSingle.classList.add('hidden');
+      selMulti.classList.remove('hidden');
+
+      selGrid.innerHTML = '';
+      units.forEach((u) => {
+        const item = document.createElement('div');
+        item.className = 'sel-grid-item';
+        item.textContent = UNIT_ICONS[u.kind] || '⚔️';
+        item.title = u.kind === 'commander' ? t(`comm.${teamCivs[u.team]}`) : unitLabel(u.kind);
+
+        // Click to select only this unit
+        item.addEventListener('click', () => {
+          onSelectOnly(u.id);
+        });
+
+        // Double click to select all of this kind in the current selection
+        item.addEventListener('dblclick', () => {
+          onSelectAllOfKind(u.kind);
+        });
+
+        selGrid.appendChild(item);
+      });
+
+      selMultiSummary.textContent = t('hud.multiSummary', { n: units.length });
+
+      const counts = new Map<string, number>();
+      for (const u of units) {
+        const label = u.kind === 'commander' ? t(`comm.${teamCivs[u.team]}`) : unitLabel(u.kind);
+        counts.set(label, (counts.get(label) ?? 0) + 1);
+      }
+      const parts = [...counts.entries()].map(([l, n]) => (n > 1 ? `${n}× ${l}` : l));
+      this.selectionEl.textContent = t('hud.selected', { x: parts.join(', ') });
+    }
   }
 
   setSelectionText(text: string): void {
+    const panel = document.getElementById('selection-panel')!;
+    panel.classList.add('hidden');
     this.selectionEl.textContent = text;
   }
 
@@ -326,5 +425,12 @@ export class Hud {
     this.goTitle.textContent = titleOverride ?? (won ? t('go.victory') : t('go.defeat'));
     this.goTitle.classList.toggle('lose', !won);
     this.gameoverEl.classList.remove('hidden');
+  }
+
+  setBuildMenuEnabled(enabled: boolean): void {
+    this.buildCards.forEach((card) => {
+      card.disabled = !enabled;
+      card.classList.toggle('disabled', !enabled);
+    });
   }
 }

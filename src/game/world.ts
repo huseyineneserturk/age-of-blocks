@@ -65,6 +65,7 @@ export interface Building {
   atkTimer: number; // towers
   researching: boolean; // research building: a paid research is in progress
   researchTimer: number; // progress of the current research (seconds)
+  lastHitBy: Team | null;
 }
 
 /** A destructible rock blocking a passage; siege opens the shortcut. */
@@ -129,7 +130,8 @@ export type SimEvent =
   | { type: 'train_done'; x: number; y: number; team: Team }
   | { type: 'build_placed'; x: number; y: number; team: Team }
   | { type: 'rock_destroyed'; x: number; y: number }
-  | { type: 'camp_cleared'; team: Team };
+  | { type: 'camp_cleared'; team: Team }
+  | { type: 'commander_joined'; team: Team; civ: CivId };
 
 function makePlayer(team: Team): PlayerState {
   return {
@@ -156,6 +158,7 @@ export class World {
   winner: Team | null = null;
   /** Whether the neutral camp reward has been claimed. */
   campRewardGiven = false;
+  isSinglePlayer = false;
   private nextId = 1;
 
   constructor(readonly map: TileMap) {}
@@ -186,6 +189,10 @@ export class World {
     // Rome: Lejyon Disiplini — sturdier units.
     const civHp = team === 2 ? 1 : CIVS[this.players[team].civ].unitHpMul ?? 1;
     const hpMul = (team === 2 ? 1 : this.players[team].upgrades.health) * civHp;
+    let baseHp = def.hp;
+    if (kind === 'commander' && team !== 2 && this.players[team].civ === 'rome') {
+      baseHp *= 1.5;
+    }
     const u: Unit = {
       id: this.nextId++,
       team,
@@ -194,8 +201,8 @@ export class World {
       y,
       prevX: x,
       prevY: y,
-      hp: def.hp * hpMul,
-      maxHp: def.hp * hpMul,
+      hp: baseHp * hpMul,
+      maxHp: baseHp * hpMul,
       alive: true,
       facing: team === 0 ? 1 : -1,
       animTime: 0,
@@ -248,6 +255,7 @@ export class World {
       atkTimer: 0,
       researching: false,
       researchTimer: 0,
+      lastHitBy: null,
     };
     this.buildings.push(b);
     for (let y = ty; y < ty + def.h; y++) {

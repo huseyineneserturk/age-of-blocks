@@ -58,21 +58,25 @@ export class NetConnection {
     this.socket?.emit('listLobby', (state: LobbyState) => this.onLobby(state));
   }
 
-  createRoom(civ: CivId): Promise<string> {
+  createRoom(opts: { civ: CivId; name?: string; password?: string }): Promise<string> {
     return new Promise((resolve) => {
-      this.socket!.emit('createRoom', { civ }, (res: { code: string; team: 0 | 1 }) => {
+      this.socket!.emit('createRoom', opts, (res: { code: string; team: 0 | 1 }) => {
         this.team = res.team;
         resolve(res.code);
       });
     });
   }
 
-  joinRoom(code: string, civ: CivId): Promise<{ ok: boolean; error?: string }> {
+  joinRoom(code: string, civ: CivId, password?: string): Promise<{ ok: boolean; error?: string }> {
     return new Promise((resolve) => {
-      this.socket!.emit('joinRoom', { code, civ }, (res: { ok: boolean; team?: 0 | 1; error?: string }) => {
-        if (res.ok && res.team !== undefined) this.team = res.team;
-        resolve(res);
-      });
+      this.socket!.emit(
+        'joinRoom',
+        { code, civ, password },
+        (res: { ok: boolean; team?: 0 | 1; error?: string }) => {
+          if (res.ok && res.team !== undefined) this.team = res.team;
+          resolve(res);
+        },
+      );
     });
   }
 

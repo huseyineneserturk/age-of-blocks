@@ -25,6 +25,8 @@ const DT = 1 / 20;
 
 export class GameRoom {
   readonly code: string;
+  readonly name: string;
+  private password: string | null;
   private world: World;
   private gameMap: GameMap;
   private players = new Map<string, 0 | 1>(); // socket.id → team
@@ -44,8 +46,12 @@ export class GameRoom {
     code: string,
     private io: Server,
     private onEmpty: () => void,
+    name?: string,
+    password?: string | null,
   ) {
     this.code = code;
+    this.name = (name ?? '').trim().slice(0, 24) || `Oda ${code}`;
+    this.password = password && password.length > 0 ? password : null;
     this.gameMap = buildRiverCrossing();
     this.world = new World(this.gameMap.map);
     setupCommon(this.world, this.gameMap);
@@ -64,6 +70,15 @@ export class GameRoom {
   /** The host (team 0) civilization — shown in the lobby listing. */
   get hostCiv(): CivId {
     return this.world.players[0].civ;
+  }
+
+  /** Whether this room requires a password to join. */
+  get locked(): boolean {
+    return this.password !== null;
+  }
+
+  verifyPassword(pw?: string): boolean {
+    return this.password === null || (pw ?? '') === this.password;
   }
 
   addPlayer(socket: Socket, civ?: CivId): 0 | 1 | null {
@@ -169,7 +184,8 @@ export class GameRoom {
         const tx = Math.round(num(cmd.x));
         const ty = Math.round(num(cmd.y));
         const p = w.players[team];
-        if (p.gold >= def.cost && w.canPlace(cmd.kind, tx, ty)) {
+        const isSideValid = team === 0 ? (tx + def.w <= 30) : (tx >= 34);
+        if (p.gold >= def.cost && w.canPlace(cmd.kind, tx, ty) && isSideValid) {
           p.gold -= def.cost;
           w.placeBuilding(team, cmd.kind, tx, ty);
           w.events.push({ type: 'build_placed', x: tx + def.w / 2, y: ty + def.h / 2, team });

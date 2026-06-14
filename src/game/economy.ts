@@ -26,12 +26,39 @@ export function updateEconomy(world: World, dt: number): void {
 
     // --- Construction ---
     if (b.buildProgress < 1) {
-      const step = def.buildTime > 0 ? dt / def.buildTime : 1;
-      b.buildProgress = Math.min(1, b.buildProgress + step);
-      // HP scales 10% → 100% while building.
-      b.hp = Math.min(b.maxHp, b.hp + b.maxHp * 0.9 * step);
-      if (b.buildProgress >= 1) {
-        b.hp = Math.min(b.maxHp, b.hp);
+      const isAI = (b.team === 1 && world.isSinglePlayer);
+      let canProgress = false;
+      if (isAI) {
+        canProgress = true;
+      } else {
+        const c = world.buildingCenter(b);
+        canProgress = world.units.some(
+          (u) =>
+            u.team === b.team &&
+            u.kind === 'villager' &&
+            u.alive &&
+            u.targetBuildingId === b.id &&
+            Math.hypot(u.x - c.x, u.y - c.y) < 3.0,
+        );
+      }
+
+      if (canProgress) {
+        const step = def.buildTime > 0 ? dt / def.buildTime : 1;
+        b.buildProgress = Math.min(1, b.buildProgress + step);
+        // HP scales 10% → 100% while building.
+        b.hp = Math.min(b.maxHp, b.hp + b.maxHp * 0.9 * step);
+        if (b.buildProgress >= 1) {
+          b.hp = Math.min(b.maxHp, b.hp);
+          // Clear builders targeting this building
+          for (const u of world.units) {
+            if (u.targetBuildingId === b.id && u.kind === 'villager') {
+              u.targetBuildingId = null;
+              u.order = 'idle';
+              u.anchorX = u.x;
+              u.anchorY = u.y;
+            }
+          }
+        }
       }
       continue; // unfinished buildings neither earn nor train
     }
@@ -62,6 +89,18 @@ export function updateEconomy(world: World, dt: number): void {
         b.trainProgress = 0;
         b.queue.shift();
         spawnTrained(world, b, kind);
+      }
+    }
+  }
+
+  for (const team of [0, 1] as PlayerTeam[]) {
+    const p = world.players[team];
+    if (p.civ === 'china') {
+      const hasChinaCommander = world.units.some(
+        (u) => u.team === team && u.kind === 'commander' && u.alive
+      );
+      if (hasChinaCommander) {
+        p.gold += 4 * dt; // China commander yields passive +4 gold/sec
       }
     }
   }

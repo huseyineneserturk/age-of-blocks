@@ -25,6 +25,7 @@ function check(name: string, cond: boolean, detail = ''): void {
 const DT = 1 / 20;
 const gm = buildRiverCrossing();
 const world = new World(gm.map);
+world.isSinglePlayer = true;
 
 // Same initial layout as the game (castles + AI starter towers).
 world.placeBuilding(0, 'castle', gm.playerStart.x - 1, gm.playerStart.y - 1, true);
@@ -50,7 +51,7 @@ for (let t = 0; t < SECONDS / DT; t++) {
 
 const aiBuildings = world.buildings.filter((b) => b.team === 1);
 const mines = aiBuildings.filter((b) => b.kind === 'mine').length;
-const military = aiBuildings.filter((b) => ['barracks', 'archery', 'stable', 'siegeworks', 'magetower'].includes(b.kind)).length;
+const military = aiBuildings.filter((b) => ['barracks', 'archery', 'stable', 'siegeworks'].includes(b.kind)).length;
 const houses = aiBuildings.filter((b) => b.kind === 'house').length;
 const playerCastle = world.buildings.find((b) => b.team === 0 && b.kind === 'castle');
 

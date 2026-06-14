@@ -166,6 +166,15 @@ export class Renderer {
         // 4-tone patchwork
         c.fillStyle = h > 0.75 ? COLORS.grassLight : h > 0.45 ? COLORS.grass : h > 0.2 ? '#1b452a' : COLORS.grassDark;
         c.fillRect(px, py, TILE, TILE);
+        
+        // grass bevels/shading for subtle 3D grid texture
+        c.fillStyle = 'rgba(255,255,255,0.06)'; // highlight top-left
+        c.fillRect(px, py, TILE, 1);
+        c.fillRect(px, py, 1, TILE);
+        c.fillStyle = 'rgba(0,0,0,0.1)'; // shadow bottom-right
+        c.fillRect(px, py + TILE - 1, TILE, 1);
+        c.fillRect(px + TILE - 1, py, 1, TILE);
+
         // grass blade tufts
         const h2 = tileHash(x * 5 + 1, y * 3 + 2);
         if (h2 > 0.55) {
@@ -195,53 +204,98 @@ export class Renderer {
       case Terrain.Forest: {
         c.fillStyle = COLORS.forest;
         c.fillRect(px, py, TILE, TILE);
-        // 2 deterministic trees per tile, with ground shadows
+        // 2 deterministic layered pine trees per tile, with ground shadows
         for (let i = 0; i < 2; i++) {
           const hx = tileHash(x * 3 + i, y * 7 + i);
           const tx = px + 6 + hx * (TILE - 14);
           const ty = py + 6 + tileHash(y * 5 + i, x * 11) * (TILE - 14);
           const r = 5 + hx * 4;
           // shadow
-          c.fillStyle = 'rgba(0,0,0,0.3)';
+          c.fillStyle = 'rgba(0,0,0,0.35)';
           c.beginPath();
           c.ellipse(tx + r * 0.25, ty + r * 1.05, r * 0.8, r * 0.3, 0, 0, Math.PI * 2);
           c.fill();
           // trunk
           c.fillStyle = '#3d2c1a';
           c.fillRect(tx + r * 0.28, ty + r * 0.4, r * 0.22, r * 0.6);
+          
+          // Layered pine tree branches: 3 stacked triangles (canopies)
+          // Bottom canopy
           c.fillStyle = COLORS.treeDark;
           c.beginPath();
-          c.moveTo(tx, ty + r);
-          c.lineTo(tx + r * 0.8, ty + r);
-          c.lineTo(tx + r * 0.4, ty - r);
+          c.moveTo(tx - r * 0.8, ty + r * 0.5);
+          c.lineTo(tx + r * 0.8, ty + r * 0.5);
+          c.lineTo(tx, ty - r * 0.3);
           c.closePath();
           c.fill();
+          
+          // Middle canopy
           c.fillStyle = COLORS.tree;
           c.beginPath();
-          c.moveTo(tx - r * 0.4, ty + r);
-          c.lineTo(tx + r * 0.4, ty + r);
-          c.lineTo(tx, ty - r);
+          c.moveTo(tx - r * 0.6, ty + r * 0.1);
+          c.lineTo(tx + r * 0.6, ty + r * 0.1);
+          c.lineTo(tx, ty - r * 0.7);
           c.closePath();
           c.fill();
-          // canopy highlight
-          c.fillStyle = 'rgba(120, 200, 120, 0.18)';
+          
+          // Top canopy
+          c.fillStyle = '#1c753b';
           c.beginPath();
-          c.moveTo(tx - r * 0.15, ty + r * 0.1);
-          c.lineTo(tx + r * 0.12, ty + r * 0.1);
-          c.lineTo(tx, ty - r * 0.8);
+          c.moveTo(tx - r * 0.4, ty - r * 0.3);
+          c.lineTo(tx + r * 0.4, ty - r * 0.3);
+          c.lineTo(tx, ty - r * 1.1);
+          c.closePath();
+          c.fill();
+
+          // Highlight
+          c.fillStyle = 'rgba(255, 255, 255, 0.14)';
+          c.beginPath();
+          c.moveTo(tx - r * 0.1, ty - r * 0.3);
+          c.lineTo(tx + r * 0.1, ty - r * 0.3);
+          c.lineTo(tx, ty - r * 1.1);
           c.closePath();
           c.fill();
         }
         break;
       }
       case Terrain.Hill: {
-        c.fillStyle = COLORS.hill;
+        // Base grass tile behind hill
+        c.fillStyle = COLORS.grass;
         c.fillRect(px, py, TILE, TILE);
-        c.fillStyle = COLORS.hillLight;
+
+        const hx = px + TILE * 0.5;
+        const hy = py + TILE * 0.3; // Hill peak
+
+        // Ground shadow
+        c.fillStyle = 'rgba(0,0,0,0.18)';
         c.beginPath();
-        c.moveTo(px, py + TILE);
-        c.lineTo(px + TILE * 0.5, py + TILE * 0.25);
-        c.lineTo(px + TILE, py + TILE);
+        c.ellipse(hx, py + TILE * 0.85, TILE * 0.45, TILE * 0.12, 0, 0, Math.PI * 2);
+        c.fill();
+
+        // Left slope (sunlight side)
+        c.fillStyle = '#6e8c4e'; // bright moss green
+        c.beginPath();
+        c.moveTo(px + TILE * 0.15, py + TILE * 0.85);
+        c.lineTo(hx, hy);
+        c.lineTo(hx, py + TILE * 0.85);
+        c.closePath();
+        c.fill();
+
+        // Right slope (shadowed side)
+        c.fillStyle = '#3f5628'; // dark olive green
+        c.beginPath();
+        c.moveTo(hx, hy);
+        c.lineTo(px + TILE * 0.85, py + TILE * 0.85);
+        c.lineTo(hx, py + TILE * 0.85);
+        c.closePath();
+        c.fill();
+
+        // Rocky peak highlight
+        c.fillStyle = '#9bb57b';
+        c.beginPath();
+        c.moveTo(hx - 2, hy + 3);
+        c.lineTo(hx, hy);
+        c.lineTo(hx + 2, hy + 3);
         c.closePath();
         c.fill();
         break;
@@ -251,22 +305,25 @@ export class Renderer {
         const deep = h > 0.5 ? COLORS.water : '#142f4e';
         c.fillStyle = deep;
         c.fillRect(px, py, TILE, TILE);
-        c.strokeStyle = COLORS.waterLight;
-        c.lineWidth = 1.5;
-        const wy = py + TILE * (0.25 + h * 0.35);
-        c.beginPath();
-        c.moveTo(px + 4, wy);
-        c.quadraticCurveTo(px + TILE / 2, wy - 3, px + TILE - 4, wy);
-        c.stroke();
-        c.strokeStyle = 'rgba(120, 170, 220, 0.35)';
-        c.beginPath();
-        c.moveTo(px + 7, wy + TILE * 0.32);
-        c.quadraticCurveTo(px + TILE / 2, wy + TILE * 0.32 - 2.5, px + TILE - 7, wy + TILE * 0.32);
-        c.stroke();
-        if (h > 0.85) {
-          c.fillStyle = 'rgba(200, 230, 255, 0.6)';
-          c.fillRect(px + h * (TILE - 8) + 2, py + (1 - h) * (TILE - 8) + 2, 2, 2);
-        }
+
+        // Shoreline sandy border where water meets land
+        c.fillStyle = '#c5a059'; // warm shoreline sand
+        const checkLand = (tx: number, ty: number) => {
+          if (!map.inBounds(tx, ty)) return false;
+          const nt = map.get(tx, ty);
+          return nt !== Terrain.Water && nt !== Terrain.Bridge;
+        };
+        if (checkLand(x, y - 1)) c.fillRect(px, py, TILE, 3.5); // top
+        if (checkLand(x, y + 1)) c.fillRect(px, py + TILE - 3.5, TILE, 3.5); // bottom
+        if (checkLand(x - 1, y)) c.fillRect(px, py, 3.5, TILE); // left
+        if (checkLand(x + 1, y)) c.fillRect(px + TILE - 3.5, py, 3.5, TILE); // right
+
+        // Bridge shadows on water
+        c.fillStyle = 'rgba(0,0,0,0.45)';
+        if (map.inBounds(x, y - 1) && map.get(x, y - 1) === Terrain.Bridge) c.fillRect(px, py, TILE, 6);
+        if (map.inBounds(x, y + 1) && map.get(x, y + 1) === Terrain.Bridge) c.fillRect(px, py + TILE - 6, TILE, 6);
+        if (map.inBounds(x - 1, y) && map.get(x - 1, y) === Terrain.Bridge) c.fillRect(px, py, 6, TILE);
+        if (map.inBounds(x + 1, y) && map.get(x + 1, y) === Terrain.Bridge) c.fillRect(px + TILE - 6, py, 6, TILE);
         break;
       }
       case Terrain.Bridge: {
@@ -364,6 +421,90 @@ export class Renderer {
     );
     ctx.restore();
 
+    // --- Animated River waves and sparkles ---
+    const bounds = camera.visibleTiles();
+    const time = Date.now() * 0.0012; // animation time in seconds
+    
+    ctx.save();
+    for (let y = bounds.y0; y <= bounds.y1; y++) {
+      for (let x = bounds.x0; x <= bounds.x1; x++) {
+        if (world.map.get(x, y) === Terrain.Water) {
+          const p = camera.worldToScreen(x, y);
+          const size = camera.scale;
+          const hHash = tileHash(x, y);
+          
+          // Draw animated waves!
+          ctx.strokeStyle = COLORS.waterLight;
+          ctx.lineWidth = 1.5 * camera.zoom;
+          
+          // Primary wave: drifts horizontally
+          const waveSpeed1 = 1.5;
+          const wy = p.y + size * (0.25 + hHash * 0.35);
+          const dx = ((time * waveSpeed1 + hHash) * size) % (size * 1.5) - (size * 0.25);
+          
+          ctx.beginPath();
+          ctx.moveTo(p.x + dx, wy);
+          ctx.quadraticCurveTo(p.x + dx + size * 0.25, wy - 3 * camera.zoom, p.x + dx + size * 0.5, wy);
+          
+          // Clip to tile boundaries
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(p.x, p.y, size, size);
+          ctx.clip();
+          ctx.stroke();
+          ctx.restore();
+
+          // Secondary wave: drifts slower, in the opposite direction
+          ctx.strokeStyle = 'rgba(120, 170, 220, 0.35)';
+          const waveSpeed2 = -0.8;
+          const wy2 = wy + size * 0.32;
+          const dx2 = ((time * waveSpeed2 + hHash * 1.7) * size) % (size * 1.5) - (size * 0.25);
+          
+          ctx.beginPath();
+          ctx.moveTo(p.x + dx2, wy2);
+          ctx.quadraticCurveTo(p.x + dx2 + size * 0.25, wy2 - 2.5 * camera.zoom, p.x + dx2 + size * 0.5, wy2);
+          
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(p.x, p.y, size, size);
+          ctx.clip();
+          ctx.stroke();
+          ctx.restore();
+
+          // Sparkles: shift position/fade based on time
+          if (hHash > 0.82) {
+            const opacity = Math.abs(Math.sin(time * 3 + hHash * 10));
+            ctx.fillStyle = `rgba(200, 230, 255, ${opacity * 0.65})`;
+            const sparkleX = p.x + ((hHash * size * 0.7 + time * size * 0.1) % (size * 0.8)) + size * 0.1;
+            const sparkleY = p.y + ((1 - hHash) * size * 0.7 % (size * 0.8)) + size * 0.1;
+            ctx.fillRect(sparkleX, sparkleY, 2 * camera.zoom, 2 * camera.zoom);
+          }
+        }
+      }
+    }
+    ctx.restore();
+
+    // --- Drifting cloud shadows ---
+    const cloudT = Date.now() * 0.00003;
+    ctx.save();
+    ctx.globalCompositeOperation = 'multiply';
+    const clouds = [
+      { x: (cloudT * 40 + 10) % (w + 400) - 200, y: (cloudT * 20 + 50) % (h + 400) - 200, rx: 180, ry: 110 },
+      { x: ((cloudT + 0.35) * 40 + 200) % (w + 400) - 200, y: ((cloudT + 0.35) * 20 + 150) % (h + 400) - 200, rx: 250, ry: 150 },
+      { x: ((cloudT + 0.7) * 40 + 50) % (w + 400) - 200, y: ((cloudT + 0.7) * 20 + 350) % (h + 400) - 200, rx: 190, ry: 120 }
+    ];
+    for (const c of clouds) {
+      const g = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, Math.max(c.rx, c.ry));
+      g.addColorStop(0, 'rgba(10, 20, 40, 0.08)');
+      g.addColorStop(0.5, 'rgba(10, 20, 40, 0.04)');
+      g.addColorStop(1, 'transparent');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.ellipse(c.x, c.y, c.rx, c.ry, 0.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+
     // --- Move markers ---
     for (const m of this.markers) {
       m.age += dt;
@@ -421,7 +562,7 @@ export class Renderer {
       if (u.team !== myTeam && !fog.isVisible(u.x, u.y)) continue; // fog of war
       const inForest = world.map.get(Math.floor(u.x), Math.floor(u.y)) === Terrain.Forest;
       if (inForest) ctx.globalAlpha = 0.55;
-      this.drawUnit(ctx, camera, u, selected.has(u.id), alpha, world.civOf(u.team)?.id);
+      this.drawUnit(ctx, camera, u, selected.has(u.id), alpha, world.civOf(u.team)?.id, world);
       ctx.globalAlpha = 1;
     }
 
@@ -486,8 +627,8 @@ export class Renderer {
       ctx.fillRect(p0.x + pad, p0.y + hpx - pad - 4, (wpx - pad * 2) * Math.min(1, total / 5), 4);
     }
 
-    // HP bar
-    if (b.hp < b.maxHp) {
+    // HP bar (only draw if completed and damaged)
+    if (b.buildProgress >= 1 && b.hp < b.maxHp) {
       const frac = Math.max(0, b.hp / b.maxHp);
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
       ctx.fillRect(p0.x + pad, p0.y - 7, wpx - pad * 2, 5);
@@ -558,20 +699,77 @@ export class Renderer {
       ctx.save();
       ctx.translate(p.x, p.y);
       ctx.rotate(angle);
-      ctx.fillStyle = pr.team === 0 ? '#bcd6ff' : '#ffc9c9';
-      ctx.shadowColor = TEAM_COLORS[pr.team].main;
-      ctx.shadowBlur = 6;
-      ctx.fillRect(-7 * z, -1.2 * z, 14 * z, 2.4 * z);
+      
+      // Tracer fire trail
+      const trailGrad = ctx.createLinearGradient(0, 0, -18 * z, 0);
+      trailGrad.addColorStop(0, TEAM_COLORS[pr.team].main);
+      trailGrad.addColorStop(0.5, TEAM_COLORS[pr.team].glow);
+      trailGrad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.strokeStyle = trailGrad;
+      ctx.lineWidth = 2.5 * z;
       ctx.beginPath();
-      ctx.moveTo(8 * z, 0);
-      ctx.lineTo(4 * z, -3 * z);
-      ctx.lineTo(4 * z, 3 * z);
+      ctx.moveTo(-4 * z, 0);
+      ctx.lineTo(-18 * z, 0);
+      ctx.stroke();
+      
+      // Shaft
+      ctx.strokeStyle = '#a8805e';
+      ctx.lineWidth = 1.2 * z;
+      ctx.beginPath();
+      ctx.moveTo(-6 * z, 0);
+      ctx.lineTo(4 * z, 0);
+      ctx.stroke();
+      
+      // Feathers (fletching)
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(-6 * z, 0);
+      ctx.lineTo(-9 * z, -2 * z);
+      ctx.lineTo(-8 * z, 0);
+      ctx.lineTo(-9 * z, 2 * z);
       ctx.closePath();
       ctx.fill();
+      
+      // Arrowhead
+      ctx.fillStyle = '#cfd6df';
+      ctx.beginPath();
+      ctx.moveTo(6 * z, 0);
+      ctx.lineTo(2 * z, -2 * z);
+      ctx.lineTo(3 * z, 0);
+      ctx.lineTo(2 * z, 2 * z);
+      ctx.closePath();
+      ctx.fill();
+      
       ctx.restore();
     } else {
       // Boulder with a lobbed arc.
       const arcY = -Math.sin(Math.min(1, pr.progress) * Math.PI) * 1.4 * camera.scale;
+      
+      // Flame trail pointing backwards
+      const angle = Math.atan2(pr.ty - pr.sy, pr.tx - pr.sx);
+      ctx.save();
+      ctx.translate(p.x, p.y + arcY);
+      ctx.rotate(angle + Math.PI);
+      
+      const flameGrad = ctx.createRadialGradient(0, 0, 0, -12 * z, 0, 16 * z);
+      flameGrad.addColorStop(0, 'rgba(255, 120, 0, 0.8)');
+      flameGrad.addColorStop(0.4, 'rgba(255, 60, 0, 0.5)');
+      flameGrad.addColorStop(1, 'transparent');
+      ctx.fillStyle = flameGrad;
+      ctx.beginPath();
+      ctx.arc(-6 * z, 0, 16 * z, 0, Math.PI * 2);
+      ctx.fill();
+      
+      for (let i = 0; i < 3; i++) {
+        const offset = -(8 + i * 6) * z;
+        const radius = (6 - i * 1.5) * z;
+        ctx.fillStyle = `rgba(100, 100, 100, ${0.4 - i * 0.1})`;
+        ctx.beginPath();
+        ctx.arc(offset + Math.sin(Date.now() * 0.02 + i) * 2 * z, Math.cos(Date.now() * 0.02 + i) * 2 * z, radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+
       ctx.save();
       ctx.translate(p.x, p.y + arcY);
       ctx.rotate(pr.progress * 14);
@@ -599,7 +797,7 @@ export class Renderer {
     }
   }
 
-  private drawUnit(ctx: CanvasRenderingContext2D, camera: Camera, u: Unit, isSelected: boolean, alpha: number, civ?: CivId): void {
+  private drawUnit(ctx: CanvasRenderingContext2D, camera: Camera, u: Unit, isSelected: boolean, alpha: number, civ?: CivId, world?: World): void {
     const wx = u.prevX + (u.x - u.prevX) * alpha;
     const wy = u.prevY + (u.y - u.prevY) * alpha;
     const p = camera.worldToScreen(wx, wy);
@@ -607,6 +805,26 @@ export class Renderer {
 
     // Cull offscreen
     if (p.x < -60 || p.y < -60 || p.x > camera.viewW + 60 || p.y > camera.viewH + 60) return;
+
+    // Draw gold connection beam if constructing
+    const targetedB = (world && u.kind === 'villager' && u.targetBuildingId !== null)
+      ? world.buildings.find(bb => bb.id === u.targetBuildingId && bb.alive && bb.buildProgress < 1)
+      : null;
+    if (targetedB) {
+      const bc = world!.buildingCenter(targetedB);
+      const bp = camera.worldToScreen(bc.x, bc.y);
+      ctx.save();
+      ctx.strokeStyle = '#ffd700'; // Gold beam
+      ctx.lineWidth = 1.6 * camera.zoom;
+      ctx.setLineDash([4 * camera.zoom, 4 * camera.zoom]);
+      ctx.lineDashOffset = -(Date.now() * 0.012) % 8;
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(bp.x, bp.y);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     const tc = TEAM_COLORS[u.team];
 
@@ -630,11 +848,17 @@ export class Renderer {
     ctx.save();
     ctx.translate(p.x, p.y);
     ctx.scale(u.facing, 1);
-    if (u.attacking) {
+    
+    // Constructing villagers use attack figure pose (for hammer swing)
+    const isBuilding = world && u.kind === 'villager' && u.targetBuildingId !== null &&
+      world.buildings.some(bb => bb.id === u.targetBuildingId && bb.alive && bb.buildProgress < 1);
+    const figureAtk = (u.attacking || isBuilding) ? 1 : 0;
+
+    if (figureAtk) {
       ctx.shadowColor = tc.glow;
       ctx.shadowBlur = 10;
     }
-    drawFigure(ctx, u.kind, civ, u.team, s, walk, u.attacking ? 1 : 0);
+    drawFigure(ctx, u.kind, civ, u.team, s, walk, figureAtk);
     ctx.shadowBlur = 0;
     ctx.restore();
 

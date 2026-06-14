@@ -12,7 +12,7 @@ export const SNAPSHOT_INTERVAL_MS = 100; // 10 Hz state broadcast
 /** Lobby state pushed to every connected client (online count + open rooms). */
 export interface LobbyState {
   online: number;
-  rooms: Array<{ code: string; civ: CivId }>;
+  rooms: Array<{ code: string; civ: CivId; name: string; locked: boolean }>;
 }
 
 export type ClientCommand =

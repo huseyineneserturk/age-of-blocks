@@ -80,10 +80,12 @@ export class MenuScene {
     this.drawSky(ctx, w, h, t);
     this.drawGround(ctx, w, h);
 
-    // --- The five civilizations: larger, on a stone ground band ---
+    // --- The five civilizations on a stone ground band ---
+    // groundY is lifted off the very bottom so the name plaques below each
+    // figure stay fully on screen (they used to be clipped at h*0.93).
     const civs = CIVS;
-    const groundY = h * 0.93;
-    const s = Math.max(36, Math.min(w * 0.052, h * 0.125, 92));
+    const groundY = h * 0.8;
+    const s = Math.max(30, Math.min(w * 0.046, h * 0.1, 74));
 
     // Stone plinth band running across the bottom, behind the figures.
     const bandTop = groundY - s * 0.1;

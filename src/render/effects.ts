@@ -62,8 +62,11 @@ export class Effects {
         case 'camp_cleared':
           break; // handled by the HUD banner
         case 'arrow_fire':
+          this.dustPuff(e.x, e.y, 0.22);
+          break;
         case 'boulder_fire':
-          break; // sound only
+          this.dustPuff(e.x, e.y, 0.5);
+          break;
       }
     }
   }
@@ -145,16 +148,24 @@ export class Effects {
   impact(x: number, y: number, color: string): void {
     this.particles.push({
       x, y, vx: 0, vy: 0, ax: 0, ay: 0,
-      size: 5, color, life: 0.25, maxLife: 0.25, alpha: 1,
-      shrink: -7, type: 'ring', lineWidth: 2.5,
+      size: 6, color, life: 0.22, maxLife: 0.22, alpha: 1,
+      shrink: -8, type: 'ring', lineWidth: 3.0,
     });
-    for (let i = 0; i < 5; i++) {
+    // Center glow flash
+    this.particles.push({
+      x, y, vx: 0, vy: 0, ax: 0, ay: 0,
+      size: 14, color: '#ffffff', life: 0.12, maxLife: 0.12, alpha: 1,
+      shrink: 0.9, type: 'glow',
+    });
+    // sparks
+    const count = 8;
+    for (let i = 0; i < count; i++) {
       const a = Math.random() * Math.PI * 2;
-      const sp = 1.5 + Math.random() * 2.5;
+      const sp = 2.0 + Math.random() * 3.5;
       this.particles.push({
         x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
-        ax: 0, ay: 3, size: 3 + Math.random() * 3, color,
-        life: 0.3, maxLife: 0.3, alpha: 1, shrink: 0.8, type: 'circle',
+        ax: 0, ay: 4, size: 4 + Math.random() * 4, color: i % 2 ? color : '#ffffff',
+        life: 0.25 + Math.random() * 0.15, maxLife: 0.4, alpha: 1, shrink: 0.8, type: 'circle',
       });
     }
   }
@@ -179,6 +190,42 @@ export class Effects {
         ax: 0, ay: 3, size: 6 + Math.random() * 9,
         color: ['#ff4400', '#ff8800', '#ffcc00', '#ffffff'][Math.floor(Math.random() * 4)],
         life: 0.5 + Math.random() * 0.35, maxLife: 0.85, alpha: 1, shrink: 0.6, type: 'circle',
+      });
+    }
+    // Add gray smoke puffs
+    const smokeCount = Math.floor(radius * 8);
+    for (let i = 0; i < smokeCount; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = (0.5 + Math.random() * 1.8) * radius;
+      this.particles.push({
+        x, y,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp - 0.4,
+        ax: 0, ay: 0.4,
+        size: (12 + Math.random() * 16) * radius,
+        color: 'rgba(80, 80, 80, 0.45)',
+        life: 0.4 + Math.random() * 0.3, maxLife: 0.7, alpha: 1, shrink: 0.5, type: 'glow',
+      });
+    }
+  }
+
+  dustPuff(x: number, y: number, scale = 0.3): void {
+    const count = Math.floor(4 + scale * 8);
+    for (let i = 0; i < count; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = (0.5 + Math.random() * 1.5) * scale;
+      this.particles.push({
+        x, y,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp - 0.2,
+        ax: 0, ay: 0.2,
+        size: (4 + Math.random() * 6) * scale * 10,
+        color: 'rgba(210, 205, 195, 0.55)',
+        life: 0.3 + Math.random() * 0.25,
+        maxLife: 0.55,
+        alpha: 1,
+        shrink: 0.5,
+        type: 'glow',
       });
     }
   }

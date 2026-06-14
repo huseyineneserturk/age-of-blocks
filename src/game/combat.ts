@@ -117,6 +117,17 @@ export function updateCombat(world: World, dt: number): void {
       const c = world.buildingCenter(b);
       world.removeBuilding(b);
       world.events.push({ type: 'building_destroyed', x: c.x, y: c.y, team: b.team, kind: b.kind });
+      
+      if (b.team === 2 && b.kind === 'castle') {
+        const destTeam = b.lastHitBy;
+        if (destTeam === 0 || destTeam === 1) {
+          const spawnX = c.x + (destTeam === 0 ? -1.5 : 1.5);
+          const spawnY = c.y;
+          world.spawnUnit(destTeam, 'commander', spawnX, spawnY);
+          world.events.push({ type: 'commander_joined', team: destTeam, civ: world.players[destTeam].civ });
+        }
+      }
+
       if (b.kind === 'castle' && world.winner === null && b.team !== 2) {
         world.winner = b.team === 0 ? 1 : 0;
       }
@@ -247,7 +258,7 @@ function engage(world: World, u: Unit, target: Unit): void {
     u.path = null;
     if (Math.abs(dx) > 0.05) u.facing = dx > 0 ? 1 : -1;
     if (u.atkTimer <= 0) {
-      u.atkTimer = UNITS[u.kind].attackCooldown / upgradesOf(world, u.team).atkspeed;
+      u.atkTimer = attackCooldownOf(world, u);
       u.attacking = true;
       u.attackAnimTimer = ATTACK_ANIM;
       performAttack(world, u, target);
@@ -274,7 +285,7 @@ function engageBuilding(world: World, u: Unit, b: Building): void {
     u.path = null;
     if (Math.abs(c.x - u.x) > 0.05) u.facing = c.x > u.x ? 1 : -1;
     if (u.atkTimer <= 0) {
-      u.atkTimer = UNITS[u.kind].attackCooldown / upgradesOf(world, u.team).atkspeed;
+      u.atkTimer = attackCooldownOf(world, u);
       u.attacking = true;
       u.attackAnimTimer = ATTACK_ANIM;
       performAttackOnBuilding(world, u, b);
@@ -302,7 +313,7 @@ function engageRock(world: World, u: Unit, r: RockEntity): void {
     u.path = null;
     if (Math.abs(cx - u.x) > 0.05) u.facing = cx > u.x ? 1 : -1;
     if (u.atkTimer <= 0) {
-      u.atkTimer = UNITS[u.kind].attackCooldown / upgradesOf(world, u.team).atkspeed;
+      u.atkTimer = attackCooldownOf(world, u);
       u.attacking = true;
       u.attackAnimTimer = ATTACK_ANIM;
       let dmg = unitDamage(world, u);
@@ -324,7 +335,19 @@ function engageRock(world: World, u: Unit, r: RockEntity): void {
 }
 
 function unitDamage(world: World, u: Unit): number {
-  return UNITS[u.kind].damage * upgradesOf(world, u.team).damage;
+  let dmg = UNITS[u.kind].damage;
+  if (u.kind === 'commander' && u.team !== 2 && world.players[u.team]?.civ === 'ottoman') {
+    dmg *= 1.3; // Ottoman commander deals 30% more damage
+  }
+  return dmg * upgradesOf(world, u.team).damage;
+}
+
+function attackCooldownOf(world: World, u: Unit): number {
+  let baseCooldown = UNITS[u.kind].attackCooldown;
+  if (u.kind === 'commander' && u.team !== 2 && world.players[u.team]?.civ === 'celt') {
+    baseCooldown *= 0.8; // Celt commander attacks 20% faster (shorter cooldown)
+  }
+  return baseCooldown / upgradesOf(world, u.team).atkspeed;
 }
 
 function hurt(target: Unit, amount: number, attackerTeam: Team): void {
@@ -333,21 +356,32 @@ function hurt(target: Unit, amount: number, attackerTeam: Team): void {
 }
 
 function performAttack(world: World, u: Unit, target: Unit): void {
-  const def = UNITS[u.kind];
   const dmg = unitDamage(world, u) * counterMultiplier(u.kind, target.kind);
 
   switch (u.kind) {
     case 'archer':
+    case 'janissary':
       world.projectiles.push({
         kind: 'arrow',
         x: u.x, y: u.y, sx: u.x, sy: u.y,
         tx: target.x, ty: target.y,
-        progress: 0, speed: 11,
+        progress: 0, speed: u.kind === 'janissary' ? 16 : 11, // bullets are faster
         targetId: target.id, targetBuildingId: null, shooterId: u.id,
         damage: dmg, splash: 0,
         team: u.team, attackerKind: u.kind,
       });
       world.events.push({ type: 'arrow_fire', x: u.x, y: u.y });
+      break;
+
+    case 'druid':
+      hurt(target, dmg, u.team);
+      world.events.push({
+        type: 'magic_cast',
+        fromX: u.x, fromY: u.y,
+        toX: target.x, toY: target.y,
+        team: u.team
+      });
+      retaliate(target, u);
       break;
 
     case 'catapult':
@@ -363,29 +397,50 @@ function performAttack(world: World, u: Unit, target: Unit): void {
       world.events.push({ type: 'boulder_fire', x: u.x, y: u.y });
       break;
 
-    case 'mage': {
-      const radius = def.aoeRadius ?? 1.5;
-      world.events.push({
-        type: 'magic_cast',
-        fromX: u.x, fromY: u.y, toX: target.x, toY: target.y, team: u.team,
-      });
-      const base = unitDamage(world, u);
-      for (const e of world.units) {
-        if (!e.alive || e.team === u.team) continue;
-        const d = Math.hypot(e.x - target.x, e.y - target.y);
-        if (d <= radius) {
-          const falloff = 1 - (d / radius) * 0.4;
-          hurt(e, base * counterMultiplier(u.kind, e.kind) * falloff, u.team);
-          retaliate(e, u);
+    case 'berserker': {
+      hurt(target, dmg, u.team);
+      world.events.push({ type: 'melee_hit', x: target.x, y: target.y, team: target.team });
+      retaliate(target, u);
+
+      // Berserker splash damage: 50% damage to nearby units in 1.2-tile radius
+      const SPLASH_RADIUS = 1.2;
+      const SPLASH_PERCENT = 0.5;
+      for (const other of world.units) {
+        if (other.id !== target.id && other.team !== u.team && other.alive) {
+          const dist = Math.hypot(other.x - target.x, other.y - target.y);
+          if (dist <= SPLASH_RADIUS) {
+            hurt(other, dmg * SPLASH_PERCENT, u.team);
+            world.events.push({ type: 'melee_hit', x: other.x, y: other.y, team: other.team });
+          }
         }
       }
       break;
     }
 
     default:
-      hurt(target, dmg, u.team);
-      world.events.push({ type: 'melee_hit', x: target.x, y: target.y, team: target.team });
-      retaliate(target, u);
+      if (u.kind === 'commander' && u.team !== 2 && world.players[u.team]?.civ === 'viking') {
+        // Viking Ragnar splash damage!
+        hurt(target, dmg, u.team);
+        world.events.push({ type: 'melee_hit', x: target.x, y: target.y, team: target.team });
+        retaliate(target, u);
+
+        // Find other nearby enemy units
+        const SPLASH_RADIUS = 1.5;
+        const SPLASH_PERCENT = 0.5; // 50% damage to nearby units
+        for (const other of world.units) {
+          if (other.id !== target.id && other.team !== u.team && other.alive) {
+            const dist = Math.hypot(other.x - target.x, other.y - target.y);
+            if (dist <= SPLASH_RADIUS) {
+              hurt(other, dmg * SPLASH_PERCENT, u.team);
+              world.events.push({ type: 'melee_hit', x: other.x, y: other.y, team: other.team });
+            }
+          }
+        }
+      } else {
+        hurt(target, dmg, u.team);
+        world.events.push({ type: 'melee_hit', x: target.x, y: target.y, team: target.team });
+        retaliate(target, u);
+      }
       break;
   }
 }
@@ -398,17 +453,30 @@ function performAttackOnBuilding(world: World, u: Unit, b: Building): void {
 
   switch (u.kind) {
     case 'archer':
+    case 'janissary':
       world.projectiles.push({
         kind: 'arrow',
         x: u.x, y: u.y, sx: u.x, sy: u.y,
         tx: c.x, ty: c.y,
-        progress: 0, speed: 11,
+        progress: 0, speed: u.kind === 'janissary' ? 16 : 11,
         targetId: null, targetBuildingId: b.id, shooterId: u.id,
         damage: dmg, splash: 0,
         team: u.team, attackerKind: u.kind,
       });
       world.events.push({ type: 'arrow_fire', x: u.x, y: u.y });
       break;
+
+    case 'druid':
+      b.hp -= dmg;
+      b.lastHitBy = u.team;
+      world.events.push({
+        type: 'magic_cast',
+        fromX: u.x, fromY: u.y,
+        toX: c.x, toY: c.y,
+        team: u.team
+      });
+      break;
+
     case 'catapult':
       world.projectiles.push({
         kind: 'boulder',
@@ -421,12 +489,10 @@ function performAttackOnBuilding(world: World, u: Unit, b: Building): void {
       });
       world.events.push({ type: 'boulder_fire', x: u.x, y: u.y });
       break;
-    case 'mage':
-      world.events.push({ type: 'magic_cast', fromX: u.x, fromY: u.y, toX: c.x, toY: c.y, team: u.team });
-      b.hp -= dmg;
-      break;
+
     default:
       b.hp -= dmg;
+      b.lastHitBy = u.team;
       world.events.push({ type: 'melee_hit', x: c.x, y: c.y, team: b.team });
       break;
   }

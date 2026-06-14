@@ -60,11 +60,14 @@ function moveToSlots(world: World, units: Unit[], tx: number, ty: number): Map<U
 /** Plain move: ignores enemies en route. */
 export function issueMove(world: World, units: Unit[], tx: number, ty: number): void {
   if (units.length === 0) return;
+  const building = world.buildings.find(
+    (b) => b.alive && tx >= b.x && tx < b.x + b.w && ty >= b.y && ty < b.y + b.h
+  );
   const assigned = moveToSlots(world, units, tx, ty);
   for (const unit of assigned.keys()) {
     unit.order = 'move';
     unit.targetId = null;
-    unit.targetBuildingId = null;
+    unit.targetBuildingId = (building && building.team === unit.team && unit.kind === 'villager') ? building.id : null;
     unit.targetRockId = null;
   }
 }

@@ -4,7 +4,7 @@
 // stuck detector that forces a repath toward the remaining destination.
 
 import { findPath } from '../engine/astar';
-import { Terrain } from '../engine/grid';
+import { Terrain, TileMap } from '../engine/grid';
 import { UNITS } from '../data/units';
 import type { Unit, World } from './world';
 
@@ -70,16 +70,20 @@ export function updateMovement(world: World, dt: number): void {
     ) {
       terrainMul = 1;
     }
-    const speed = def.speed * terrainMul * speedMul;
+    let speed = def.speed * terrainMul * speedMul;
+    if (u.kind === 'commander' && u.team !== 2 && world.players[u.team]?.civ === 'celt') {
+      speed *= 1.3;
+    }
     const step = Math.min(dist, speed * dt);
     const nx = u.x + (dx / dist) * step;
     const ny = u.y + (dy / dist) * step;
 
     // Terrain guard: never walk into an impassable/blocked tile (e.g. a
-    // building placed onto this path after it was computed) — repath instead.
-    if (world.map.passable(Math.floor(nx), Math.floor(ny))) {
-      u.x = nx;
-      u.y = ny;
+    // building placed onto this path after it was computed) — slide/repath instead.
+    const resolved = resolveTerrainCollision(world.map, nx, ny, def.radius);
+    if (world.map.passable(Math.floor(resolved.x), Math.floor(resolved.y))) {
+      u.x = resolved.x;
+      u.y = resolved.y;
       u.moving = true;
       u.animTime += dt;
       if (Math.abs(dx) > 0.05) u.facing = dx > 0 ? 1 : -1;
@@ -156,6 +160,56 @@ function separate(world: World): void {
 function tryShift(world: World, u: Unit, dx: number, dy: number): void {
   const nx = u.x + dx;
   const ny = u.y + dy;
-  if (world.map.passable(Math.floor(nx), Math.floor(u.y))) u.x = nx;
-  if (world.map.passable(Math.floor(u.x), Math.floor(ny))) u.y = ny;
+  const def = UNITS[u.kind];
+  const resolved = resolveTerrainCollision(world.map, nx, ny, def.radius);
+  if (world.map.passable(Math.floor(resolved.x), Math.floor(resolved.y))) {
+    u.x = resolved.x;
+    u.y = resolved.y;
+  }
+}
+
+export function resolveTerrainCollision(map: TileMap, x: number, y: number, r: number): { x: number; y: number } {
+  let cx = x;
+  let cy = y;
+
+  const minX = Math.floor(cx - r);
+  const maxX = Math.floor(cx + r);
+  const minY = Math.floor(cy - r);
+  const maxY = Math.floor(cy + r);
+
+  for (let ty = minY; ty <= maxY; ty++) {
+    for (let tx = minX; tx <= maxX; tx++) {
+      if (!map.passable(tx, ty)) {
+        const px = Math.max(tx, Math.min(cx, tx + 1));
+        const py = Math.max(ty, Math.min(cy, ty + 1));
+
+        const vx = cx - px;
+        const vy = cy - py;
+        const d = Math.hypot(vx, vy);
+
+        if (d < r) {
+          const overlap = r - d;
+          if (d > 0) {
+            cx += (vx / d) * overlap;
+            cy += (vy / d) * overlap;
+          } else {
+            const tileCenterX = tx + 0.5;
+            const tileCenterY = ty + 0.5;
+            const pdx = cx - tileCenterX;
+            const pdy = cy - tileCenterY;
+            const pd = Math.hypot(pdx, pdy);
+            if (pd > 0) {
+              cx += (pdx / pd) * r;
+              cy += (pdy / pd) * r;
+            } else {
+              cx += r;
+              cy += r;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return { x: cx, y: cy };
 }

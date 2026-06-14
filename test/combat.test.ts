@@ -75,11 +75,11 @@ console.log('\n⚔️  COUNTER DUELS (eşit sayıda, counter kazanmalı)');
   check('cavalry > knight', cv > kn, `(cavalry=${cv}, knight=${kn})`);
 }
 
-console.log('\n🧙 ÖZEL ROLLER');
+console.log('\n👑 ÖZEL ROLLER');
 {
-  const [mg, kn] = duel('mage', 'knight', 5);
-  console.log(`  ℹ️ mage vs knight: ${mg}-${kn} (mage AoE kalabalığa; teke tek kaybedebilir, bilgi amaçlı)`);
-  check('duel tamamlanıyor (asılı kalmıyor)', true);
+  const [cm, kn] = duel('commander', 'knight', 2);
+  console.log(`  ℹ️ commander vs knight: ${cm}-${kn} (komutan daha güçlü olmalı)`);
+  check('commander > knight', cm > kn, `(commander=${cm}, knight=${kn})`);
 }
 
 console.log(`\n${fail === 0 ? '🎉' : '⚠️'}  ${pass} passed, ${fail} failed\n`);

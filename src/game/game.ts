@@ -23,7 +23,7 @@ import { Minimap } from '../render/minimap';
 import { Effects } from '../render/effects';
 import { Sound } from '../audio/sound';
 import { Hud } from '../ui/hud';
-import { t, civLabel, civBonus, unitLabel, buildingLabel } from '../i18n';
+import { t, civLabel, civBonus, buildingLabel } from '../i18n';
 import { applySnapshot } from '../net/snapshot';
 import { SNAPSHOT_INTERVAL_MS } from '../net/protocol';
 import type { NetConnection } from '../net/client';
@@ -51,6 +51,7 @@ export class Game {
   private minimap: Minimap;
   private fogTick = 0;
   private netFogTimer = 0;
+  private paused = false;
 
   private acc = 0;
   private last = performance.now();
@@ -87,6 +88,43 @@ export class Game {
       onPickUpgrade: (id) => this.pickUpgradeAction(id),
       onRestart: () => location.reload(),
     });
+    this.hud.initCiv(this.me().civ);
+
+    // Wire up pause modal controls
+    document.getElementById('pause-resume')!.addEventListener('click', () => {
+      this.togglePause();
+    });
+    document.getElementById('pause-restart')!.addEventListener('click', () => {
+      location.reload();
+    });
+    document.getElementById('pause-exit')!.addEventListener('click', () => {
+      location.reload();
+    });
+
+    const musicToggle = document.getElementById('pause-music-toggle') as HTMLInputElement;
+    const sfxToggle = document.getElementById('pause-sfx-toggle') as HTMLInputElement;
+
+    musicToggle.addEventListener('change', () => {
+      const wanted = musicToggle.checked;
+      const gameMusic = document.getElementById('game-music') as HTMLAudioElement;
+      if (wanted) void gameMusic.play().catch(() => {});
+      else gameMusic.pause();
+    });
+
+    sfxToggle.addEventListener('change', () => {
+      this.sound.enabled = sfxToggle.checked;
+    });
+
+    // Wire up help tooltip button
+    const helpBtn = document.getElementById('help-btn')!;
+    const helpTooltip = document.getElementById('help-tooltip')!;
+    helpBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      helpTooltip.classList.toggle('hidden');
+    });
+    window.addEventListener('click', () => {
+      helpTooltip.classList.add('hidden');
+    });
 
     this.resize();
     window.addEventListener('resize', () => this.resize());
@@ -113,6 +151,7 @@ export class Game {
     } else {
       setupCommon(this.world, this.gameMap);
       setupSinglePlayer(this.world, this.gameMap);
+      this.world.isSinglePlayer = true;
       this.ai = new EnemyAI(this.world, this.gameMap, difficulty);
       console.log(`🤖 Düşman AI: ${difficulty}`);
     }
@@ -138,6 +177,7 @@ export class Game {
       onCommand: (sx, sy) => this.command(sx, sy),
       onPan: (dx, dy) => this.camera.panPixels(dx, dy),
       onZoom: (sx, sy, f) => this.camera.zoomAt(sx, sy, f),
+      onDoubleClick: (sx, sy) => this.selectDoubleClick(sx, sy),
     });
 
     window.addEventListener('pointerdown', () => this.sound.init(), { once: true });
@@ -176,6 +216,12 @@ export class Game {
   // --- Building placement ---
 
   private startPlacement(kind: BuildingKind): void {
+    const selectedVillagers = this.world.units.filter((u) => this.selected.has(u.id) && u.kind === 'villager' && u.alive);
+    if (selectedVillagers.length === 0) {
+      this.sound.play('click');
+      this.banner(t('err.needVillagerSelected'));
+      return;
+    }
     if (this.me().gold < BUILDINGS[kind].cost) {
       this.sound.play('click');
       return;
@@ -200,6 +246,27 @@ export class Game {
     this.hud.setHintOverride(null);
   }
 
+  private isPlacementValid(kind: BuildingKind, tx: number, ty: number): boolean {
+    const def = BUILDINGS[kind];
+    if (!this.world.canPlace(kind, tx, ty)) return false;
+
+    // 1. Fog of war check (unexplored places are blocked)
+    for (let y = ty; y < ty + def.h; y++) {
+      for (let x = tx; x < tx + def.w; x++) {
+        if (!this.fog.isExplored(x, y)) return false;
+      }
+    }
+
+    // 2. Opponent side check
+    if (this.myTeam === 0) {
+      if (tx + def.w > 30) return false;
+    } else {
+      if (tx < 34) return false;
+    }
+
+    return true;
+  }
+
   private tryPlace(wx: number, wy: number): void {
     if (!this.placing) return;
     const kind = this.placing;
@@ -207,17 +274,25 @@ export class Game {
     const tx = Math.round(wx - def.w / 2);
     const ty = Math.round(wy - def.h / 2);
 
-    if (this.me().gold < def.cost || !this.world.canPlace(kind, tx, ty)) {
+    if (this.me().gold < def.cost || !this.isPlacementValid(kind, tx, ty)) {
       this.sound.play('click');
       return;
     }
     if (this.net) {
       this.net.send({ t: 'build', kind, x: tx, y: ty });
+      const selectedVillagers = this.world.units.filter((u) => this.selected.has(u.id) && u.kind === 'villager' && u.alive);
+      if (selectedVillagers.length > 0) {
+        this.net.send({ t: 'move', ids: selectedVillagers.map((v) => v.id), x: tx + def.w / 2, y: ty + def.h / 2 });
+      }
       this.sound.play('build');
     } else {
       this.me().gold -= def.cost;
       this.world.placeBuilding(this.myTeam, kind, tx, ty);
       this.world.events.push({ type: 'build_placed', x: tx + def.w / 2, y: ty + def.h / 2, team: this.myTeam });
+      const selectedVillagers = this.world.units.filter((u) => this.selected.has(u.id) && u.kind === 'villager' && u.alive);
+      if (selectedVillagers.length > 0) {
+        issueMove(this.world, selectedVillagers, tx + def.w / 2, ty + def.h / 2);
+      }
     }
     // Walls chain-place; other buildings exit placement mode.
     if (kind !== 'wall') this.stopPlacement();
@@ -298,8 +373,44 @@ export class Game {
     if (any) {
       this.selectedBuildingId = null;
       this.sound.play('select');
+      this.updateSelectionInfo();
     }
-    this.updateSelectionInfo();
+  }
+
+  private selectDoubleClick(sx: number, sy: number): void {
+    const w = this.camera.screenToWorld(sx, sy);
+    let best: Unit | null = null;
+    let bestD = 0.8;
+    for (const u of this.world.units) {
+      if (u.team !== this.myTeam) continue;
+      const d = Math.hypot(u.x - w.x, u.y - w.y);
+      if (d < bestD) {
+        bestD = d;
+        best = u;
+      }
+    }
+
+    if (best) {
+      this.selectedBuildingId = null;
+      this.selected.clear();
+      const kind = best.kind;
+      const bounds = this.camera.visibleTiles();
+      for (const u of this.world.units) {
+        if (
+          u.team === this.myTeam &&
+          u.kind === kind &&
+          u.alive &&
+          u.x >= bounds.x0 &&
+          u.x <= bounds.x1 &&
+          u.y >= bounds.y0 &&
+          u.y <= bounds.y1
+        ) {
+          this.selected.add(u.id);
+        }
+      }
+      this.sound.play('select');
+      this.updateSelectionInfo();
+    }
   }
 
   private selectedIds(): number[] {
@@ -369,6 +480,25 @@ export class Game {
       return;
     }
 
+    // Friendly building under cursor -> construct/repair it.
+    const friendlyB = this.world.buildings.find(
+      (bb) =>
+        bb.team === this.myTeam &&
+        w.x >= bb.x && w.x < bb.x + bb.w && w.y >= bb.y && w.y < bb.y + bb.h,
+    );
+    if (friendlyB && friendlyB.buildProgress < 1) {
+      const villagers = units.filter((u) => u.kind === 'villager');
+      if (villagers.length > 0) {
+        const targetX = friendlyB.x + friendlyB.w / 2;
+        const targetY = friendlyB.y + friendlyB.h / 2;
+        if (this.net) this.net.send({ t: 'move', ids: villagers.map((v) => v.id), x: targetX, y: targetY });
+        else issueMove(this.world, villagers, targetX, targetY);
+        this.renderer.addMoveMarker(targetX, targetY, '#5fd0ff');
+        this.sound.play('click');
+        return;
+      }
+    }
+
     // Cracked rock under cursor → break it open.
     const rock = this.world.rocks.find(
       (r) => r.alive && w.x >= r.x && w.x < r.x + 1 && w.y >= r.y && w.y < r.y + 1,
@@ -435,7 +565,68 @@ export class Game {
   private handleKey(e: KeyboardEvent): void {
     const k = e.key.toLowerCase();
 
-    // Build hotkeys
+    // 1. Cycle villagers shortcut
+    if (k === '.') {
+      const villagers = this.world.units.filter((u) => u.team === this.myTeam && u.kind === 'villager' && u.alive);
+      if (villagers.length > 0) {
+        const currentSelectedId = Array.from(this.selected).find(id => {
+          const u = this.world.units.find(unit => unit.id === id);
+          return u && u.kind === 'villager';
+        });
+        
+        let nextIndex = 0;
+        if (currentSelectedId !== undefined) {
+          const currentIndex = villagers.findIndex(v => v.id === currentSelectedId);
+          if (currentIndex !== -1) {
+            nextIndex = (currentIndex + 1) % villagers.length;
+          }
+        }
+        
+        const nextVillager = villagers[nextIndex];
+        this.selected.clear();
+        this.selected.add(nextVillager.id);
+        this.selectedBuildingId = null;
+        this.camera.centerOn(nextVillager.x, nextVillager.y);
+        this.sound.play('select');
+        this.updateSelectionInfo();
+      }
+      return;
+    }
+
+    // 2. Select unit groups if no villager is selected
+    const hasVillagerSelected = Array.from(this.selected).some((id) => {
+      const u = this.world.units.find((unit) => unit.id === id);
+      return u && u.kind === 'villager' && u.alive;
+    });
+
+    if (!hasVillagerSelected) {
+      let kindsToSelect: UnitKind[] | null = null;
+      if (k === '1') {
+        kindsToSelect = ['knight', 'spear', 'gladiator', 'berserker'];
+      } else if (k === '2') {
+        kindsToSelect = ['archer', 'janissary', 'druid'];
+      } else if (k === '3') {
+        kindsToSelect = ['cavalry'];
+      } else if (k === '4') {
+        kindsToSelect = ['catapult'];
+      }
+
+      if (kindsToSelect) {
+        const units = this.world.units.filter((u) => u.team === this.myTeam && u.alive && kindsToSelect!.includes(u.kind));
+        if (units.length > 0) {
+          this.selected.clear();
+          this.selectedBuildingId = null;
+          for (const u of units) {
+            this.selected.add(u.id);
+          }
+          this.sound.play('select');
+          this.updateSelectionInfo();
+        }
+        return;
+      }
+    }
+
+    // Build hotkeys (only triggered if no selector hotkey matched/returned)
     const byHotkey = BUILD_MENU.find((kind) => BUILDINGS[kind].hotkey === k);
     if (byHotkey) {
       this.startPlacement(byHotkey);
@@ -452,11 +643,15 @@ export class Game {
       } else if (this.attackMoveArmed) {
         this.disarmAttackMove();
       } else {
-        this.selected.clear();
-        this.selectedBuildingId = null;
-        this.updateSelectionInfo();
+        this.togglePause();
       }
     }
+  }
+
+  private togglePause(): void {
+    this.paused = !this.paused;
+    const modal = document.getElementById('pause-modal')!;
+    modal.classList.toggle('hidden', !this.paused);
   }
 
   private disarmAttackMove(): void {
@@ -477,8 +672,45 @@ export class Game {
   }
 
   private updateSelectionInfo(): void {
-    const units = this.world.units.filter((u) => this.selected.has(u.id));
-    this.hud.setSelection(units.map((u) => unitLabel(u.kind)));
+    const units = this.world.units.filter((u) => this.selected.has(u.id) && u.alive);
+    const teamCivs: Record<number, CivId> = {
+      0: this.world.players[0].civ,
+      1: this.world.players[1].civ,
+      2: 'rome', // Neutral team fallback civ
+    };
+
+    this.hud.setSelection(
+      units,
+      teamCivs,
+      (id) => this.selectOnly(id),
+      (kind) => this.selectAllOfKindInSelection(kind)
+    );
+
+    // Check if we have a villager in our selection
+    const hasVillager = units.some((u) => u.team === this.myTeam && u.kind === 'villager' && u.alive);
+    this.hud.setBuildMenuEnabled(hasVillager);
+  }
+
+  selectOnly(unitId: number): void {
+    const u = this.world.units.find((unit) => unit.id === unitId);
+    if (u && u.alive) {
+      this.selected.clear();
+      this.selected.add(u.id);
+      this.selectedBuildingId = null;
+      this.updateSelectionInfo();
+    }
+  }
+
+  private selectAllOfKindInSelection(kind: UnitKind): void {
+    const unitsOfKind = this.world.units.filter(
+      (u) => this.selected.has(u.id) && u.kind === kind && u.alive
+    );
+    this.selected.clear();
+    for (const u of unitsOfKind) {
+      this.selected.add(u.id);
+    }
+    this.selectedBuildingId = null;
+    this.updateSelectionInfo();
   }
 
   // --- Loop ---
@@ -486,6 +718,34 @@ export class Game {
   private frame(now: number): void {
     const elapsed = Math.min(0.1, (now - this.last) / 1000);
     this.last = now;
+
+    if (this.paused && !this.net) {
+      // Shaded preview / render loop when paused in single player
+      this.renderer.render(
+        this.world,
+        this.camera,
+        this.selected,
+        this.selectedBuildingId,
+        null,
+        this.input.dragRect,
+        this.acc / DT,
+        0,
+        this.effects,
+        this.fog,
+        this.myTeam,
+      );
+      this.minimap.render(this.world, this.camera, this.fog, this.myTeam);
+
+      // Keep HUD state updated
+      const me = this.me();
+      const selBuilding = this.selectedBuildingId !== null
+        ? (this.world.getBuilding(this.selectedBuildingId) as Building | undefined) ?? null
+        : null;
+      this.hud.update(me, selBuilding, researchCost(me));
+
+      requestAnimationFrame((t) => this.frame(t));
+      return;
+    }
 
     this.camera.update(elapsed, this.input.keys);
 
@@ -544,6 +804,12 @@ export class Game {
           if (e.team === this.myTeam) this.sound.play('victory');
           continue;
         }
+        if (e.type === 'commander_joined') {
+          const name = t(`comm.${e.civ}`);
+          this.banner(t(e.team === this.myTeam ? 'banner.commOwn' : 'banner.commEnemy', { name }));
+          this.sound.play(e.team === this.myTeam ? 'victory' : 'defeat');
+          continue;
+        }
         if (!visible(e)) continue;
         switch (e.type) {
           case 'melee_hit': this.sound.play('hit'); break;
@@ -588,7 +854,7 @@ export class Game {
         kind: this.placing,
         tileX: tx,
         tileY: ty,
-        valid: this.world.canPlace(this.placing, tx, ty) && this.me().gold >= def.cost,
+        valid: this.isPlacementValid(this.placing, tx, ty) && this.me().gold >= def.cost,
       };
     }
 

@@ -34,10 +34,16 @@ const COUNTER_PICK: Record<UnitKind, UnitKind> = {
   spear: 'archer',
   archer: 'knight',
   cavalry: 'spear',
-  mage: 'cavalry',
   catapult: 'cavalry',
+  villager: 'knight',
+  commander: 'spear',
   golem: 'archer',
   wolf: 'spear',
+  pirate: 'spear',
+  gladiator: 'cavalry',
+  janissary: 'knight',
+  berserker: 'archer',
+  druid: 'knight',
 };
 
 export class EnemyAI {
@@ -46,7 +52,7 @@ export class EnemyAI {
   private waveSize: number;
   private waveStage: 0 | 1 | 2 = 0; // 0 = building up, 1 = marching to bridge, 2 = pushing castle
   private gather: { x: number; y: number };
-  private bridgePoint = { x: 32, y: 33 }; // bottom bridge (the open crossing)
+  private bridgePoint = { x: 32, y: 20 }; // middle bridge (the open crossing)
 
   constructor(
     private world: World,
@@ -175,7 +181,7 @@ export class EnemyAI {
     const siege = this.myBuildings('siegeworks').length;
     const research = this.myBuildings('research');
     const towers = this.myBuildings('tower').length;
-    const militaryCount = barracks + archery + stable + siege + this.myBuildings('magetower').length;
+    const militaryCount = barracks + archery + stable + siege;
 
     // Supply first — never get blocked.
     if (p.supplyCap - p.supplyUsed < 4 && houses < 10) {
@@ -225,6 +231,8 @@ export class EnemyAI {
     const counterWanted = dominant ? COUNTER_PICK[dominant] : null;
 
     for (const b of this.myBuildings()) {
+      if (b.kind === 'castle') continue; // AI does not train villagers
+
       const def = BUILDINGS[b.kind];
       if (!def.trains || b.buildProgress < 1 || b.queue.length >= 2) continue;
       let kind: UnitKind = def.trains[0];

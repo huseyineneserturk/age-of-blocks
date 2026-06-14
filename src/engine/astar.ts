@@ -74,6 +74,9 @@ export function findPath(
   const target = map.nearestPassable(txIn, tyIn, 12);
   if (!start || !target) return null;
   if (start.x === target.x && start.y === target.y) {
+    if (map.passable(Math.floor(txIn), Math.floor(tyIn))) {
+      return [{ x: txIn, y: tyIn }];
+    }
     return [{ x: target.x + 0.5, y: target.y + 0.5 }];
   }
 
@@ -142,7 +145,13 @@ export function findPath(
   }
   tilePath.reverse();
 
-  return smooth(map, tilePath).map((p) => ({ x: p.x + 0.5, y: p.y + 0.5 }));
+  const waypoints = smooth(map, tilePath).map((p) => ({ x: p.x + 0.5, y: p.y + 0.5 }));
+  if (waypoints.length > 0) {
+    if (map.passable(Math.floor(txIn), Math.floor(tyIn))) {
+      waypoints[waypoints.length - 1] = { x: txIn, y: tyIn };
+    }
+  }
+  return waypoints;
 }
 
 /** Check a straight tile-line is fully passable (sampled). */

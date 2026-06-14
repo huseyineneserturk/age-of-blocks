@@ -14,6 +14,7 @@ export interface InputCallbacks {
   onCommand(sx: number, sy: number): void;
   onPan(dxPx: number, dyPx: number): void;
   onZoom(sx: number, sy: number, factor: number): void;
+  onDoubleClick?(sx: number, sy: number): void;
 }
 
 const DRAG_THRESHOLD = 6; // px before a click becomes a box select
@@ -82,6 +83,12 @@ export class Input {
     canvas.addEventListener('mouseup', (e) => {
       if (e.button === 2) {
         cb.onCommand(e.clientX, e.clientY);
+      }
+    });
+
+    canvas.addEventListener('dblclick', (e) => {
+      if (e.button === 0) {
+        cb.onDoubleClick?.(e.clientX, e.clientY);
       }
     });
 

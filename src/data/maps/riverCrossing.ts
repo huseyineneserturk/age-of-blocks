@@ -88,9 +88,14 @@ export function buildRiverCrossing(): GameMap {
   map.fillRect(1, 16, 7, 24, Terrain.Grass);
   map.fillRect(W - 8, 16, W - 2, 24, Terrain.Grass);
 
-  // Cracked rocks seal the TOP bridge — a catapult can open this flank.
+  // Cracked rocks seal the TOP and BOTTOM bridges — catapults can open these flanks.
   const crackedRocks: Array<{ x: number; y: number }> = [];
+  // Top bridge (rows 6-8)
   for (let y = 6; y <= 8; y++) {
+    crackedRocks.push({ x: 31, y }, { x: 32, y });
+  }
+  // Bottom bridge (rows 32-34)
+  for (let y = 32; y <= 34; y++) {
     crackedRocks.push({ x: 31, y }, { x: 32, y });
   }
 

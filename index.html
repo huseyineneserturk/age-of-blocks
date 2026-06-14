@@ -11,6 +11,23 @@
     <canvas id="game"></canvas>
 
     <div id="hud">
+      <!-- Help container (top-right) -->
+      <div id="help-container">
+        <button id="help-btn">?</button>
+        <div id="help-tooltip" class="hidden">
+          <h4 data-i18n="help.title">Kısayollar & Kontroller</h4>
+          <ul>
+            <li><b data-i18n="help.selectLabel">Sol Tık / Sürükle:</b> <span data-i18n="help.selectText">Seçim Yap</span></li>
+            <li><b data-i18n="help.moveLabel">Sağ Tık:</b> <span data-i18n="help.moveText">Yürüt / Saldır</span></li>
+            <li><b data-i18n="help.attackLabel">A + Sol Tık:</b> <span data-i18n="help.attackText">Saldırı Hareketi</span></li>
+            <li><b data-i18n="help.cameraLabel">WASD / Yön Tuşları:</b> <span data-i18n="help.cameraText">Kamerayı Kaydır</span></li>
+            <li><b data-i18n="help.zoomLabel">Tekerlek:</b> <span data-i18n="help.zoomText">Yakınlaştır / Uzaklaştır</span></li>
+            <li><b data-i18n="help.escLabel">ESC:</b> <span data-i18n="help.escText">Seçimi İptal Et / Menü</span></li>
+            <li><b data-i18n="help.hotkeysLabel">Kısayollar (1,2,3...):</b> <span data-i18n="help.hotkeysText">Hızlı İnşa</span></li>
+          </ul>
+        </div>
+      </div>
+
       <div id="top-bar">
         <span id="civ-badge" title=""><span class="cb-emblem">🦅</span><span class="cb-name">—</span></span>
         <span class="res gold"><span class="res-ic">🪙</span><b id="gold">0</b><small id="income"></small></span>
@@ -48,6 +65,50 @@
         </div>
       </div>
 
+      <!-- In-game Pause/Settings Menu -->
+      <div id="pause-modal" class="hidden">
+        <div class="pause-box">
+          <h2 data-i18n="pause.title">Oyun Duraklatıldı</h2>
+          <button id="pause-resume" class="pause-btn" data-i18n="pause.resume">Devam Et</button>
+          <button id="pause-restart" class="pause-btn" data-i18n="pause.restart">Yeniden Başlat</button>
+          
+          <div class="pause-toggle">
+            <span data-i18n="pause.music">Müzik</span>
+            <input type="checkbox" id="pause-music-toggle" checked />
+          </div>
+          <div class="pause-toggle">
+            <span data-i18n="pause.sfx">Ses Efektleri</span>
+            <input type="checkbox" id="pause-sfx-toggle" checked />
+          </div>
+
+          <button id="pause-exit" class="pause-btn danger" data-i18n="pause.exit">Ana Menüye Dön</button>
+        </div>
+      </div>
+
+      <!-- AoE-style Selection Detail Panel -->
+      <div id="selection-panel" class="hidden">
+        <!-- Single Selection Detail -->
+        <div id="sel-single" class="sel-mode">
+          <div id="sel-portrait">⚔️</div>
+          <div id="sel-details">
+            <div id="sel-name">Knight</div>
+            <div id="sel-stats">
+              <span>❤️ <b id="sel-hp">150/150</b></span>
+              <span>⚔️ <b id="sel-atk">14</b></span>
+              <span>🛡️ <b id="sel-range">1.1</b></span>
+              <span>⚡ <b id="sel-speed">2.0</b></span>
+            </div>
+            <div id="sel-desc">Ağır zırhlı yakın dövüş birimi. Okçulara karşı etkilidir.</div>
+          </div>
+        </div>
+        
+        <!-- Multiple Selection Detail -->
+        <div id="sel-multi" class="sel-mode hidden">
+          <div id="sel-grid"></div>
+          <div id="sel-multi-summary" data-i18n="hud.multiSummary">5 Birim Seçildi</div>
+        </div>
+      </div>
+
       <!-- Game over -->
       <div id="gameover" class="hidden">
         <h1 id="go-title">Zafer!</h1>
@@ -72,46 +133,98 @@
       </div>
 
       <div class="mm-frame">
-        <div class="mm-crest">⚔</div>
-        <h1 class="mm-title">AGE OF BLOCKS</h1>
-        <div class="mm-tagline">WAR FRONTS</div>
-        <p class="mm-sub" data-i18n="menu.sub"></p>
-
-        <section class="mm-section">
-          <div class="mm-label" data-i18n="menu.chooseCiv"></div>
-          <div class="mm-civs" id="mm-civs"></div>
-          <p class="mm-civ-bonus" id="mm-civ-bonus"></p>
-        </section>
-
-        <div class="mm-cols">
-          <!-- Single player -->
-          <section class="mm-col">
-            <div class="mm-label" data-i18n="menu.campaign"></div>
-            <div class="mm-diff" id="mm-diff">
-              <button class="mm-diff-btn" data-diff="easy" data-i18n="diff.easy"></button>
-              <button class="mm-diff-btn active" data-diff="normal" data-i18n="diff.normal"></button>
-              <button class="mm-diff-btn" data-diff="hard" data-i18n="diff.hard"></button>
-            </div>
-            <button id="mm-start" data-i18n="menu.start"></button>
-          </section>
-
-          <!-- Multiplayer lobby -->
-          <section class="mm-col">
-            <div class="mm-label" data-i18n="menu.front"></div>
-            <div class="mm-lobby">
-              <div class="mm-lobby-head">
-                <span data-i18n="menu.openRooms"></span>
-                <button id="mm-refresh" class="mm-mini-btn" data-i18n="menu.refresh"></button>
-              </div>
-              <div class="mm-room-list" id="mm-room-list"></div>
-              <button id="mm-create" class="mm-mp-btn" data-i18n="menu.createRoom"></button>
-            </div>
-            <p id="mm-status" class="mm-status hidden"></p>
-          </section>
+        <div class="mm-brand">
+          <div class="mm-crest">⚔</div>
+          <h1 class="mm-title">AGE OF BLOCKS</h1>
+          <div class="mm-tagline">WAR FRONTS</div>
         </div>
+
+        <!-- Screen: mode select (landing) -->
+        <div class="mm-screen active" data-screen="landing">
+          <p class="mm-sub" data-i18n="menu.sub"></p>
+          <div class="mm-modes">
+            <button class="mm-mode-btn" id="mode-single">
+              <span class="mm-mode-ic">🛡️</span>
+              <span class="mm-mode-title" data-i18n="menu.single"></span>
+              <span class="mm-mode-desc" data-i18n="menu.singleDesc"></span>
+            </button>
+            <button class="mm-mode-btn" id="mode-multi">
+              <span class="mm-mode-ic">⚔️</span>
+              <span class="mm-mode-title" data-i18n="menu.multi"></span>
+              <span class="mm-mode-desc" data-i18n="menu.multiDesc"></span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Screen: single player -->
+        <div class="mm-screen" data-screen="single">
+          <button class="mm-back" data-target="landing" data-i18n="menu.back"></button>
+          <div class="mm-label" data-i18n="menu.chooseCiv"></div>
+          <div class="mm-civs" data-civs></div>
+          <p class="mm-civ-bonus" data-civ-bonus></p>
+          <div class="mm-label" data-i18n="menu.difficulty"></div>
+          <div class="mm-diff">
+            <button class="mm-diff-btn" data-diff="easy" data-i18n="diff.easy"></button>
+            <button class="mm-diff-btn active" data-diff="normal" data-i18n="diff.normal"></button>
+            <button class="mm-diff-btn" data-diff="hard" data-i18n="diff.hard"></button>
+          </div>
+          <button id="sp-start" class="mm-primary" data-i18n="menu.start"></button>
+        </div>
+
+        <!-- Screen: multiplayer lobby -->
+        <div class="mm-screen" data-screen="lobby">
+          <button class="mm-back" data-target="landing" data-i18n="menu.back"></button>
+          <div class="mm-lobby-head">
+            <span data-i18n="menu.openRooms"></span>
+            <button id="mm-refresh" class="mm-mini-btn" data-i18n="menu.refresh"></button>
+          </div>
+          <div class="mm-room-list" id="mm-room-list"></div>
+          <button id="open-create" class="mm-primary" data-i18n="menu.createRoom"></button>
+        </div>
+
+        <!-- Screen: create room -->
+        <div class="mm-screen" data-screen="create">
+          <button class="mm-back" data-target="lobby" data-i18n="menu.back"></button>
+          <div class="mm-field">
+            <label class="mm-field-label" data-i18n="menu.roomName"></label>
+            <input id="room-name" class="mm-input" maxlength="24" autocomplete="off" />
+          </div>
+          <div class="mm-field">
+            <label class="mm-field-label" data-i18n="menu.password"></label>
+            <input id="room-pass" class="mm-input" maxlength="24" autocomplete="off" type="password" />
+          </div>
+          <div class="mm-label" data-i18n="menu.chooseCiv"></div>
+          <div class="mm-civs" data-civs></div>
+          <p class="mm-civ-bonus" data-civ-bonus></p>
+          <button id="create-confirm" class="mm-primary" data-i18n="menu.createConfirm"></button>
+        </div>
+
+        <!-- Screen: join room -->
+        <div class="mm-screen" data-screen="join">
+          <button class="mm-back" data-target="lobby" data-i18n="menu.back"></button>
+          <div class="mm-join-title"><span data-i18n="menu.joinTitle"></span>: <b id="join-room-label"></b></div>
+          <div class="mm-field" id="join-pass-field">
+            <label class="mm-field-label" data-i18n="menu.password"></label>
+            <input id="join-pass" class="mm-input" maxlength="24" autocomplete="off" type="password" />
+          </div>
+          <div class="mm-label" data-i18n="menu.chooseCiv"></div>
+          <div class="mm-civs" data-civs></div>
+          <p class="mm-civ-bonus" data-civ-bonus></p>
+          <button id="join-confirm" class="mm-primary" data-i18n="menu.join"></button>
+        </div>
+
+        <!-- Screen: waiting for opponent -->
+        <div class="mm-screen" data-screen="waiting">
+          <div class="mm-spinner"></div>
+          <div class="mm-waiting-msg" data-i18n="menu.roomWaiting"></div>
+          <button id="waiting-cancel" class="mm-secondary cancel" data-i18n="menu.cancel"></button>
+        </div>
+
+        <p id="mm-status" class="mm-status hidden"></p>
       </div>
 
       <audio id="menu-music" src="/audio/menu-theme.mp3" loop preload="auto"></audio>
+      <audio id="game-music" src="/audio/Nomad of the Old Roads.mp3" loop preload="auto"></audio>
     </div>
   </div>
   <script type="module" src="/src/main.ts"></script>
