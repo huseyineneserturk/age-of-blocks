@@ -81,7 +81,7 @@ function darken(hex: string, amt: number): string {
 
 // Smooth sinusoidal walk helper — replaces harsh linear leg swing
 function smoothWalk(walk: number, phase: number): number {
-  return Math.sin((walk + phase) * Math.PI) * 0.95;
+  return Math.sin(walk + phase * Math.PI) * 0.95;
 }
 
 /**
@@ -101,11 +101,12 @@ export function drawFigure(
   const pal = civ ? CIV_PAL[civ] : CIV_PAL.rome;
   const col = pal.cloth;
   const dark = pal.clothDark;
+  const activeCiv = civ || 'rome';
   switch (kind) {
-    case 'cavalry': figCavalry(ctx, s, col, dark, walk, atk); break;
+    case 'cavalry': figCavalry(ctx, s, col, dark, walk, atk, activeCiv); break;
     case 'catapult': figCatapult(ctx, s, col, atk); break;
-    case 'archer': figArcher(ctx, s, col, dark, walk, atk); break;
-    case 'spear': figSpear(ctx, s, col, dark, walk, atk); break;
+    case 'archer': figArcher(ctx, s, col, dark, walk, atk, activeCiv); break;
+    case 'spear': figSpear(ctx, s, col, dark, walk, atk, activeCiv, team); break;
     case 'villager': figVillager(ctx, s, col, dark, walk, atk); break;
     case 'commander': figCommander(ctx, s, col, dark, walk, atk, civ); break;
     case 'golem': figGolem(ctx, s, atk); break;
@@ -115,7 +116,7 @@ export function drawFigure(
     case 'janissary': figJanissary(ctx, s, col, dark, walk, atk); break;
     case 'berserker': figBerserker(ctx, s, col, dark, walk, atk); break;
     case 'druid': figDruid(ctx, s, col, dark, walk, atk); break;
-    default: figKnight(ctx, s, col, dark, walk, atk); break;
+    default: figKnight(ctx, s, col, dark, walk, atk, activeCiv, team); break;
   }
   if (civ && kind !== 'pirate') civAccent(ctx, kind, s, civ, team);
 }
@@ -126,9 +127,8 @@ export function drawFigure(
 // Now with 3D shading.
 // --------------------------------------------------------------------
 
-function civAccent(ctx: Ctx, kind: UnitKind, s: number, civ: CivId, team: Team): void {
+function civAccent(ctx: Ctx, kind: UnitKind, s: number, civ: CivId, _team: Team): void {
   const accent = CIVS[civ].accent;
-  const teamCol = team === 0 ? '#7ab8ff' : team === 1 ? '#ff8a8a' : '#c3a6e6';
 
   let hx = 0;
   let hy = -s * 0.62;
@@ -232,32 +232,6 @@ function civAccent(ctx: Ctx, kind: UnitKind, s: number, civ: CivId, team: Team):
       ctx.stroke();
       break;
     }
-  }
-
-  // Shield mark for shield-bearing infantry: 3D shaded shield boss
-  if (kind === 'knight' || kind === 'spear') {
-    const shx = kind === 'knight' ? -s * 0.34 : -s * 0.32;
-    const shy = -s * 0.05;
-    // Shield body with gradient
-    const sg = ctx.createRadialGradient(shx - s * 0.04, shy - s * 0.03, s * 0.01, shx, shy, s * 0.14);
-    sg.addColorStop(0, lighten(accent, 30));
-    sg.addColorStop(0.7, accent);
-    sg.addColorStop(1, darken(accent, 40));
-    ctx.fillStyle = sg;
-    ctx.beginPath();
-    ctx.arc(shx, shy, s * 0.14, 0, Math.PI * 2);
-    ctx.fill();
-    // Team rim
-    ctx.strokeStyle = teamCol;
-    ctx.lineWidth = s * 0.04;
-    ctx.beginPath();
-    ctx.arc(shx, shy, s * 0.14, 0, Math.PI * 2);
-    ctx.stroke();
-    // Gold boss center
-    ctx.fillStyle = goldGrad(ctx, shx, shy, s * 0.06);
-    ctx.beginPath();
-    ctx.arc(shx, shy, s * 0.06, 0, Math.PI * 2);
-    ctx.fill();
   }
 }
 
@@ -383,26 +357,129 @@ function atkSwing(atk: number): number {
 // UNIT FIGURES — Full 3D Rework
 // =====================================================================
 
-function figKnight(ctx: Ctx, s: number, col: string, dark: string, walk: number, atk: number): void {
-  legs3D(ctx, s, dark, darken(dark, 25), walk);
+// --- Custom Civ drawing helpers for Shields and Weapons ---
 
-  // Back shield — 3D boss with rim highlight
-  const shieldX = -s * 0.34;
-  const shieldY = -s * 0.05;
-  ctx.fillStyle = bodyGrad(ctx, shieldX, shieldY, s * 0.18, dark, darken(dark, 30));
-  ctx.beginPath();
-  ctx.ellipse(shieldX, shieldY, s * 0.16, s * 0.26, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = goldGrad(ctx, shieldX, shieldY, s * 0.16);
-  ctx.lineWidth = s * 0.04;
-  ctx.stroke();
+function drawCivShield(ctx: Ctx, s: number, x: number, y: number, civ: CivId, team: Team, sizeMult: number = 1): void {
+  const r = s * 0.16 * sizeMult;
+  const teamCol = team === 0 ? '#7ab8ff' : team === 1 ? '#ff8a8a' : '#c3a6e6';
 
-  torsoHead3D(ctx, s, col, dark, dark);
+  ctx.save();
+  ctx.translate(x, y);
 
-  // Sword arm with smooth swing
+  switch (civ) {
+    case 'rome': {
+      // Rectangular red/gold scutum shield
+      const w = r * 1.5;
+      const h = r * 2.4;
+      const rx = -w / 2;
+      const ry = -h / 2;
+      ctx.fillStyle = '#9e2a2b';
+      ctx.fillRect(rx, ry, w, h);
+      ctx.fillStyle = '#e63946';
+      ctx.fillRect(rx + 2, ry + 2, w - 4, h - 4);
+      ctx.strokeStyle = '#ffb703';
+      ctx.lineWidth = s * 0.03;
+      ctx.strokeRect(rx + 1, ry + 1, w - 2, h - 2);
+      ctx.fillStyle = goldGrad(ctx, 0, 0, r * 0.4);
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'ottoman': {
+      // Round gilded steel kalkan shield
+      const radius = r * 1.15;
+      ctx.fillStyle = goldGrad(ctx, 0, 0, radius);
+      ctx.beginPath();
+      ctx.arc(0, 0, radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+      ctx.lineWidth = s * 0.02;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.7, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.4, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = teamCol;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.2, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'china': {
+      // Oval dragon shield
+      const w = r * 1.4;
+      const h = r * 2.1;
+      ctx.fillStyle = '#1d3557';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, w / 2, h / 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#ffd700';
+      ctx.lineWidth = s * 0.035;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, (w / 2) - 1, (h / 2) - 1, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = '#e63946';
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'viking': {
+      // Round wooden shield with iron boss
+      const radius = r * 1.15;
+      ctx.fillStyle = '#8a6235';
+      ctx.beginPath();
+      ctx.arc(0, 0, radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#5c401f';
+      ctx.lineWidth = s * 0.025;
+      for (let i = -1; i <= 1; i++) {
+        const px = i * radius * 0.4;
+        ctx.beginPath();
+        ctx.moveTo(px, -Math.sqrt(radius * radius - px * px));
+        ctx.lineTo(px, Math.sqrt(radius * radius - px * px));
+        ctx.stroke();
+      }
+      ctx.strokeStyle = teamCol;
+      ctx.lineWidth = s * 0.05;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius - 1, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = metalGrad(ctx, 0, 0, radius * 0.3);
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'celt': {
+      // Oval Celtic shield with bronze boss and Celtic pattern
+      const w = r * 1.3;
+      const h = r * 2.2;
+      ctx.fillStyle = '#2a9d8f';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, w / 2, h / 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#e9c46a';
+      ctx.lineWidth = s * 0.035;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, (w / 2) - 1.5, (h / 2) - 1.5, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = goldGrad(ctx, 0, 0, r * 0.28);
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.28, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+  }
+
+  ctx.restore();
+}
+
+function drawCivSword(ctx: Ctx, s: number, swing: number, civ: CivId): void {
   ctx.save();
   ctx.translate(s * 0.26, -s * 0.18);
-  const swing = atk ? -0.6 - atkSwing(atk) * 0.7 : -0.25;
   ctx.rotate(swing);
 
   // Arm
@@ -414,43 +491,128 @@ function figKnight(ctx: Ctx, s: number, col: string, dark: string, walk: number,
   ctx.lineTo(0, -s * 0.2);
   ctx.stroke();
 
-  // Sword blade — metallic gradient
-  const sg = ctx.createLinearGradient(-s * 0.05, -s * 0.2, s * 0.05, -s * 0.78);
-  sg.addColorStop(0, PAL.steelDark);
-  sg.addColorStop(0.3, PAL.steelHighlight);
-  sg.addColorStop(0.7, PAL.steel);
-  sg.addColorStop(1, PAL.steelDark);
-  ctx.strokeStyle = sg;
-  ctx.lineWidth = s * 0.08;
-  ctx.beginPath();
-  ctx.moveTo(0, -s * 0.2);
-  ctx.lineTo(0, -s * 0.78);
-  ctx.stroke();
-
-  // Crossguard — gold gradient
-  ctx.fillStyle = goldGrad(ctx, 0, -s * 0.2, s * 0.15);
-  ctx.fillRect(-s * 0.14, -s * 0.23, s * 0.28, s * 0.06);
-
-  // Pommel
-  ctx.fillStyle = PAL.gold;
-  ctx.beginPath();
-  ctx.arc(0, s * 0.04, s * 0.05, 0, Math.PI * 2);
-  ctx.fill();
+  switch (civ) {
+    case 'rome': {
+      // Roman Gladius
+      const sg = ctx.createLinearGradient(-s * 0.05, -s * 0.2, s * 0.05, -s * 0.68);
+      sg.addColorStop(0, PAL.steelDark);
+      sg.addColorStop(0.5, PAL.steelHighlight);
+      sg.addColorStop(1, PAL.steel);
+      ctx.strokeStyle = sg;
+      ctx.lineWidth = s * 0.09;
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 0.2);
+      ctx.lineTo(0, -s * 0.68);
+      ctx.stroke();
+      ctx.fillStyle = PAL.gold;
+      ctx.fillRect(-s * 0.11, -s * 0.23, s * 0.22, s * 0.055);
+      ctx.fillStyle = PAL.gold;
+      ctx.beginPath();
+      ctx.arc(0, s * 0.04, s * 0.04, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'ottoman': {
+      // Curved Scimitar
+      ctx.strokeStyle = PAL.steel;
+      ctx.lineWidth = s * 0.07;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 0.2);
+      ctx.quadraticCurveTo(s * 0.12, -s * 0.5, s * 0.18, -s * 0.76);
+      ctx.stroke();
+      ctx.strokeStyle = PAL.steelHighlight;
+      ctx.lineWidth = s * 0.035;
+      ctx.beginPath();
+      ctx.moveTo(s * 0.02, -s * 0.25);
+      ctx.quadraticCurveTo(s * 0.13, -s * 0.5, s * 0.17, -s * 0.74);
+      ctx.stroke();
+      ctx.fillStyle = PAL.gold;
+      ctx.save();
+      ctx.rotate(0.2);
+      ctx.fillRect(-s * 0.12, -s * 0.22, s * 0.24, s * 0.05);
+      ctx.restore();
+      break;
+    }
+    case 'china': {
+      // Chinese Dao
+      const sg = ctx.createLinearGradient(-s * 0.04, -s * 0.2, s * 0.04, -s * 0.78);
+      sg.addColorStop(0, PAL.steelDark);
+      sg.addColorStop(0.5, PAL.steelHighlight);
+      sg.addColorStop(1, PAL.steel);
+      ctx.strokeStyle = sg;
+      ctx.lineWidth = s * 0.075;
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 0.2);
+      ctx.lineTo(0, -s * 0.78);
+      ctx.stroke();
+      ctx.fillStyle = PAL.gold;
+      ctx.beginPath();
+      ctx.ellipse(0, -s * 0.22, s * 0.09, s * 0.045, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#e74c3c';
+      ctx.lineWidth = s * 0.025;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(s * 0.05, s * 0.1, s * 0.03, s * 0.2);
+      ctx.stroke();
+      break;
+    }
+    case 'viking': {
+      // Viking Battle Axe
+      ctx.strokeStyle = PAL.wood;
+      ctx.lineWidth = s * 0.055;
+      ctx.beginPath();
+      ctx.moveTo(0, s * 0.1);
+      ctx.lineTo(0, -s * 0.65);
+      ctx.stroke();
+      const ag = ctx.createLinearGradient(0, -s * 0.6, s * 0.25, -s * 0.5);
+      ag.addColorStop(0, PAL.steelDark);
+      ag.addColorStop(0.5, PAL.steelHighlight);
+      ag.addColorStop(1, PAL.steel);
+      ctx.fillStyle = ag;
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 0.65);
+      ctx.quadraticCurveTo(s * 0.25, -s * 0.7, s * 0.28, -s * 0.52);
+      ctx.lineTo(s * 0.22, -s * 0.42);
+      ctx.quadraticCurveTo(s * 0.08, -s * 0.38, 0, -s * 0.42);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    }
+    case 'celt': {
+      // Celtic Broadsword
+      const sg = ctx.createLinearGradient(-s * 0.05, -s * 0.2, s * 0.05, -s * 0.85);
+      sg.addColorStop(0, PAL.steelDark);
+      sg.addColorStop(0.5, PAL.steelHighlight);
+      sg.addColorStop(1, PAL.steel);
+      ctx.strokeStyle = sg;
+      ctx.lineWidth = s * 0.08;
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 0.2);
+      ctx.lineTo(0, -s * 0.85);
+      ctx.stroke();
+      ctx.fillStyle = PAL.goldDark;
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.14, -s * 0.26);
+      ctx.lineTo(0, -s * 0.21);
+      ctx.lineTo(s * 0.14, -s * 0.26);
+      ctx.lineTo(0, -s * 0.24);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    }
+  }
 
   ctx.restore();
 }
 
-function figSpear(ctx: Ctx, s: number, col: string, dark: string, walk: number, atk: number): void {
-  legs3D(ctx, s, dark, darken(dark, 25), walk);
-  torsoHead3D(ctx, s, col, dark, dark);
-
-  // Long spear with smooth thrust animation
+function drawCivSpear(ctx: Ctx, s: number, thrust: number, civ: CivId): void {
   ctx.save();
   ctx.translate(s * 0.24, -s * 0.15);
-  const thrust = atk ? 0.05 + atkSwing(atk) * 0.15 : -0.55;
   ctx.rotate(thrust);
 
-  // Shaft — wood gradient
+  // Shaft
   ctx.strokeStyle = woodGrad(ctx, 0, s * 0.5, 0, -s * 1.05);
   ctx.lineWidth = s * 0.06;
   ctx.lineCap = 'round';
@@ -459,38 +621,111 @@ function figSpear(ctx: Ctx, s: number, col: string, dark: string, walk: number, 
   ctx.lineTo(0, -s * 1.05);
   ctx.stroke();
 
-  // Spearhead — metallic
-  const sg = ctx.createLinearGradient(-s * 0.03, -s * 1.0, s * 0.03, -s * 1.25);
-  sg.addColorStop(0, PAL.steelDark);
-  sg.addColorStop(0.4, PAL.steelHighlight);
-  sg.addColorStop(1, PAL.steel);
-  ctx.fillStyle = sg;
-  ctx.beginPath();
-  ctx.moveTo(-s * 0.07, -s * 1.0);
-  ctx.lineTo(0, -s * 1.28);
-  ctx.lineTo(s * 0.07, -s * 1.0);
-  ctx.closePath();
-  ctx.fill();
-  ctx.restore();
+  switch (civ) {
+    case 'rome': {
+      // Pilum spear
+      ctx.strokeStyle = PAL.steelDark;
+      ctx.lineWidth = s * 0.035;
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 0.8);
+      ctx.lineTo(0, -s * 1.15);
+      ctx.stroke();
+      ctx.fillStyle = PAL.steel;
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.05, -s * 1.15);
+      ctx.lineTo(0, -s * 1.25);
+      ctx.lineTo(s * 0.05, -s * 1.15);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    }
+    case 'ottoman': {
+      // Partizan Crescent spear
+      ctx.fillStyle = PAL.steel;
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.06, -s * 1.05);
+      ctx.lineTo(0, -s * 1.28);
+      ctx.lineTo(s * 0.06, -s * 1.05);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = PAL.steelDark;
+      ctx.lineWidth = s * 0.035;
+      ctx.beginPath();
+      ctx.arc(0, -s * 1.0, s * 0.09, Math.PI, 0, true);
+      ctx.stroke();
+      break;
+    }
+    case 'china': {
+      // Chinese Qiang spear with red horsehair tassel
+      ctx.fillStyle = '#e74c3c';
+      ctx.beginPath();
+      ctx.ellipse(0, -s * 1.02, s * 0.08, s * 0.06, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = PAL.steelHighlight;
+      ctx.beginPath();
+      ctx.ellipse(0, -s * 1.15, s * 0.05, s * 0.12, 0, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'viking': {
+      // Hewing spear
+      const sg = ctx.createLinearGradient(-s * 0.04, -s * 1.05, s * 0.04, -s * 1.3);
+      sg.addColorStop(0, PAL.steelDark);
+      sg.addColorStop(0.5, PAL.steelHighlight);
+      sg.addColorStop(1, PAL.steel);
+      ctx.fillStyle = sg;
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.08, -s * 1.05);
+      ctx.lineTo(-s * 0.05, -s * 1.2);
+      ctx.lineTo(0, -s * 1.32);
+      ctx.lineTo(s * 0.05, -s * 1.2);
+      ctx.lineTo(s * 0.08, -s * 1.05);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    }
+    case 'celt': {
+      // Wavy flamespear
+      ctx.fillStyle = PAL.steel;
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 1.0);
+      ctx.bezierCurveTo(-s * 0.08, -s * 1.08, s * 0.08, -s * 1.16, 0, -s * 1.28);
+      ctx.bezierCurveTo(s * 0.08, -s * 1.16, -s * 0.08, -s * 1.08, 0, -s * 1.0);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    }
+  }
 
-  // Small buckler with 3D shading
-  const bx = -s * 0.32;
-  const by = -s * 0.05;
-  ctx.fillStyle = bodyGrad(ctx, bx, by, s * 0.14, dark, darken(dark, 30));
-  ctx.beginPath();
-  ctx.arc(bx, by, s * 0.14, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = PAL.steelDark;
-  ctx.lineWidth = s * 0.03;
-  ctx.stroke();
-  // Boss
-  ctx.fillStyle = metalGrad(ctx, bx, by, s * 0.05);
-  ctx.beginPath();
-  ctx.arc(bx, by, s * 0.05, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.restore();
 }
 
-function figArcher(ctx: Ctx, s: number, col: string, dark: string, walk: number, atk: number): void {
+function figKnight(ctx: Ctx, s: number, col: string, dark: string, walk: number, atk: number, civ: CivId, team: Team): void {
+  legs3D(ctx, s, dark, darken(dark, 25), walk);
+
+  // Draw civilization specific shield on back
+  drawCivShield(ctx, s, -s * 0.34, -s * 0.05, civ, team);
+
+  torsoHead3D(ctx, s, col, dark, dark);
+
+  // Sword/Axe arm with smooth swing
+  const swing = atk ? -0.6 - atkSwing(atk) * 0.7 : -0.25;
+  drawCivSword(ctx, s, swing, civ);
+}
+
+function figSpear(ctx: Ctx, s: number, col: string, dark: string, walk: number, atk: number, civ: CivId, team: Team): void {
+  legs3D(ctx, s, dark, darken(dark, 25), walk);
+  torsoHead3D(ctx, s, col, dark, dark);
+
+  // Long spear with smooth thrust animation
+  const thrust = atk ? 0.05 + atkSwing(atk) * 0.15 : -0.55;
+  drawCivSpear(ctx, s, thrust, civ);
+
+  // Draw civilization specific buckler shield on back (slightly smaller)
+  drawCivShield(ctx, s, -s * 0.32, -s * 0.05, civ, team, 0.85);
+}
+
+function figArcher(ctx: Ctx, s: number, col: string, dark: string, walk: number, atk: number, civ: CivId): void {
   legs3D(ctx, s, dark, darken(dark, 25), walk);
   torsoHead3D(ctx, s, col, dark, null);
 
@@ -522,13 +757,37 @@ function figArcher(ctx: Ctx, s: number, col: string, dark: string, walk: number,
   const by = -s * 0.1;
   const br = s * 0.42;
 
-  // Bow limb — wood gradient
+  // Custom bow shape
   ctx.strokeStyle = woodGrad(ctx, bx - br, by - br, bx + br, by + br);
   ctx.lineWidth = s * 0.065;
   ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.arc(bx, by, br, -Math.PI * 0.55, Math.PI * 0.55);
-  ctx.stroke();
+  
+  if (civ === 'ottoman') {
+    // Ottoman Composite Horn Bow: highly recurved
+    ctx.beginPath();
+    ctx.moveTo(bx + Math.cos(-Math.PI * 0.6) * br, by + Math.sin(-Math.PI * 0.6) * br);
+    ctx.quadraticCurveTo(bx - br * 0.25, by - br * 0.3, bx + br * 0.2, by);
+    ctx.quadraticCurveTo(bx - br * 0.25, by + br * 0.3, bx + Math.cos(Math.PI * 0.6) * br, by + Math.sin(Math.PI * 0.6) * br);
+    ctx.stroke();
+  } else if (civ === 'china') {
+    // Chinese Crossbow prod
+    ctx.beginPath();
+    ctx.moveTo(bx + Math.cos(-Math.PI * 0.5) * br, by + Math.sin(-Math.PI * 0.5) * br);
+    ctx.quadraticCurveTo(bx + br * 0.4, by, bx + Math.cos(Math.PI * 0.5) * br, by + Math.sin(Math.PI * 0.5) * br);
+    ctx.stroke();
+    // Tiller stock
+    ctx.strokeStyle = PAL.woodDark;
+    ctx.lineWidth = s * 0.07;
+    ctx.beginPath();
+    ctx.moveTo(bx - s * 0.1, by);
+    ctx.lineTo(bx + s * 0.3, by);
+    ctx.stroke();
+  } else {
+    // Standard longbow curve
+    ctx.beginPath();
+    ctx.arc(bx, by, br, -Math.PI * 0.55, Math.PI * 0.55);
+    ctx.stroke();
+  }
 
   // Bow tips — gold nocks
   const topx = bx + Math.cos(-Math.PI * 0.55) * br;
@@ -1098,7 +1357,7 @@ function figPirate(ctx: Ctx, s: number, walk: number, atk: number): void {
   ctx.restore();
 }
 
-function figCavalry(ctx: Ctx, s: number, col: string, dark: string, walk: number, atk: number): void {
+function figCavalry(ctx: Ctx, s: number, col: string, dark: string, walk: number, atk: number, civ: CivId): void {
   const horse = '#7a5230';
   const horseDark = '#5a3c22';
   const horseLight = '#9a7a52';
@@ -1144,8 +1403,15 @@ function figCavalry(ctx: Ctx, s: number, col: string, dark: string, walk: number
   ctx.beginPath();
   ctx.ellipse(-s * 0.05, -s * 0.12, s * 0.2, s * 0.12, 0, 0, Math.PI * 2);
   ctx.fill();
-  // Saddle blanket
-  ctx.fillStyle = darken(col, 10);
+  
+  // Saddle blanket — customized color by civilization
+  let blanketCol = col;
+  if (civ === 'rome') blanketCol = '#e63946'; // Roman red
+  else if (civ === 'ottoman') blanketCol = '#2a9d8f'; // Ottoman green
+  else if (civ === 'china') blanketCol = '#ffb703'; // Chinese gold/yellow
+  else if (civ === 'viking') blanketCol = '#5c401f'; // Viking dark brown wood/leather
+  else if (civ === 'celt') blanketCol = '#264653'; // Celtic dark blue/teal
+  ctx.fillStyle = blanketCol;
   ctx.fillRect(-s * 0.25, -s * 0.08, s * 0.4, s * 0.16);
 
   // Horse neck + head — 3D
@@ -1205,13 +1471,15 @@ function figCavalry(ctx: Ctx, s: number, col: string, dark: string, walk: number
   ctx.arc(-s * 0.05, -s * 0.72, s * 0.16, 0, Math.PI * 2);
   ctx.fill();
 
-  // Rider helmet
-  ctx.fillStyle = metalGrad(ctx, -s * 0.05, -s * 0.78, s * 0.18);
-  ctx.beginPath();
-  ctx.arc(-s * 0.05, -s * 0.74, s * 0.17, Math.PI, Math.PI * 2);
-  ctx.fill();
+  // Rider helmet base (not drawn for Celts/Ottomans who wear hair/turbans)
+  if (civ !== 'celt' && civ !== 'ottoman') {
+    ctx.fillStyle = metalGrad(ctx, -s * 0.05, -s * 0.78, s * 0.18);
+    ctx.beginPath();
+    ctx.arc(-s * 0.05, -s * 0.74, s * 0.17, Math.PI, Math.PI * 2);
+    ctx.fill();
+  }
 
-  // Lance with 3D shading
+  // Lance with 3D shading & custom flags
   ctx.save();
   ctx.translate(s * 0.1, -s * 0.35);
   const lanceAngle = atk ? 0.12 + atkSwing(atk) * 0.1 : -0.1;
@@ -1223,6 +1491,7 @@ function figCavalry(ctx: Ctx, s: number, col: string, dark: string, walk: number
   ctx.moveTo(-s * 0.2, 0);
   ctx.lineTo(s * 1.05, 0);
   ctx.stroke();
+
   // Lance head — metallic
   const lg = ctx.createLinearGradient(s * 1.05, -s * 0.06, s * 1.22, 0);
   lg.addColorStop(0, PAL.steelDark);
@@ -1235,14 +1504,28 @@ function figCavalry(ctx: Ctx, s: number, col: string, dark: string, walk: number
   ctx.lineTo(s * 1.05, s * 0.06);
   ctx.closePath();
   ctx.fill();
-  // Lance pennant
-  ctx.fillStyle = col;
-  ctx.beginPath();
-  ctx.moveTo(s * 0.9, -s * 0.06);
-  ctx.lineTo(s * 0.72, -s * 0.14);
-  ctx.lineTo(s * 0.72, s * 0.02);
-  ctx.closePath();
-  ctx.fill();
+
+  // Lance pennant - customized color and design by civilization
+  let pennantCol = col;
+  if (civ === 'rome') pennantCol = '#e63946';
+  else if (civ === 'ottoman') pennantCol = '#2a9d8f';
+  else if (civ === 'china') pennantCol = '#ffb703';
+  else if (civ === 'viking') pennantCol = '#457b9d';
+  else if (civ === 'celt') pennantCol = '#e76f51';
+  ctx.fillStyle = pennantCol;
+
+  if (civ === 'rome') {
+    // Roman vexillum style square banner
+    ctx.fillRect(s * 0.72, -s * 0.14, s * 0.18, s * 0.18);
+  } else {
+    // Triangular pennant
+    ctx.beginPath();
+    ctx.moveTo(s * 0.9, -s * 0.06);
+    ctx.lineTo(s * 0.72, -s * 0.14);
+    ctx.lineTo(s * 0.72, s * 0.02);
+    ctx.closePath();
+    ctx.fill();
+  }
   ctx.restore();
 }
 

@@ -101,22 +101,71 @@ html, body, #app {
 #top-bar .res.supply b { color: #8fd0ff; }
 #top-bar .res small { color: var(--text-dim); font-size: 11px; }
 
-/* ---------- Build menu ---------- */
-#build-menu {
+/* ---------- Build menu container ---------- */
+#build-menu-container {
   position: absolute;
   left: 12px;
   bottom: 12px;
+  z-index: 100;
   display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  padding: 8px 12px 10px;
-  background: linear-gradient(180deg, rgba(26, 21, 12, 0.92), rgba(14, 11, 7, 0.94));
+  flex-direction: column;
+  background: linear-gradient(180deg, rgba(26, 21, 12, 0.94), rgba(14, 11, 7, 0.96));
   border: 1px solid var(--panel-border);
   border-radius: 12px;
   outline: 3px solid rgba(20, 16, 8, 0.85);
   outline-offset: 1px;
   box-shadow: 0 8px 26px rgba(0, 0, 0, 0.6), inset 0 0 18px rgba(0, 0, 0, 0.4);
   pointer-events: auto;
+  overflow: hidden;
+  max-height: 36px;
+  width: auto;
+  transition: max-height 0.35s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+#build-menu-container:hover {
+  max-height: 220px;
+}
+
+#build-menu-trigger {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--gold);
+  cursor: pointer;
+  user-select: none;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(232, 197, 74, 0.15);
+}
+
+#build-menu-trigger:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
+}
+
+.bm-trigger-arrow {
+  margin-left: auto;
+  font-size: 9px;
+  display: inline-block;
+  transition: transform 0.3s ease;
+  color: rgba(232, 197, 74, 0.6);
+}
+
+#build-menu-container:hover .bm-trigger-arrow {
+  transform: rotate(180deg);
+  color: var(--gold);
+}
+
+#build-menu {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 10px 14px 12px;
 }
 .build-group { display: flex; flex-direction: column; gap: 4px; }
 .build-group-label {
@@ -723,9 +772,12 @@ html, body, #app {
   #hint-bar { display: none; }
   /* Build bar can't fit on a phone — make every building reachable via
      horizontal scroll instead of clipping the rightmost group off-screen. */
-  #build-menu {
-    left: 6px; bottom: 6px; gap: 6px; padding: 6px 8px 8px;
+  #build-menu-container {
+    left: 6px; bottom: 6px;
     max-width: calc(100vw - 12px);
+  }
+  #build-menu {
+    gap: 6px; padding: 6px 8px 8px;
     overflow-x: auto;
   }
   #minimap { right: 6px; bottom: 6px; }

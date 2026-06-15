@@ -56,6 +56,7 @@ const UI: Record<Lang, Record<string, string>> = {
     'menu.langName': 'Türkçe',
 
     // HUD
+    'hud.buildings': 'BİNALAR',
     'hud.noSelection': 'Birim seçilmedi',
     'hud.selected': 'Seçili: {x}',
     'hud.selectedBuilding': 'Seçili: {x}',
@@ -184,6 +185,7 @@ const UI: Record<Lang, Record<string, string>> = {
     'menu.langName': 'English',
 
     // HUD
+    'hud.buildings': 'BUILDINGS',
     'hud.noSelection': 'No units selected',
     'hud.selected': 'Selected: {x}',
     'hud.selectedBuilding': 'Selected: {x}',

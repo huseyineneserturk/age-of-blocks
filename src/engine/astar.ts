@@ -69,6 +69,7 @@ export function findPath(
   sy: number,
   txIn: number,
   tyIn: number,
+  radius = 0.35,
 ): Waypoint[] | null {
   const start = map.nearestPassable(sx, sy, 4);
   const target = map.nearestPassable(txIn, tyIn, 12);
@@ -145,7 +146,7 @@ export function findPath(
   }
   tilePath.reverse();
 
-  const waypoints = smooth(map, tilePath).map((p) => ({ x: p.x + 0.5, y: p.y + 0.5 }));
+  const waypoints = smooth(map, tilePath, radius).map((p) => ({ x: p.x + 0.5, y: p.y + 0.5 }));
   if (waypoints.length > 0) {
     if (map.passable(Math.floor(txIn), Math.floor(tyIn))) {
       waypoints[waypoints.length - 1] = { x: txIn, y: tyIn };
@@ -154,29 +155,48 @@ export function findPath(
   return waypoints;
 }
 
-/** Check a straight tile-line is fully passable (sampled). */
-export function lineWalkable(map: TileMap, x0: number, y0: number, x1: number, y1: number): boolean {
+/** Check a straight tile-line is fully passable (sampled with unit radius clearance). */
+export function lineWalkable(
+  map: TileMap,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  radius = 0.35,
+): boolean {
   const dist = Math.hypot(x1 - x0, y1 - y0);
   const steps = Math.max(1, Math.ceil(dist * 3));
   for (let i = 0; i <= steps; i++) {
     const t = i / steps;
-    const x = Math.floor(x0 + (x1 - x0) * t + 0.5);
-    const y = Math.floor(y0 + (y1 - y0) * t + 0.5);
-    if (!map.passable(x, y)) return false;
+    const sx = x0 + (x1 - x0) * t;
+    const sy = y0 + (y1 - y0) * t;
+    
+    // Check all tiles within the unit's radius
+    const minX = Math.floor(sx - radius);
+    const maxX = Math.floor(sx + radius);
+    const minY = Math.floor(sy - radius);
+    const maxY = Math.floor(sy + radius);
+    
+    for (let y = minY; y <= maxY; y++) {
+      for (let x = minX; x <= maxX; x++) {
+        if (!map.passable(x, y)) return false;
+      }
+    }
   }
   return true;
 }
 
-/** Drop intermediate waypoints that have line of sight. */
+/** Drop intermediate waypoints that have line of sight with appropriate clearance. */
 function smooth(
   map: TileMap,
   path: Array<{ x: number; y: number }>,
+  radius: number,
 ): Array<{ x: number; y: number }> {
   if (path.length <= 2) return path.slice(1);
   const out: Array<{ x: number; y: number }> = [];
   let anchor = 0;
   for (let i = 2; i < path.length; i++) {
-    if (!lineWalkable(map, path[anchor].x, path[anchor].y, path[i].x, path[i].y)) {
+    if (!lineWalkable(map, path[anchor].x, path[anchor].y, path[i].x, path[i].y, radius)) {
       out.push(path[i - 1]);
       anchor = i - 1;
     }

@@ -115,7 +115,7 @@ function repathToDestination(world: World, u: Unit): void {
     return;
   }
   const dest = u.path[u.path.length - 1];
-  const p = findPath(world.map, u.x, u.y, dest.x, dest.y);
+  const p = findPath(world.map, u.x, u.y, dest.x, dest.y, UNITS[u.kind].radius);
   u.path = p;
   u.pathIdx = 0;
   u.stuckTimer = 0;
@@ -172,43 +172,50 @@ export function resolveTerrainCollision(map: TileMap, x: number, y: number, r: n
   let cx = x;
   let cy = y;
 
-  const minX = Math.floor(cx - r);
-  const maxX = Math.floor(cx + r);
-  const minY = Math.floor(cy - r);
-  const maxY = Math.floor(cy + r);
+  // Run 3 iterations of relaxation to handle corner or narrow chokepoint squeezes.
+  // This prevents the unit from being pushed out of one tile only to end up inside another.
+  for (let iter = 0; iter < 3; iter++) {
+    const minX = Math.floor(cx - r);
+    const maxX = Math.floor(cx + r);
+    const minY = Math.floor(cy - r);
+    const maxY = Math.floor(cy + r);
+    let resolvedAny = false;
 
-  for (let ty = minY; ty <= maxY; ty++) {
-    for (let tx = minX; tx <= maxX; tx++) {
-      if (!map.passable(tx, ty)) {
-        const px = Math.max(tx, Math.min(cx, tx + 1));
-        const py = Math.max(ty, Math.min(cy, ty + 1));
+    for (let ty = minY; ty <= maxY; ty++) {
+      for (let tx = minX; tx <= maxX; tx++) {
+        if (!map.passable(tx, ty)) {
+          const px = Math.max(tx, Math.min(cx, tx + 1));
+          const py = Math.max(ty, Math.min(cy, ty + 1));
 
-        const vx = cx - px;
-        const vy = cy - py;
-        const d = Math.hypot(vx, vy);
+          const vx = cx - px;
+          const vy = cy - py;
+          const d = Math.hypot(vx, vy);
 
-        if (d < r) {
-          const overlap = r - d;
-          if (d > 0) {
-            cx += (vx / d) * overlap;
-            cy += (vy / d) * overlap;
-          } else {
-            const tileCenterX = tx + 0.5;
-            const tileCenterY = ty + 0.5;
-            const pdx = cx - tileCenterX;
-            const pdy = cy - tileCenterY;
-            const pd = Math.hypot(pdx, pdy);
-            if (pd > 0) {
-              cx += (pdx / pd) * r;
-              cy += (pdy / pd) * r;
+          if (d < r) {
+            const overlap = r - d;
+            if (d > 0) {
+              cx += (vx / d) * overlap;
+              cy += (vy / d) * overlap;
             } else {
-              cx += r;
-              cy += r;
+              const tileCenterX = tx + 0.5;
+              const tileCenterY = ty + 0.5;
+              const pdx = cx - tileCenterX;
+              const pdy = cy - tileCenterY;
+              const pd = Math.hypot(pdx, pdy);
+              if (pd > 0) {
+                cx += (pdx / pd) * r;
+                cy += (pdy / pd) * r;
+              } else {
+                cx += r;
+                cy += r;
+              }
             }
+            resolvedAny = true;
           }
         }
       }
     }
+    if (!resolvedAny) break;
   }
 
   return { x: cx, y: cy };

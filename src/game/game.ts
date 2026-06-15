@@ -6,7 +6,7 @@
 import { Camera } from '../engine/camera';
 import { Input } from '../engine/input';
 import { buildRiverCrossing, type GameMap } from '../data/maps/riverCrossing';
-import { type UnitKind } from '../data/units';
+import { type UnitKind, UNITS } from '../data/units';
 import { BUILDINGS, BUILD_MENU, type BuildingKind } from '../data/buildings';
 import { World, type Building, type Unit, type SimEvent } from './world';
 import { updateMovement } from './movement';
@@ -446,11 +446,11 @@ export class Game {
 
     // Enemy unit under cursor → focus attack (only if visible through fog).
     let target: Unit | null = null;
-    let bestD = 0.85;
+    let bestD = 1.1; // Click tolerance (tiles from the unit's physical boundary)
     for (const u of this.world.units) {
       if (u.team === this.myTeam) continue;
       if (!this.fog.isVisible(u.x, u.y)) continue;
-      const d = Math.hypot(u.x - w.x, u.y - w.y);
+      const d = Math.hypot(u.x - w.x, u.y - w.y) - UNITS[u.kind].radius;
       if (d < bestD) {
         bestD = d;
         target = u;

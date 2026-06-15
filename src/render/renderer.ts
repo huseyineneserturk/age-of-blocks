@@ -844,7 +844,7 @@ export class Renderer {
     ctx.stroke();
     ctx.globalAlpha = 1;
 
-    const walk = u.moving ? Math.sin(u.animTime * 11) : 0;
+    const walk = u.moving ? u.animTime * 11 : 0;
     ctx.save();
     ctx.translate(p.x, p.y);
     ctx.scale(u.facing, 1);

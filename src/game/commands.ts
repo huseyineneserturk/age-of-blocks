@@ -2,6 +2,7 @@
 // slots around the destination so they arrive as a loose block, not a stack.
 
 import { findPath } from '../engine/astar';
+import { UNITS } from '../data/units';
 import type { TileMap } from '../engine/grid';
 import type { Unit, World } from './world';
 
@@ -47,7 +48,7 @@ function moveToSlots(world: World, units: Unit[], tx: number, ty: number): Map<U
       }
     }
     const unit = remaining.splice(bestIdx, 1)[0];
-    const path = findPath(world.map, unit.x, unit.y, slot.x, slot.y);
+    const path = findPath(world.map, unit.x, unit.y, slot.x, slot.y, UNITS[unit.kind].radius);
     if (path) {
       unit.path = path;
       unit.pathIdx = 0;

@@ -11,6 +11,7 @@ import {
 } from '../data/buildings';
 import { findPath } from '../engine/astar';
 import { CIVS } from '../data/civs';
+import { UNITS } from '../data/units';
 import type { Building, PlayerState, World } from './world';
 
 /** Buildings/economy belong to the two players only (never team 2). */
@@ -167,7 +168,7 @@ function spawnTrained(world: World, b: Building, kind: keyof typeof TRAIN): void
 
   // Walk to the rally point if set.
   if (b.rallyX !== null && b.rallyY !== null) {
-    const path = findPath(world.map, u.x, u.y, b.rallyX, b.rallyY);
+    const path = findPath(world.map, u.x, u.y, b.rallyX, b.rallyY, UNITS[u.kind].radius);
     if (path) {
       u.path = path;
       u.pathIdx = 0;

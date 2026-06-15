@@ -198,7 +198,7 @@ function updateAttackMove(world: World, u: Unit): void {
     if (d > 0.6) {
       if (u.repathTimer <= 0) {
         u.repathTimer = REPATH_INTERVAL;
-        const p = findPath(world.map, u.x, u.y, u.amX, u.amY);
+        const p = findPath(world.map, u.x, u.y, u.amX, u.amY, UNITS[u.kind].radius);
         if (p) {
           u.path = p;
           u.pathIdx = 0;
@@ -234,7 +234,7 @@ function updateIdle(world: World, u: Unit): void {
   } else if (anchorDist > 0.9 && !u.path) {
     if (u.repathTimer <= 0) {
       u.repathTimer = REPATH_INTERVAL;
-      const p = findPath(world.map, u.x, u.y, u.anchorX, u.anchorY);
+      const p = findPath(world.map, u.x, u.y, u.anchorX, u.anchorY, UNITS[u.kind].radius);
       if (p) {
         u.path = p;
         u.pathIdx = 0;
@@ -268,7 +268,7 @@ function engage(world: World, u: Unit, target: Unit): void {
 
   if (u.repathTimer <= 0) {
     u.repathTimer = REPATH_INTERVAL;
-    const p = findPath(world.map, u.x, u.y, target.x, target.y);
+    const p = findPath(world.map, u.x, u.y, target.x, target.y, UNITS[u.kind].radius);
     if (p) {
       u.path = p;
       u.pathIdx = 0;
@@ -295,7 +295,7 @@ function engageBuilding(world: World, u: Unit, b: Building): void {
 
   if (u.repathTimer <= 0) {
     u.repathTimer = REPATH_INTERVAL;
-    const p = findPath(world.map, u.x, u.y, c.x, c.y);
+    const p = findPath(world.map, u.x, u.y, c.x, c.y, UNITS[u.kind].radius);
     if (p) {
       u.path = p;
       u.pathIdx = 0;
@@ -326,7 +326,7 @@ function engageRock(world: World, u: Unit, r: RockEntity): void {
 
   if (u.repathTimer <= 0) {
     u.repathTimer = REPATH_INTERVAL;
-    const p = findPath(world.map, u.x, u.y, cx, cy);
+    const p = findPath(world.map, u.x, u.y, cx, cy, UNITS[u.kind].radius);
     if (p) {
       u.path = p;
       u.pathIdx = 0;

@@ -79,6 +79,8 @@ export class Hud {
     this.hintEl.innerHTML = t('hint.controls');
     this.defaultHint = this.hintEl.innerHTML;
     document.getElementById('go-restart')!.textContent = t('go.restart');
+    const triggerTextEl = document.getElementById('bm-trigger-text');
+    if (triggerTextEl) triggerTextEl.textContent = t('hud.buildings');
     this.buildBuildMenu();
     this.researchFab.addEventListener('click', () => {
       this.modalDismissed = false;
