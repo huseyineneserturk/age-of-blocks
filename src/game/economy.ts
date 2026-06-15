@@ -50,9 +50,34 @@ export function updateEconomy(world: World, dt: number): void {
         b.hp = Math.min(b.maxHp, b.hp + b.maxHp * 0.9 * step);
         if (b.buildProgress >= 1) {
           b.hp = Math.min(b.maxHp, b.hp);
-          // Clear builders targeting this building
+          // Clear builders targeting this building, but try to auto-resume first!
           for (const u of world.units) {
-            if (u.targetBuildingId === b.id && u.kind === 'villager') {
+            if (u.targetBuildingId === b.id && u.kind === 'villager' && u.alive) {
+              let bestTarget: Building | null = null;
+              let bestDist = 15.0; // max radius of 15 tiles
+              for (const otherB of world.buildings) {
+                if (otherB.alive && otherB.team === u.team && otherB.buildProgress < 1.0) {
+                  const dist = world.distToBuilding(u.x, u.y, otherB);
+                  if (dist < bestDist) {
+                    bestDist = dist;
+                    bestTarget = otherB;
+                  }
+                }
+              }
+
+              if (bestTarget) {
+                const targetCenter = world.buildingCenter(bestTarget);
+                const path = findPath(world.map, u.x, u.y, targetCenter.x, targetCenter.y, UNITS[u.kind].radius);
+                if (path) {
+                  u.path = path;
+                  u.pathIdx = 0;
+                  u.targetBuildingId = bestTarget.id;
+                  u.order = 'move';
+                  continue;
+                }
+              }
+
+              // Fallback to idle if no nearby building or pathing failed
               u.targetBuildingId = null;
               u.order = 'idle';
               u.anchorX = u.x;

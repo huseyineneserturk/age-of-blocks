@@ -192,6 +192,16 @@ function roof(ctx: CanvasRenderingContext2D, w: number, top: number, pal: CivPal
   switch (pal.roofStyle) {
     case 'dome': {
       const r = rw / 2;
+
+      // 3D Dome side cap/slope (covers the 3D side wall top to prevent exposed flat tops)
+      ctx.fillStyle = pal.roofDark || '#aab2c0';
+      ctx.beginPath();
+      ctx.moveTo(cx, top - r);
+      ctx.lineTo(cx + w * 0.14, top - r - depthY);
+      ctx.lineTo(w * 0.94, top - depthY);
+      ctx.lineTo(rightX, top);
+      ctx.closePath();
+      ctx.fill();
       
       // 3D Dome shadow side (right) - Top-right quadrant only to prevent overlapping walls
       ctx.fillStyle = pal.roofDark || '#aab2c0';
@@ -342,11 +352,31 @@ function roof(ctx: CanvasRenderingContext2D, w: number, top: number, pal: CivPal
 }
 
 function door(ctx: CanvasRenderingContext2D, w: number, h: number): void {
-  ctx.fillStyle = 'rgba(20,12,6,0.8)';
-  ctx.fillRect(w * 0.42, h * 0.62, w * 0.16, h * 0.36);
-  ctx.strokeStyle = 'rgba(0,0,0,0.4)';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(w * 0.42, h * 0.62, w * 0.16, h * 0.36);
+  const dx = w * 0.42;
+  const dy = h * 0.62;
+  const dw = w * 0.16;
+  const dh = h * 0.36;
+
+  // Door background (timber brown)
+  ctx.fillStyle = '#4a2f13';
+  ctx.fillRect(dx, dy, dw, dh);
+  ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+  ctx.lineWidth = 1.2;
+  ctx.strokeRect(dx, dy, dw, dh);
+
+  // Vertical planks
+  ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  ctx.moveTo(dx + dw * 0.33, dy); ctx.lineTo(dx + dw * 0.33, dy + dh);
+  ctx.moveTo(dx + dw * 0.66, dy); ctx.lineTo(dx + dw * 0.66, dy + dh);
+  ctx.stroke();
+
+  // Brass knob
+  ctx.fillStyle = GOLD;
+  ctx.beginPath();
+  ctx.arc(dx + dw * 0.8, dy + dh * 0.5, 1.8, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 // ---------------------------------------------------------------------------
@@ -491,14 +521,14 @@ function drawResearch(ctx: CanvasRenderingContext2D, w: number, h: number, pal: 
 
 function drawTower(ctx: CanvasRenderingContext2D, w: number, h: number, pal: CivPalette, scale: number): void {
   const tw = w * 0.5;
-  const tx = w * 0.4; // shift left
+  const tx = w * 0.18; // Centered to fit in bounding box
   const depthY = w * 0.08;
-  const sideW = w * 0.15;
+  const sideW = w * 0.18;
   
   // Side wall (dark shadow)
   const sideGrad = ctx.createLinearGradient(tx + tw, h * 0.15, tx + tw + sideW, h);
   sideGrad.addColorStop(0, pal.wallDark);
-  sideGrad.addColorStop(1, 'rgba(0,0,0,0.8)');
+  sideGrad.addColorStop(1, 'rgba(0,0,0,0.85)');
   ctx.fillStyle = sideGrad;
   ctx.beginPath();
   ctx.moveTo(tx + tw, h * 0.15);
@@ -572,10 +602,13 @@ function drawWall(ctx: CanvasRenderingContext2D, w: number, h: number, pal: CivP
 }
 
 function drawCastle(ctx: CanvasRenderingContext2D, w: number, h: number, pal: CivPalette, scale: number): void {
-  // central keep walls
+  // 1. central keep walls (drawn first)
   walls(ctx, w, h * 0.34, h, pal);
   
-  // corner towers (taller, with 3D side panels!)
+  // 2. keep roof (civ style) (drawn second so it sits behind the corner towers)
+  roof(ctx, w, h * 0.34, pal, scale, 0.66);
+
+  // 3. corner towers (taller, with 3D side panels! drawn over keep roof)
   const depthY = w * 0.08;
 
   for (const cx of [0.02, 0.64]) {
@@ -606,10 +639,7 @@ function drawCastle(ctx: CanvasRenderingContext2D, w: number, h: number, pal: Ci
     }
   }
 
-  // keep roof (civ style)
-  roof(ctx, w, h * 0.34, pal, scale, 0.66);
-
-  // big gate
+  // 4. big gate (drawn in front)
   ctx.fillStyle = 'rgba(15,10,5,0.85)';
   ctx.beginPath();
   ctx.arc(w * 0.43, h * 0.72, w * 0.13, Math.PI, Math.PI * 2);
@@ -726,24 +756,34 @@ function drawForum(ctx: CanvasRenderingContext2D, w: number, h: number, pal: Civ
   // Main temple backing
   walls(ctx, w, h * 0.42, h * 0.86, pal);
 
-  // Triangular pediment roof
-  ctx.fillStyle = pal.roof;
-  ctx.beginPath();
-  ctx.moveTo(w * 0.05, h * 0.42);
-  ctx.lineTo(w / 2, h * 0.2);
-  ctx.lineTo(w * 0.95, h * 0.42);
-  ctx.closePath();
-  ctx.fill();
+  // Roman wooden door behind the columns
+  ctx.fillStyle = '#4a2f13';
+  ctx.fillRect(w * 0.38, h * 0.62, w * 0.24, h * 0.24);
   ctx.strokeStyle = pal.trim;
-  ctx.lineWidth = scale * 0.08;
-  ctx.stroke();
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(w * 0.38, h * 0.62, w * 0.24, h * 0.24);
+
+  // Triangular pediment roof (using roof helper to render 3D side caps)
+  roof(ctx, w, h * 0.42, pal, scale, 1.0);
 
   // Columns in front of the wall
   ctx.fillStyle = pal.trim;
   const count = 4;
   for (let i = 0; i < count; i++) {
     const cx = w * 0.06 + (w * 0.74 / (count - 1)) * i;
-    ctx.fillRect(cx, h * 0.42, w * 0.06, h * 0.43);
+    // Column base
+    ctx.fillStyle = pal.wallDark;
+    ctx.fillRect(cx - 2, h * 0.82, w * 0.06 + 4, h * 0.04);
+    // Column shaft (with 3D gradient shading)
+    const colGrad = ctx.createLinearGradient(cx, 0, cx + w * 0.06, 0);
+    colGrad.addColorStop(0, lighten(pal.trim, 20));
+    colGrad.addColorStop(0.4, pal.trim);
+    colGrad.addColorStop(1, pal.wallDark);
+    ctx.fillStyle = colGrad;
+    ctx.fillRect(cx, h * 0.42, w * 0.06, h * 0.4);
+    // Column capital (top block)
+    ctx.fillStyle = pal.trim;
+    ctx.fillRect(cx - 2, h * 0.42, w * 0.06 + 4, h * 0.035);
   }
 }
 
@@ -751,11 +791,49 @@ function drawMosque(ctx: CanvasRenderingContext2D, w: number, h: number, pal: Ci
   // Main building body
   walls(ctx, w, h * 0.48, h, pal);
 
-  // Center Dome
+  // 1. Right Side Dome (drawn first so center dome overlaps it, covers right side wall)
+  const cx2 = w * 0.72;
+  const cy2 = h * 0.48;
+  const rx2 = w * 0.15;
+  const ry2 = h * 0.12;
+
+  // Side-dome 3D side cover
+  ctx.fillStyle = pal.roofDark || '#9c2f24';
+  ctx.beginPath();
+  ctx.moveTo(cx2, cy2 - ry2);
+  ctx.lineTo(cx2 + w * 0.12, cy2 - ry2 - w * 0.06);
+  ctx.lineTo(w * 0.94, cy2 - w * 0.08);
+  ctx.lineTo(cx2 + rx2, cy2);
+  ctx.closePath();
+  ctx.fill();
+
+  // Side-dome itself
+  const domeGrad2 = ctx.createRadialGradient(cx2, cy2 - ry2 * 0.3, 0, cx2, cy2, rx2);
+  domeGrad2.addColorStop(0, pal.roof);
+  domeGrad2.addColorStop(0.7, pal.roofDark ?? '#8a1c22');
+  domeGrad2.addColorStop(1, '#221111');
+  ctx.fillStyle = domeGrad2;
+  ctx.beginPath();
+  ctx.ellipse(cx2, cy2, rx2, ry2, 0, Math.PI, Math.PI * 2);
+  ctx.fill();
+
+  // 2. Center Dome
   const rx = w * 0.28;
   const ry = h * 0.22;
   const cx = w * 0.43;
   const cy = h * 0.48;
+
+  // Center dome 3D side cover
+  ctx.fillStyle = pal.roofDark || '#9c2f24';
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - ry);
+  ctx.lineTo(cx + w * 0.14, cy - ry - w * 0.08);
+  ctx.lineTo(w * 0.8, cy - w * 0.08);
+  ctx.lineTo(w * 0.8, cy);
+  ctx.closePath();
+  ctx.fill();
+
+  // Main Center dome
   const domeGrad = ctx.createRadialGradient(cx, cy - ry * 0.3, 0, cx, cy, rx);
   domeGrad.addColorStop(0, pal.roof);
   domeGrad.addColorStop(0.7, pal.roofDark ?? '#8a1c22');
@@ -855,32 +933,45 @@ function drawCaravanserai(ctx: CanvasRenderingContext2D, w: number, h: number, p
 }
 
 function drawPagoda(ctx: CanvasRenderingContext2D, w: number, h: number, pal: CivPalette, scale: number): void {
-  // Renders a 3-tiered Chinese Pagoda
-  // Tier 1 (Base)
+  // Renders a centered 3-tiered Chinese Pagoda
+  // Tier 1 (Base) - width w
   walls(ctx, w, h * 0.65, h, pal);
   roof(ctx, w, h * 0.65, pal, scale, 0.9);
 
-  // Tier 2 (Middle)
+  // Tier 2 (Middle) - width w * 0.8, translated by w * 0.13 to center peak
+  ctx.save();
+  ctx.translate(w * 0.13, 0);
   walls(ctx, w * 0.8, h * 0.4, h * 0.65, pal);
   roof(ctx, w * 0.8, h * 0.4, pal, scale, 0.75);
+  ctx.restore();
 
-  // Tier 3 (Top)
+  // Tier 3 (Top) - width w * 0.6, translated by w * 0.245 to center peak
+  ctx.save();
+  ctx.translate(w * 0.245, 0);
   walls(ctx, w * 0.6, h * 0.2, h * 0.4, pal);
   roof(ctx, w * 0.6, h * 0.2, pal, scale, 0.55);
+  ctx.restore();
 
-  // Golden spire spire on top
+  // Golden spire precisely in the center of the aligned top tier peak
+  const peakX = w * 0.387;
   ctx.strokeStyle = GOLD;
   ctx.lineWidth = scale * 0.07;
   ctx.beginPath();
-  ctx.moveTo(w * 0.43, h * 0.2);
-  ctx.lineTo(w * 0.43, h * 0.05);
+  ctx.moveTo(peakX, h * 0.2);
+  ctx.lineTo(peakX, h * 0.03);
   ctx.stroke();
+
+  // Spire details
+  ctx.fillStyle = GOLD;
+  ctx.beginPath();
+  ctx.arc(peakX, h * 0.08, scale * 0.06, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 function drawBastion(ctx: CanvasRenderingContext2D, w: number, h: number, pal: CivPalette, scale: number): void {
-  // Heavy battle tower. Wider than standard tower.
-  const tw = w * 0.65;
-  const tx = w * 0.25;
+  // Heavy battle tower. Wider than standard tower. Centered inside bounding box.
+  const tw = w * 0.58;
+  const tx = w * 0.12;
   const depthY = w * 0.08;
   const sideW = w * 0.16;
 
@@ -921,57 +1012,126 @@ function drawLonghouse(ctx: CanvasRenderingContext2D, w: number, h: number, pal:
   // Wooden walls
   walls(ctx, w, h * 0.55, h, pal);
 
-  // Large steep thatched triangular roof
-  ctx.fillStyle = '#d2b48c'; // straw tan
-  ctx.beginPath();
-  ctx.moveTo(w * 0.05, h * 0.55);
-  ctx.lineTo(w / 2, h * 0.15);
-  ctx.lineTo(w * 0.95, h * 0.55);
-  ctx.closePath();
-  ctx.fill();
+  // Use roof helper to render a detailed 3D roof
+  roof(ctx, w, h * 0.55, pal, scale, 1.02);
 
-  // Crisscrossed support timber framing on front gable
-  ctx.strokeStyle = '#5a3d28';
-  ctx.lineWidth = scale * 0.08;
+  // Detailed wooden door with planks and hinges
+  const dx = w * 0.4;
+  const dy = h * 0.72;
+  const dw = w * 0.18;
+  const dh = h * 0.26;
+  ctx.fillStyle = '#3f2b18'; // dark timber
+  ctx.fillRect(dx, dy, dw, dh);
+  ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(dx, dy, dw, dh);
+
+  // vertical planks
   ctx.beginPath();
-  ctx.moveTo(w * 0.05, h * 0.55); ctx.lineTo(w * 0.95, h * 0.55);
-  ctx.moveTo(w * 0.12, h * 0.55); ctx.lineTo(w / 2 + scale * 0.1, h * 0.15);
-  ctx.moveTo(w * 0.88, h * 0.55); ctx.lineTo(w / 2 - scale * 0.1, h * 0.15);
+  ctx.moveTo(dx + dw * 0.33, dy); ctx.lineTo(dx + dw * 0.33, dy + dh);
+  ctx.moveTo(dx + dw * 0.66, dy); ctx.lineTo(dx + dw * 0.66, dy + dh);
   ctx.stroke();
 
-  // Dark door
-  ctx.fillStyle = '#221105';
-  ctx.fillRect(w * 0.4, h * 0.72, w * 0.18, h * 0.26);
+  // metal hinges
+  ctx.strokeStyle = pal.metal || '#7a7a7a';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(dx, dy + dh * 0.3); ctx.lineTo(dx + dw * 0.4, dy + dh * 0.3);
+  ctx.moveTo(dx, dy + dh * 0.7); ctx.lineTo(dx + dw * 0.4, dy + dh * 0.7);
+  ctx.stroke();
+
+  // cozy glowing window
+  ctx.fillStyle = 'rgba(255,200,100,0.7)';
+  ctx.fillRect(w * 0.2, h * 0.64, w * 0.1, h * 0.1);
+  ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+  ctx.strokeRect(w * 0.2, h * 0.64, w * 0.1, h * 0.1);
 }
 
 function drawShrine(ctx: CanvasRenderingContext2D, w: number, h: number, pal: CivPalette, scale: number): void {
-  // Grassy stone platform
-  ctx.fillStyle = '#4a5d4e';
-  ctx.fillRect(w * 0.1, h * 0.75, w * 0.8, h * 0.23);
+  // Grassy stone platform with 3D side paneling
+  const depthY = w * 0.05;
+  const topY = h * 0.76;
+  const bottomY = h * 0.98;
+  const rightSide = w * 0.8;
 
-  // Carved standing wooden pillars on sides
-  ctx.fillStyle = '#6b4c35';
-  ctx.fillRect(w * 0.15, h * 0.38, w * 0.1, h * 0.42);
-  ctx.fillRect(w * 0.75, h * 0.38, w * 0.1, h * 0.42);
+  // 1. Side panel of platform (dark gray-green stone shadow)
+  ctx.fillStyle = '#3c403d';
+  ctx.beginPath();
+  ctx.moveTo(rightSide, topY);
+  ctx.lineTo(rightSide + w * 0.1, topY - depthY);
+  ctx.lineTo(rightSide + w * 0.1, bottomY - depthY);
+  ctx.lineTo(rightSide, bottomY);
+  ctx.closePath();
+  ctx.fill();
+
+  // 2. Top surface (grassy green)
+  ctx.fillStyle = '#4c634e';
+  ctx.beginPath();
+  ctx.moveTo(w * 0.1, topY);
+  ctx.lineTo(w * 0.1 + w * 0.1, topY - depthY);
+  ctx.lineTo(rightSide + w * 0.1, topY - depthY);
+  ctx.lineTo(rightSide, topY);
+  ctx.closePath();
+  ctx.fill();
+
+  // 3. Front panel of platform (lighted stone gray)
+  ctx.fillStyle = '#5c635e';
+  ctx.fillRect(w * 0.1, topY, w * 0.7, bottomY - topY);
+
+  // Stone lines/texture on front panel
+  ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(w * 0.1, topY + (bottomY - topY) * 0.5);
+  ctx.lineTo(rightSide, topY + (bottomY - topY) * 0.5);
+  ctx.stroke();
+
+  // Standing wooden pillars (left/right)
+  const px1 = w * 0.18;
+  const px2 = w * 0.68;
+  const pw = w * 0.08;
+  const ph = h * 0.42;
+  const ptop = h * 0.38;
+
+  // Shaded wooden pillars
+  const woodGrad = ctx.createLinearGradient(px1, 0, px1 + pw, 0);
+  woodGrad.addColorStop(0, '#8b5a2b');
+  woodGrad.addColorStop(0.5, '#6b4c35');
+  woodGrad.addColorStop(1, '#4a2f13');
+  ctx.fillStyle = woodGrad;
+  ctx.fillRect(px1, ptop, pw, ph);
+  
+  const woodGrad2 = ctx.createLinearGradient(px2, 0, px2 + pw, 0);
+  woodGrad2.addColorStop(0, '#8b5a2b');
+  woodGrad2.addColorStop(0.5, '#6b4c35');
+  woodGrad2.addColorStop(1, '#4a2f13');
+  ctx.fillStyle = woodGrad2;
+  ctx.fillRect(px2, ptop, pw, ph);
 
   // Cross beam
-  ctx.fillRect(w * 0.12, h * 0.34, w * 0.76, h * 0.08);
+  ctx.fillStyle = '#5a3d28';
+  ctx.fillRect(w * 0.14, h * 0.34, w * 0.66, h * 0.08);
 
   // Shields mounted on the pillars
-  for (const sx of [w * 0.2, w * 0.8]) {
+  for (const sx of [px1 + pw / 2, px2 + pw / 2]) {
     ctx.fillStyle = pal.roof;
     ctx.beginPath();
-    ctx.arc(sx, h * 0.55, scale * 0.18, 0, Math.PI * 2);
+    ctx.arc(sx, h * 0.52, scale * 0.18, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = pal.trim;
+    ctx.lineWidth = 2;
     ctx.stroke();
+    // shield boss
+    ctx.fillStyle = pal.metal || '#aaa';
+    ctx.beginPath();
+    ctx.arc(sx, h * 0.52, scale * 0.06, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   // Central Fire Pit
-  ctx.fillStyle = '#2a2a2a';
+  ctx.fillStyle = '#1c1c1c';
   ctx.beginPath();
-  ctx.ellipse(w / 2, h * 0.86, w * 0.18, h * 0.08, 0, 0, Math.PI * 2);
+  ctx.ellipse(w / 2, h * 0.84, w * 0.16, h * 0.06, 0, 0, Math.PI * 2);
   ctx.fill();
 
   // Bonfire flames
@@ -979,7 +1139,7 @@ function drawShrine(ctx: CanvasRenderingContext2D, w: number, h: number, pal: Ci
   for (let i = 0; i < 3; i++) {
     const fR = scale * (0.12 + Math.sin(time + i) * 0.03);
     const fx = w / 2 + Math.sin(time + i * 2) * scale * 0.08;
-    const fy = h * 0.75 + Math.cos(time + i) * scale * 0.04;
+    const fy = h * 0.74 + Math.cos(time + i) * scale * 0.04;
     ctx.fillStyle = i === 0 ? '#ff4500' : i === 1 ? '#ff8c00' : '#ffd700';
     ctx.beginPath();
     ctx.arc(fx, fy, fR, 0, Math.PI * 2);
