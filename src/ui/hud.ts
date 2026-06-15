@@ -452,10 +452,13 @@ export class Hud {
     });
   }
 
-  setFormationStancePanelVisible(visible: boolean): void {
+  setFormationStancePanelVisible(visible: boolean, hasVillager = false): void {
     const el = document.getElementById('formation-stance-panel');
     if (el) {
       el.classList.toggle('hidden', !visible);
+      if (visible) {
+        el.style.bottom = hasVillager ? '68px' : '12px';
+      }
     }
   }
 

@@ -415,7 +415,7 @@ export class Game {
       this.selected.clear();
       this.selectedBuildingId = b.id;
       this.sound.play('select');
-      this.hud.setSelectionText(t('hud.selectedBuilding', { x: `${BUILDINGS[b.kind].icon} ${buildingLabel(b.kind)}` }));
+      this.updateSelectionInfo();
       return;
     }
 
@@ -451,6 +451,9 @@ export class Game {
     if (any) {
       this.selectedBuildingId = null;
       this.sound.play('select');
+      this.updateSelectionInfo();
+    } else if (!additive) {
+      this.selectedBuildingId = null;
       this.updateSelectionInfo();
     }
   }
@@ -759,6 +762,19 @@ export class Game {
 
   private updateSelectionInfo(): void {
     const units = this.world.units.filter((u) => this.selected.has(u.id) && u.alive);
+
+    if (this.selectedBuildingId !== null && units.length === 0) {
+      const b = this.world.getBuilding(this.selectedBuildingId);
+      if (b) {
+        const text = t('hud.selectedBuilding', { x: `${BUILDINGS[b.kind].icon} ${buildingLabel(b.kind)}` });
+        document.getElementById('selection-panel')!.classList.add('hidden');
+        document.getElementById('selection-info')!.textContent = text;
+      }
+      this.hud.setBuildMenuEnabled(false);
+      this.hud.setFormationStancePanelVisible(false);
+      return;
+    }
+
     const teamCivs: Record<number, CivId> = {
       0: this.world.players[0].civ,
       1: this.world.players[1].civ,
@@ -778,7 +794,7 @@ export class Game {
 
     // Check if we have military units in our selection
     const hasMilitary = units.some((u) => u.team === this.myTeam && u.kind !== 'villager' && u.alive);
-    this.hud.setFormationStancePanelVisible(hasMilitary);
+    this.hud.setFormationStancePanelVisible(hasMilitary, hasVillager);
     if (hasMilitary) {
       this.hud.updateFormationButtons(this.currentFormation);
       const firstMilitary = units.find((u) => u.team === this.myTeam && u.kind !== 'villager' && u.alive);
