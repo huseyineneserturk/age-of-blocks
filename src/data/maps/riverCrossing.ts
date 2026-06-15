@@ -31,23 +31,35 @@ export function buildRiverCrossing(): GameMap {
     map.fillBlob(W - 1 - cx, cy, rx, ry, t);
   };
 
-  // --- River (vertical band in the middle) ---
+  // --- River with Middle Island ---
+  // The vertical river splits around a central island (x = 26..37) between y = 13..26
   for (let y = 0; y < H; y++) {
-    for (let x = 30; x <= 33; x++) map.set(x, y, Terrain.Water);
-  }
-  // Slight banks wobble for a natural look
-  for (let y = 0; y < H; y++) {
-    const wob = Math.sin(y * 0.7) > 0.55 ? 1 : 0;
-    if (wob) {
-      map.set(29, y, Terrain.Water);
-      map.set(34, y, Terrain.Water);
+    if (y < 13 || y > 26) {
+      // Single main river channel
+      for (let x = 30; x <= 33; x++) map.set(x, y, Terrain.Water);
+    } else {
+      // Left channel
+      for (let x = 23; x <= 25; x++) map.set(x, y, Terrain.Water);
+      // Right channel
+      for (let x = 38; x <= 40; x++) map.set(x, y, Terrain.Water);
+      // Island grass in the middle
+      for (let x = 26; x <= 37; x++) map.set(x, y, Terrain.Grass);
     }
   }
 
-  // --- Bridges (three chokepoints) ---
+  // Smooth river connections at transition zones (y = 12 and y = 27)
+  for (let x = 25; x <= 30; x++) {
+    map.set(x, 12, Terrain.Water);
+    map.set(x, 27, Terrain.Water);
+  }
+  for (let x = 33; x <= 38; x++) {
+    map.set(x, 12, Terrain.Water);
+    map.set(x, 27, Terrain.Water);
+  }
+
+  // --- Bridges (only top and bottom) ---
   const bridgeRows = [
     [6, 8],
-    [19, 21],
     [32, 34],
   ];
   for (const [y0, y1] of bridgeRows) {
@@ -56,27 +68,40 @@ export function buildRiverCrossing(): GameMap {
     }
   }
 
-  // --- Forests (ambush pockets near mid) ---
-  mirrorBlob(22, 13, 4, 3, Terrain.Forest);
-  mirrorBlob(24, 28, 3.5, 3, Terrain.Forest);
-  mirrorBlob(14, 33, 4, 2.5, Terrain.Forest);
-  mirrorBlob(12, 5, 3.5, 2.5, Terrain.Forest);
+  // --- Middle Island bridges (connect left/right banks to the island) ---
+  for (let y = 19; y <= 21; y++) {
+    // Left bridge
+    for (let x = 23; x <= 26; x++) map.set(x, y, Terrain.Bridge);
+    // Right bridge
+    for (let x = 37; x <= 40; x++) map.set(x, y, Terrain.Bridge);
+  }
 
-  // --- Hills (overlook the bridges) ---
-  mirrorBlob(26, 4, 2.5, 2, Terrain.Hill);
-  mirrorBlob(26, 24, 2.5, 2, Terrain.Hill);
-  mirrorBlob(25, 37, 2.5, 1.8, Terrain.Hill);
+  // --- Organic Forests (realistic patches for tactical hiding) ---
+  mirrorBlob(8, 6, 4, 3, Terrain.Forest);
+  mirrorBlob(10, 13, 5, 4, Terrain.Forest);
+  mirrorBlob(9, 31, 5, 4, Terrain.Forest);
+  mirrorBlob(22, 11, 3.5, 3.5, Terrain.Forest);
+  mirrorBlob(21, 28, 3.5, 3.5, Terrain.Forest);
+  mirrorBlob(15, 35, 4, 3, Terrain.Forest);
 
-  // --- Rock clusters (lane shaping) ---
-  mirrorBlob(18, 17, 2, 1.5, Terrain.Rock);
-  mirrorBlob(20, 23, 1.5, 1.2, Terrain.Rock);
-  mirrorBlob(8, 26, 2, 1.5, Terrain.Rock);
+  // --- High-elevation Hills (tactical overlook points) ---
+  mirrorBlob(26, 5, 3, 2.5, Terrain.Hill);
+  mirrorBlob(26, 35, 3, 2.5, Terrain.Hill);
+  mirrorBlob(15, 20, 3.5, 3, Terrain.Hill);
+  mirrorBlob(6, 12, 2.5, 2.5, Terrain.Hill);
+  mirrorBlob(6, 28, 2.5, 2.5, Terrain.Hill);
+
+  // --- Stone deposits & natural rock formations ---
+  mirrorBlob(18, 8, 2.5, 1.8, Terrain.Rock);
+  mirrorBlob(19, 32, 2.5, 1.8, Terrain.Rock);
+  mirrorBlob(16, 16, 2, 2, Terrain.Rock);
+  mirrorBlob(16, 24, 2, 2, Terrain.Rock);
 
   // --- Gold nodes (2 per base + 1 contested per side near center) ---
   const goldSpots: Array<[number, number]> = [
     [6, 10],
     [6, 30],
-    [27, 19], // contested, by the middle bridge
+    [26, 19], // contested near the island bridge
   ];
   for (const [gx, gy] of goldSpots) {
     mirror(gx, gy, Terrain.Gold);

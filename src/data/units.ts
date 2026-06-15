@@ -24,20 +24,20 @@ export interface UnitDef {
 // grounded march pace — infantry plod, cavalry is clearly faster, siege crawls.
 // Relative ordering (and thus the counter feel) is preserved.
 export const UNITS: Record<UnitKind, UnitDef> = {
-  knight:    { kind: 'knight',    label: 'Knight',    hp: 150, damage: 14, range: 1.1, speed: 2.0, attackCooldown: 1.0,  radius: 0.32, aggro: 5 },
-  spear:     { kind: 'spear',     label: 'Spearman',  hp: 115, damage: 10, range: 1.5, speed: 1.8, attackCooldown: 1.0,  radius: 0.32, aggro: 5 },
-  archer:    { kind: 'archer',    label: 'Archer',    hp: 80,  damage: 13, range: 4.8, speed: 1.9, attackCooldown: 1.2,  radius: 0.3,  aggro: 5.5 },
-  cavalry:   { kind: 'cavalry',   label: 'Cavalry',   hp: 160, damage: 16, range: 1.2, speed: 3.0, attackCooldown: 1.05, radius: 0.42, aggro: 5 },
-  villager:  { kind: 'villager',  label: 'Köylü',     hp: 80,  damage: 4,  range: 1.0, speed: 2.0, attackCooldown: 1.2,  radius: 0.3,  aggro: 3 },
-  commander: { kind: 'commander', label: 'Komutan',   hp: 600, damage: 35, range: 1.2, speed: 2.2, attackCooldown: 0.9,  radius: 0.45, aggro: 6 },
-  catapult:  { kind: 'catapult',  label: 'Catapult',  hp: 170, damage: 40, range: 5.5, speed: 1.0, attackCooldown: 3.0,  radius: 0.46, aggro: 5.5 },
-  gladiator: { kind: 'gladiator', label: 'Gladiator', hp: 220, damage: 18, range: 1.1, speed: 2.1, attackCooldown: 0.95, radius: 0.35, aggro: 5 },
-  janissary: { kind: 'janissary', label: 'Janissary', hp: 95,  damage: 18, range: 5.2, speed: 1.8, attackCooldown: 1.4,  radius: 0.3,  aggro: 6 },
-  berserker: { kind: 'berserker', label: 'Berserker', hp: 160, damage: 15, range: 1.1, speed: 2.4, attackCooldown: 0.85, radius: 0.35, aggro: 5, aoeRadius: 1.2 },
-  druid:     { kind: 'druid',     label: 'Druid',     hp: 140, damage: 12, range: 4.5, speed: 2.0, attackCooldown: 1.1,  radius: 0.32, aggro: 5 },
-  golem:     { kind: 'golem',     label: 'Golem',     hp: 750, damage: 32, range: 1.3, speed: 1.2, attackCooldown: 1.6,  radius: 0.5,  aggro: 4 },
-  wolf:      { kind: 'wolf',      label: 'Kurt',      hp: 180, damage: 14, range: 1.0, speed: 2.7, attackCooldown: 0.8,  radius: 0.3,  aggro: 4.5 },
-  pirate:    { kind: 'pirate',    label: 'Korsan',    hp: 200, damage: 18, range: 1.2, speed: 2.2, attackCooldown: 1.0,  radius: 0.35, aggro: 5 },
+  knight:    { kind: 'knight',    label: 'Knight',    hp: 150, damage: 14, range: 1.1, speed: 1.65, attackCooldown: 1.0,  radius: 0.32, aggro: 5 },
+  spear:     { kind: 'spear',     label: 'Spearman',  hp: 115, damage: 10, range: 1.5, speed: 1.5,  attackCooldown: 1.0,  radius: 0.32, aggro: 5 },
+  archer:    { kind: 'archer',    label: 'Archer',    hp: 80,  damage: 13, range: 4.8, speed: 1.6,  attackCooldown: 1.2,  radius: 0.3,  aggro: 5.5 },
+  cavalry:   { kind: 'cavalry',   label: 'Cavalry',   hp: 160, damage: 16, range: 1.2, speed: 2.4,  attackCooldown: 1.05, radius: 0.42, aggro: 5 },
+  villager:  { kind: 'villager',  label: 'Köylü',     hp: 80,  damage: 4,  range: 1.0, speed: 1.65, attackCooldown: 1.2,  radius: 0.3,  aggro: 3 },
+  commander: { kind: 'commander', label: 'Komutan',   hp: 600, damage: 35, range: 1.2, speed: 1.8,  attackCooldown: 0.9,  radius: 0.45, aggro: 6 },
+  catapult:  { kind: 'catapult',  label: 'Catapult',  hp: 170, damage: 40, range: 5.5, speed: 0.8,  attackCooldown: 3.0,  radius: 0.46, aggro: 5.5 },
+  gladiator: { kind: 'gladiator', label: 'Gladiator', hp: 220, damage: 18, range: 1.1, speed: 1.75, attackCooldown: 0.95, radius: 0.35, aggro: 5 },
+  janissary: { kind: 'janissary', label: 'Janissary', hp: 95,  damage: 18, range: 5.2, speed: 1.5,  attackCooldown: 1.4,  radius: 0.3,  aggro: 6 },
+  berserker: { kind: 'berserker', label: 'Berserker', hp: 160, damage: 15, range: 1.1, speed: 2.0,  attackCooldown: 0.85, radius: 0.35, aggro: 5, aoeRadius: 1.2 },
+  druid:     { kind: 'druid',     label: 'Druid',     hp: 140, damage: 12, range: 4.5, speed: 1.65, attackCooldown: 1.1,  radius: 0.32, aggro: 5 },
+  golem:     { kind: 'golem',     label: 'Golem',     hp: 750, damage: 32, range: 1.3, speed: 1.0,  attackCooldown: 1.6,  radius: 0.5,  aggro: 4 },
+  wolf:      { kind: 'wolf',      label: 'Kurt',      hp: 180, damage: 14, range: 1.0, speed: 2.2,  attackCooldown: 0.8,  radius: 0.3,  aggro: 4.5 },
+  pirate:    { kind: 'pirate',    label: 'Korsan',    hp: 200, damage: 18, range: 1.2, speed: 1.8,  attackCooldown: 1.0,  radius: 0.35, aggro: 5 },
 };
 
 // Counter multipliers (attacker → defender). Not overwhelming; micro decides.

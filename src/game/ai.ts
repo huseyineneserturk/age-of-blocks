@@ -251,8 +251,13 @@ export class EnemyAI {
 
     if (this.waveStage === 0) {
       if (army.length >= this.waveSize) {
-        // March to the open bottom bridge first.
-        issueAttackMove(this.world, army, this.bridgePoint.x, this.bridgePoint.y);
+        const neutralCastle = this.world.buildings.find((b) => b.alive && b.team === 2 && b.kind === 'castle');
+        if (neutralCastle) {
+          const nc = this.world.buildingCenter(neutralCastle);
+          issueAttackMove(this.world, army, nc.x, nc.y);
+        } else {
+          issueAttackMove(this.world, army, this.bridgePoint.x, this.bridgePoint.y);
+        }
         this.waveStage = 1;
       }
       return;
@@ -266,10 +271,16 @@ export class EnemyAI {
     }
 
     if (this.waveStage === 1) {
-      // Crossed the river? Push the castle.
-      const avgX = army.reduce((s, u) => s + u.x, 0) / army.length;
-      const idleish = army.filter((u) => u.order === 'idle').length;
-      if (avgX < 31 || idleish > army.length * 0.6) {
+      const neutralCastle = this.world.buildings.find((b) => b.alive && b.team === 2 && b.kind === 'castle');
+      if (neutralCastle) {
+        const nc = this.world.buildingCenter(neutralCastle);
+        const avgX = army.reduce((s, u) => s + u.x, 0) / army.length;
+        const idleish = army.filter((u) => u.order === 'idle').length;
+        if (avgX < 39 && avgX > 25 && idleish > army.length * 0.4) {
+          issueAttackMove(this.world, army, nc.x, nc.y);
+        }
+      } else {
+        // Neutral castle is destroyed! Push the player's base castle.
         const pc = this.world.buildings.find((b) => b.alive && b.team === 0 && b.kind === 'castle');
         if (pc) {
           const c = this.world.buildingCenter(pc);

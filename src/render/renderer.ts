@@ -570,7 +570,7 @@ export class Renderer {
       if (u.team !== myTeam && isHiddenFrom(world, u, myTeam)) continue;
       if (u.team !== myTeam && !fog.isVisible(u.x, u.y)) continue; // fog of war
       const inForest = world.map.get(Math.floor(u.x), Math.floor(u.y)) === Terrain.Forest;
-      if (inForest) ctx.globalAlpha = 0.55;
+      if (inForest) ctx.globalAlpha = 0.45;
       this.drawUnit(ctx, camera, u, selected.has(u.id), alpha, world.civOf(u.team)?.id, world);
       ctx.globalAlpha = 1;
     }
@@ -811,6 +811,12 @@ export class Renderer {
     const wy = u.prevY + (u.y - u.prevY) * alpha;
     const p = camera.worldToScreen(wx, wy);
     const s = camera.scale * 0.42;
+
+    const isOnHill = world && world.map.inBounds(Math.floor(wx), Math.floor(wy)) &&
+      world.map.get(Math.floor(wx), Math.floor(wy)) === Terrain.Hill;
+    if (isOnHill) {
+      p.y -= s * 0.45; // visually elevate the unit (shadow, body, bar, ring) on high ground
+    }
 
     // Cull offscreen
     if (p.x < -60 || p.y < -60 || p.x > camera.viewW + 60 || p.y > camera.viewH + 60) return;

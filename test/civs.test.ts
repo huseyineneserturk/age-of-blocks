@@ -97,7 +97,7 @@ console.log('\n🦅 ROMA — Lejyon Disiplini (+%10 HP)');
   check('Roma birimi %10 daha dayanıklı', Math.abs(r.maxHp / c.maxHp - 1.1) < 1e-9, `(roma=${r.maxHp}, kelt=${c.maxHp})`);
 }
 
-console.log('\n🪓 VİKİNG — Yağma (ganimet 2x)');
+console.log('\n🪓 VIKING — Yağma (ganimet 2x)');
 {
   const map = new TileMap(20, 10);
   const world = new World(map);

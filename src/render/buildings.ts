@@ -63,7 +63,7 @@ export function drawStructure(
 
   // Body per type (draws its own walls + roof).
   switch (kind) {
-    case 'castle': drawCastle(ctx, w, h, pal, scale); break;
+    case 'castle': drawCastle(ctx, w, h, pal, scale, team); break;
     case 'house': drawHouse(ctx, w, h, pal, scale); break;
     case 'mine': drawMine(ctx, w, h, pal, scale); break;
     case 'barracks': drawBarracks(ctx, w, h, pal, scale); break;
@@ -601,12 +601,29 @@ function drawWall(ctx: CanvasRenderingContext2D, w: number, h: number, pal: CivP
   ctx.stroke();
 }
 
-function drawCastle(ctx: CanvasRenderingContext2D, w: number, h: number, pal: CivPalette, scale: number): void {
+function drawCastle(ctx: CanvasRenderingContext2D, w: number, h: number, pal: CivPalette, scale: number, team: Team): void {
+  const isPirate = (team === 2);
+  const piratePal: CivPalette = {
+    wall: '#3b2f2f', // dark weathered wood/stone
+    wallDark: '#1e1616',
+    wallStyle: 'timber',
+    roof: '#1c1d21', // black slate roof
+    roofDark: '#0b0c10',
+    roofStyle: 'gable',
+    trim: GOLD,
+    cloth: '#222',
+    clothDark: '#000',
+    metal: '#444',
+    metalDark: '#111',
+    leather: '#2b1a1a',
+  };
+  const activePal = isPirate ? piratePal : pal;
+
   // 1. central keep walls (drawn first)
-  walls(ctx, w, h * 0.34, h, pal);
+  walls(ctx, w, h * 0.34, h, activePal);
   
   // 2. keep roof (civ style) (drawn second so it sits behind the corner towers)
-  roof(ctx, w, h * 0.34, pal, scale, 0.66);
+  roof(ctx, w, h * 0.34, activePal, scale, 0.66);
 
   // 3. corner towers (taller, with 3D side panels! drawn over keep roof)
   const depthY = w * 0.08;
@@ -614,7 +631,7 @@ function drawCastle(ctx: CanvasRenderingContext2D, w: number, h: number, pal: Ci
   for (const cx of [0.02, 0.64]) {
     // Side panel of the tower (shadowed)
     const sideGrad = ctx.createLinearGradient(w * (cx + 0.18), h * 0.2, w * (cx + 0.3), h);
-    sideGrad.addColorStop(0, pal.wallDark);
+    sideGrad.addColorStop(0, activePal.wallDark);
     sideGrad.addColorStop(1, 'rgba(0,0,0,0.85)');
     ctx.fillStyle = sideGrad;
     ctx.beginPath();
@@ -627,13 +644,13 @@ function drawCastle(ctx: CanvasRenderingContext2D, w: number, h: number, pal: Ci
 
     // Front panel of the tower (lighted)
     const frontGrad = ctx.createLinearGradient(0, h * 0.2, 0, h);
-    frontGrad.addColorStop(0, pal.wall);
-    frontGrad.addColorStop(1, pal.wallDark);
+    frontGrad.addColorStop(0, activePal.wall);
+    frontGrad.addColorStop(1, activePal.wallDark);
     ctx.fillStyle = frontGrad;
     ctx.fillRect(w * cx, h * 0.2, w * 0.18, h * 0.78);
     
     // Crenellations
-    ctx.fillStyle = pal.wallDark;
+    ctx.fillStyle = activePal.wallDark;
     for (let i = 0; i < 2; i++) {
       ctx.fillRect(w * cx + (w * 0.09) * i, h * 0.15, w * 0.05, scale * 0.18);
     }
@@ -645,16 +662,72 @@ function drawCastle(ctx: CanvasRenderingContext2D, w: number, h: number, pal: Ci
   ctx.arc(w * 0.43, h * 0.72, w * 0.13, Math.PI, Math.PI * 2);
   ctx.fillRect(w * 0.3, h * 0.72, w * 0.26, h * 0.26);
   ctx.fill();
-  ctx.strokeStyle = pal.trim;
+  ctx.strokeStyle = activePal.trim;
   ctx.lineWidth = Math.max(1.5, scale * 0.05);
   ctx.stroke();
+
+  if (isPirate) {
+    // Draw a golden skull emblem above the gate
+    const sx = w * 0.43;
+    const sy = h * 0.52;
+    ctx.fillStyle = GOLD;
+    ctx.beginPath();
+    ctx.arc(sx, sy, Math.max(0.1, scale * 0.1), 0, Math.PI * 2);
+    ctx.fill();
+    // eyes
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.arc(sx - scale * 0.035, sy + scale * 0.015, Math.max(0.1, scale * 0.022), 0, Math.PI * 2);
+    ctx.arc(sx + scale * 0.035, sy + scale * 0.015, Math.max(0.1, scale * 0.022), 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
 // ---------------------------------------------------------------------------
 // Ownership + construction
 // ---------------------------------------------------------------------------
 
+function drawPirateFlag(ctx: CanvasRenderingContext2D, w: number, scale: number): void {
+  const px = w * 0.9;
+  const topY = -scale * 0.15;
+  
+  // Wooden pole
+  ctx.strokeStyle = '#3a2c1a'; // dark wood
+  ctx.lineWidth = Math.max(1.5, scale * 0.05);
+  ctx.beginPath();
+  ctx.moveTo(px, scale * 0.55);
+  ctx.lineTo(px, topY);
+  ctx.stroke();
+
+  // Flag fabric (black)
+  ctx.fillStyle = '#111111';
+  ctx.beginPath();
+  ctx.moveTo(px, topY);
+  ctx.lineTo(px + scale * 0.45, topY + scale * 0.12);
+  ctx.lineTo(px, topY + scale * 0.28);
+  ctx.closePath();
+  ctx.fill();
+
+  // White skull symbol
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(px + scale * 0.16, topY + scale * 0.14, Math.max(0.1, scale * 0.05), 0, Math.PI * 2);
+  ctx.fill();
+
+  // Small crossbones
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(px + scale * 0.08, topY + scale * 0.08); ctx.lineTo(px + scale * 0.24, topY + scale * 0.20);
+  ctx.moveTo(px + scale * 0.24, topY + scale * 0.08); ctx.lineTo(px + scale * 0.08, topY + scale * 0.20);
+  ctx.stroke();
+}
+
 function drawPennant(ctx: CanvasRenderingContext2D, w: number, team: Team, scale: number): void {
+  if (team === 2) {
+    drawPirateFlag(ctx, w, scale);
+    return;
+  }
   const px = w * 0.9;
   const topY = -scale * 0.1;
   ctx.strokeStyle = '#6e4a26';
