@@ -158,11 +158,21 @@ export class GameRoom {
 
     switch (cmd.t) {
       case 'move':
-        issueMove(w, myUnits(cmd.ids), num(cmd.x), num(cmd.y));
+        issueMove(w, myUnits(cmd.ids), num(cmd.x), num(cmd.y), cmd.form);
         break;
       case 'amove':
-        issueAttackMove(w, myUnits(cmd.ids), num(cmd.x), num(cmd.y));
+        issueAttackMove(w, myUnits(cmd.ids), num(cmd.x), num(cmd.y), cmd.form);
         break;
+      case 'stance': {
+        const units = myUnits(cmd.ids);
+        const stance = cmd.stance;
+        if (stance === 'aggressive' || stance === 'defensive' || stance === 'standground') {
+          for (const u of units) {
+            u.stance = stance;
+          }
+        }
+        break;
+      }
       case 'attack': {
         const target = w.getUnit(num(cmd.target));
         if (target && target.team !== team) issueAttack(w, myUnits(cmd.ids), target.id);

@@ -6,8 +6,74 @@ import { UNITS } from '../data/units';
 import type { TileMap } from '../engine/grid';
 import type { Unit, World } from './world';
 
-/** Generate n passable formation slots spiraling out from the target tile. */
-function formationSlots(map: TileMap, tx: number, ty: number, n: number): Array<{ x: number; y: number }> {
+/** Generate n passable formation slots spiraling out from the target tile, supporting multiple formations. */
+function formationSlots(
+  map: TileMap,
+  tx: number,
+  ty: number,
+  n: number,
+  form: 'square' | 'circle' | 'scattered' = 'square'
+): Array<{ x: number; y: number }> {
+  // If only 1 unit is moved and the clicked position itself is passable, go exactly there.
+  if (n === 1) {
+    if (map.passable(Math.floor(tx), Math.floor(ty))) {
+      return [{ x: tx, y: ty }];
+    }
+  }
+
+  if (form === 'circle') {
+    const slots: Array<{ x: number; y: number }> = [];
+    let ring = 1;
+    const spacing = 1.25;
+    while (slots.length < n && ring <= 10) {
+      const radius = ring * spacing;
+      const count = Math.max(6, Math.round((2 * Math.PI * radius) / spacing));
+      for (let i = 0; i < count && slots.length < n; i++) {
+        const angle = (2 * Math.PI * i) / count;
+        const x = tx + radius * Math.cos(angle);
+        const y = ty + radius * Math.sin(angle);
+        if (map.passable(Math.floor(x), Math.floor(y))) {
+          slots.push({ x, y });
+        }
+      }
+      ring++;
+    }
+    if (slots.length >= n) return slots;
+  }
+
+  if (form === 'scattered') {
+    const slots: Array<{ x: number; y: number }> = [];
+    const seen = new Set<string>();
+    const cx = Math.floor(tx);
+    const cy = Math.floor(ty);
+    for (let r = 0; slots.length < n && r <= 15; r++) {
+      const candidates: Array<{ dx: number; dy: number }> = [];
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) === r) {
+            candidates.push({ dx, dy });
+          }
+        }
+      }
+      for (const cand of candidates) {
+        if (slots.length >= n) break;
+        if (Math.random() < 0.3) continue; // skip 30% to look scattered
+        const x = cx + cand.dx;
+        const y = cy + cand.dy;
+        const key = `${x},${y}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        if (map.passable(x, y)) {
+          const jitterX = (Math.random() - 0.5) * 0.6;
+          const jitterY = (Math.random() - 0.5) * 0.6;
+          slots.push({ x: x + 0.5 + jitterX, y: y + 0.5 + jitterY });
+        }
+      }
+    }
+    if (slots.length >= n) return slots;
+  }
+
+  // Default / Square grid spiraling:
   const slots: Array<{ x: number; y: number }> = [];
   const seen = new Set<string>();
   const cx = Math.floor(tx);
@@ -30,9 +96,15 @@ function formationSlots(map: TileMap, tx: number, ty: number, n: number): Array<
 }
 
 /** Greedy nearest unit→slot assignment + pathing. Returns assigned slots. */
-function moveToSlots(world: World, units: Unit[], tx: number, ty: number): Map<Unit, { x: number; y: number }> {
+function moveToSlots(
+  world: World,
+  units: Unit[],
+  tx: number,
+  ty: number,
+  form: 'square' | 'circle' | 'scattered' = 'square'
+): Map<Unit, { x: number; y: number }> {
   const assigned = new Map<Unit, { x: number; y: number }>();
-  const slots = formationSlots(world.map, tx, ty, units.length);
+  const slots = formationSlots(world.map, tx, ty, units.length, form);
   if (slots.length === 0) return assigned;
 
   const remaining = [...units];
@@ -59,12 +131,18 @@ function moveToSlots(world: World, units: Unit[], tx: number, ty: number): Map<U
 }
 
 /** Plain move: ignores enemies en route. */
-export function issueMove(world: World, units: Unit[], tx: number, ty: number): void {
+export function issueMove(
+  world: World,
+  units: Unit[],
+  tx: number,
+  ty: number,
+  form: 'square' | 'circle' | 'scattered' = 'square'
+): void {
   if (units.length === 0) return;
   const building = world.buildings.find(
     (b) => b.alive && tx >= b.x && tx < b.x + b.w && ty >= b.y && ty < b.y + b.h
   );
-  const assigned = moveToSlots(world, units, tx, ty);
+  const assigned = moveToSlots(world, units, tx, ty, form);
   for (const unit of assigned.keys()) {
     unit.order = 'move';
     unit.targetId = null;
@@ -107,9 +185,15 @@ export function issueAttackRock(_world: World, units: Unit[], rockId: number): v
 }
 
 /** Attack-move: march to a point, engaging anything encountered. */
-export function issueAttackMove(world: World, units: Unit[], tx: number, ty: number): void {
+export function issueAttackMove(
+  world: World,
+  units: Unit[],
+  tx: number,
+  ty: number,
+  form: 'square' | 'circle' | 'scattered' = 'square'
+): void {
   if (units.length === 0) return;
-  const assigned = moveToSlots(world, units, tx, ty);
+  const assigned = moveToSlots(world, units, tx, ty, form);
   for (const [unit, slot] of assigned) {
     unit.order = 'attackmove';
     unit.targetId = null;

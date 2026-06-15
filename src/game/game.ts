@@ -22,7 +22,7 @@ import { Renderer, type PlacementGhost } from '../render/renderer';
 import { Minimap } from '../render/minimap';
 import { Effects } from '../render/effects';
 import { Sound } from '../audio/sound';
-import { Hud } from '../ui/hud';
+import { Hud, CIV_UNIQUE_BUILDINGS } from '../ui/hud';
 import { t, civLabel, civBonus, buildingLabel } from '../i18n';
 import { applySnapshot } from '../net/snapshot';
 import { SNAPSHOT_INTERVAL_MS } from '../net/protocol';
@@ -40,6 +40,7 @@ export class Game {
   private sound = new Sound();
   private hud: Hud;
   private myTeam: 0 | 1;
+  private currentFormation: 'square' | 'circle' | 'scattered' = 'square';
 
   private selected = new Set<number>();
   private selectedBuildingId: number | null = null;
@@ -87,6 +88,8 @@ export class Game {
       onResearch: () => this.research(),
       onPickUpgrade: (id) => this.pickUpgradeAction(id),
       onRestart: () => location.reload(),
+      onSetStance: (stance) => this.setStance(stance),
+      onSetFormation: (form) => this.setFormation(form),
     });
     this.hud.initCiv(this.me().civ);
 
@@ -566,8 +569,8 @@ export class Game {
       if (villagers.length > 0) {
         const targetX = friendlyB.x + friendlyB.w / 2;
         const targetY = friendlyB.y + friendlyB.h / 2;
-        if (this.net) this.net.send({ t: 'move', ids: villagers.map((v) => v.id), x: targetX, y: targetY });
-        else issueMove(this.world, villagers, targetX, targetY);
+        if (this.net) this.net.send({ t: 'move', ids: villagers.map((v) => v.id), x: targetX, y: targetY, form: this.currentFormation });
+        else issueMove(this.world, villagers, targetX, targetY, this.currentFormation);
         this.renderer.addMoveMarker(targetX, targetY, '#5fd0ff');
         this.sound.play('click');
         return;
@@ -586,18 +589,18 @@ export class Game {
       return;
     }
 
-    if (this.net) this.net.send({ t: 'move', ids: this.selectedIds(), x: w.x, y: w.y });
-    else issueMove(this.world, units, w.x, w.y);
+    if (this.net) this.net.send({ t: 'move', ids: this.selectedIds(), x: w.x, y: w.y, form: this.currentFormation });
+    else issueMove(this.world, units, w.x, w.y, this.currentFormation);
     this.renderer.addMoveMarker(w.x, w.y, '#ffd700');
     this.sound.play('click');
   }
 
   private executeAttackMove(wx: number, wy: number): void {
     if (this.net) {
-      this.net.send({ t: 'amove', ids: this.selectedIds(), x: wx, y: wy });
+      this.net.send({ t: 'amove', ids: this.selectedIds(), x: wx, y: wy, form: this.currentFormation });
     } else {
       const units = this.world.units.filter((u) => this.selected.has(u.id));
-      issueAttackMove(this.world, units, wx, wy);
+      issueAttackMove(this.world, units, wx, wy, this.currentFormation);
     }
     this.renderer.addMoveMarker(wx, wy, '#ff8a3d');
     this.sound.play('click');
@@ -702,7 +705,15 @@ export class Game {
     }
 
     // Build hotkeys (only triggered if no selector hotkey matched/returned)
-    const byHotkey = BUILD_MENU.find((kind) => BUILDINGS[kind].hotkey === k);
+    const civ = this.world.players[this.myTeam].civ;
+    const unique = CIV_UNIQUE_BUILDINGS[civ] || { economy: [], military: [], defense: [] };
+    const allowed = new Set([
+      'house', 'mine', 'barracks', 'archery', 'stable', 'siegeworks', 'research', 'tower', 'wall',
+      ...unique.economy,
+      ...unique.military,
+      ...unique.defense
+    ]);
+    const byHotkey = BUILD_MENU.find((kind) => BUILDINGS[kind].hotkey === k && allowed.has(kind));
     if (byHotkey) {
       this.startPlacement(byHotkey);
       return;
@@ -764,6 +775,17 @@ export class Game {
     // Check if we have a villager in our selection
     const hasVillager = units.some((u) => u.team === this.myTeam && u.kind === 'villager' && u.alive);
     this.hud.setBuildMenuEnabled(hasVillager);
+
+    // Check if we have military units in our selection
+    const hasMilitary = units.some((u) => u.team === this.myTeam && u.kind !== 'villager' && u.alive);
+    this.hud.setFormationStancePanelVisible(hasMilitary);
+    if (hasMilitary) {
+      this.hud.updateFormationButtons(this.currentFormation);
+      const firstMilitary = units.find((u) => u.team === this.myTeam && u.kind !== 'villager' && u.alive);
+      if (firstMilitary) {
+        this.hud.updateStanceButtons(firstMilitary.stance);
+      }
+    }
   }
 
   selectOnly(unitId: number): void {
@@ -1030,5 +1052,42 @@ export class Game {
     }
 
     requestAnimationFrame((t) => this.frame(t));
+  }
+
+  private setStance(stance: 'aggressive' | 'defensive' | 'standground'): void {
+    const units = this.world.units.filter((u) => this.selected.has(u.id) && u.alive && u.team === this.myTeam && u.kind !== 'villager');
+    if (units.length === 0) return;
+
+    if (this.net) {
+      this.net.send({ t: 'stance', ids: units.map((u) => u.id), stance });
+    } else {
+      for (const u of units) {
+        u.stance = stance;
+      }
+    }
+    this.hud.updateStanceButtons(stance);
+  }
+
+  private setFormation(formation: 'square' | 'circle' | 'scattered'): void {
+    this.currentFormation = formation;
+    this.hud.updateFormationButtons(formation);
+
+    // Reposition selected military units immediately around their centroid to reflect the new formation
+    const units = this.world.units.filter((u) => this.selected.has(u.id) && u.alive && u.team === this.myTeam && u.kind !== 'villager');
+    if (units.length > 1) {
+      let sx = 0, sy = 0;
+      for (const u of units) {
+        sx += u.x;
+        sy += u.y;
+      }
+      const cx = sx / units.length;
+      const cy = sy / units.length;
+      if (this.net) {
+        this.net.send({ t: 'move', ids: units.map((u) => u.id), x: cx, y: cy, form: formation });
+      } else {
+        issueMove(this.world, units, cx, cy, formation);
+      }
+      this.sound.play('click');
+    }
   }
 }

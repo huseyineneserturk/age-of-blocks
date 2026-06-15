@@ -16,8 +16,8 @@ export interface LobbyState {
 }
 
 export type ClientCommand =
-  | { t: 'move'; ids: number[]; x: number; y: number }
-  | { t: 'amove'; ids: number[]; x: number; y: number }
+  | { t: 'move'; ids: number[]; x: number; y: number; form?: 'square' | 'circle' | 'scattered' }
+  | { t: 'amove'; ids: number[]; x: number; y: number; form?: 'square' | 'circle' | 'scattered' }
   | { t: 'attack'; ids: number[]; target: number }
   | { t: 'attackB'; ids: number[]; target: number }
   | { t: 'attackR'; ids: number[]; target: number }
@@ -25,7 +25,8 @@ export type ClientCommand =
   | { t: 'train'; building: number; kind: UnitKind }
   | { t: 'research'; building: number }
   | { t: 'pick'; id: string }
-  | { t: 'rally'; building: number; x: number; y: number };
+  | { t: 'rally'; building: number; x: number; y: number }
+  | { t: 'stance'; ids: number[]; stance: 'aggressive' | 'defensive' | 'standground' };
 
 export interface SnapUnit {
   id: number;
@@ -38,6 +39,7 @@ export interface SnapUnit {
   facing: 1 | -1;
   moving: boolean;
   attacking: boolean;
+  stance: 'aggressive' | 'defensive' | 'standground';
 }
 
 export interface SnapBuilding {

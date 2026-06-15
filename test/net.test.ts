@@ -84,7 +84,7 @@ async function main(): Promise<void> {
 
   // --- Build command (validated server-side) ---
   const goldBefore = snapsA[snapsA.length - 1].players[0].gold;
-  a.emit('command', { t: 'build', kind: 'house', x: 8, y: 14 });
+  a.emit('command', { t: 'build', kind: 'house', x: 8, y: 18 });
   await sleep(400);
   const lastSnap = snapsA[snapsA.length - 1];
   const houseBuilt = lastSnap.buildings.some((x) => x.kind === 'house' && x.team === 0);

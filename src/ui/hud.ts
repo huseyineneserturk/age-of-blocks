@@ -13,6 +13,8 @@ export interface HudCallbacks {
   onResearch(): void;
   onPickUpgrade(id: string): void;
   onRestart(): void;
+  onSetStance(stance: 'aggressive' | 'defensive' | 'standground'): void;
+  onSetFormation(formation: 'square' | 'circle' | 'scattered'): void;
 }
 
 const UNIT_ICONS: Record<UnitKind, string> = {
@@ -32,7 +34,7 @@ const UNIT_ICONS: Record<UnitKind, string> = {
   druid: '🔮',
 };
 
-const CIV_UNIQUE_BUILDINGS: Record<CivId, { economy: BuildingKind[]; military: BuildingKind[]; defense: BuildingKind[] }> = {
+export const CIV_UNIQUE_BUILDINGS: Record<CivId, { economy: BuildingKind[]; military: BuildingKind[]; defense: BuildingKind[] }> = {
   rome: { economy: ['forum'], military: ['colosseum'], defense: [] },
   ottoman: { economy: ['caravanserai'], military: ['mosque'], defense: [] },
   china: { economy: ['pagoda'], military: [], defense: ['bastion'] },
@@ -51,6 +53,7 @@ export class Hud {
   private supplyEl = document.getElementById('supply')!;
   private civBadge = document.getElementById('civ-badge')!;
   private civBadgeSet = false;
+  private buildMenuContainerEl = document.getElementById('build-menu-container')!;
   private buildMenuEl = document.getElementById('build-menu')!;
   private bPanel = document.getElementById('building-panel')!;
   private bpTitle = document.getElementById('bp-title')!;
@@ -91,6 +94,16 @@ export class Hud {
       this.researchModal.classList.add('hidden');
     });
     document.getElementById('go-restart')!.addEventListener('click', () => this.cb.onRestart());
+
+    // Formation buttons
+    document.getElementById('form-square')!.addEventListener('click', () => this.cb.onSetFormation('square'));
+    document.getElementById('form-circle')!.addEventListener('click', () => this.cb.onSetFormation('circle'));
+    document.getElementById('form-scattered')!.addEventListener('click', () => this.cb.onSetFormation('scattered'));
+
+    // Stance buttons
+    document.getElementById('stance-aggressive')!.addEventListener('click', () => this.cb.onSetStance('aggressive'));
+    document.getElementById('stance-defensive')!.addEventListener('click', () => this.cb.onSetStance('defensive'));
+    document.getElementById('stance-standground')!.addEventListener('click', () => this.cb.onSetStance('standground'));
   }
 
   // --- Build menu ---
@@ -432,9 +445,37 @@ export class Hud {
   }
 
   setBuildMenuEnabled(enabled: boolean): void {
+    this.buildMenuContainerEl.classList.toggle('hidden', !enabled);
     this.buildCards.forEach((card) => {
       card.disabled = !enabled;
       card.classList.toggle('disabled', !enabled);
     });
+  }
+
+  setFormationStancePanelVisible(visible: boolean): void {
+    const el = document.getElementById('formation-stance-panel');
+    if (el) {
+      el.classList.toggle('hidden', !visible);
+    }
+  }
+
+  updateStanceButtons(stance: 'aggressive' | 'defensive' | 'standground'): void {
+    const agg = document.getElementById('stance-aggressive')!;
+    const def = document.getElementById('stance-defensive')!;
+    const stg = document.getElementById('stance-standground')!;
+
+    agg.classList.toggle('active', stance === 'aggressive');
+    def.classList.toggle('active', stance === 'defensive');
+    stg.classList.toggle('active', stance === 'standground');
+  }
+
+  updateFormationButtons(formation: 'square' | 'circle' | 'scattered'): void {
+    const sq = document.getElementById('form-square')!;
+    const circ = document.getElementById('form-circle')!;
+    const scat = document.getElementById('form-scattered')!;
+
+    sq.classList.toggle('active', formation === 'square');
+    circ.classList.toggle('active', formation === 'circle');
+    scat.classList.toggle('active', formation === 'scattered');
   }
 }

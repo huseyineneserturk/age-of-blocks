@@ -1082,4 +1082,72 @@ html, body, #app {
   #selection-panel {
     display: none;
   }
+  #formation-stance-panel {
+    display: none !important;
+  }
 }
+
+/* ---------- Formation & Stance Panel ---------- */
+#formation-stance-panel {
+  position: absolute;
+  left: 50%;
+  bottom: 216px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  outline: 3px solid rgba(20, 16, 8, 0.85);
+  outline-offset: 1px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6), inset 0 0 12px rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
+  z-index: 10;
+}
+#formation-stance-panel.hidden {
+  display: none !important;
+}
+.hud-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.hud-group-label {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 10px;
+  color: var(--gold);
+  text-transform: uppercase;
+  margin-right: 4px;
+  letter-spacing: 1px;
+}
+.hud-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 215, 0, 0.2);
+  border-radius: 4px;
+  color: var(--text);
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+.hud-btn:hover {
+  background: rgba(255, 215, 0, 0.15);
+  border-color: var(--gold);
+}
+.hud-btn.active {
+  background: rgba(212, 175, 55, 0.3);
+  border-color: var(--gold);
+  box-shadow: 0 0 8px rgba(212, 175, 55, 0.4);
+}
+.hud-sep-v {
+  width: 1px;
+  height: 20px;
+  background: rgba(232, 197, 74, 0.25);
+  margin: 0 4px;
+}
+

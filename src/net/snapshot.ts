@@ -19,6 +19,7 @@ export function encodeSnapshot(world: World): Snapshot {
       facing: u.facing,
       moving: u.moving,
       attacking: u.attacking,
+      stance: u.stance,
     })),
     buildings: world.buildings.map((b) => ({
       id: b.id,
@@ -97,6 +98,7 @@ export function applySnapshot(world: World, snap: Snapshot): void {
     u.facing = s.facing;
     u.moving = s.moving;
     u.attacking = s.attacking;
+    u.stance = s.stance;
     u.alive = true;
     nextUnits.push(u);
   }

@@ -43,6 +43,7 @@ export interface Unit {
   stuckTimer: number;
   lastPX: number;
   lastPY: number;
+  stance: 'aggressive' | 'defensive' | 'standground';
 }
 
 export interface Building {
@@ -225,6 +226,7 @@ export class World {
       stuckTimer: 0,
       lastPX: x,
       lastPY: y,
+      stance: 'aggressive',
     };
     this.units.push(u);
     return u;

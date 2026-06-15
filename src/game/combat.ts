@@ -40,7 +40,7 @@ export function isHiddenFrom(world: World, u: Unit, viewerTeam: Team): boolean {
 }
 
 /** Effective attack range, including the hill bonus for ranged units. */
-function effectiveRange(world: World, u: Unit): number {
+export function effectiveRange(world: World, u: Unit): number {
   const def = UNITS[u.kind];
   let range = def.range;
   if (def.range >= 3 && world.map.get(Math.floor(u.x), Math.floor(u.y)) === Terrain.Hill) {
@@ -171,8 +171,13 @@ function updateAttackMove(world: World, u: Unit): void {
   if (target && isHiddenFrom(world, target, u.team)) target = undefined;
   if (!target) {
     u.targetId = null;
-    target = scanForEnemy(world, u, UNITS[u.kind].aggro);
-    if (target) u.targetId = target.id;
+    const scanRadius = u.stance === 'standground' ? effectiveRange(world, u) : UNITS[u.kind].aggro;
+    target = scanForEnemy(world, u, scanRadius);
+    if (target) {
+      u.targetId = target.id;
+      u.anchorX = u.x;
+      u.anchorY = u.y;
+    }
   }
   if (target) {
     u.targetBuildingId = null;
@@ -218,14 +223,31 @@ function updateIdle(world: World, u: Unit): void {
   if (target && isHiddenFrom(world, target, u.team)) target = undefined;
 
   const anchorDist = Math.hypot(u.x - u.anchorX, u.y - u.anchorY);
-  if (target && anchorDist > def.aggro + LEASH_EXTRA) {
-    u.targetId = null;
-    target = undefined;
+  const distToTarget = target ? Math.hypot(u.x - target.x, u.y - target.y) : 0;
+
+  if (target) {
+    if (u.stance === 'standground') {
+      if (distToTarget > effectiveRange(world, u)) {
+        u.targetId = null;
+        target = undefined;
+      }
+    } else if (u.stance === 'defensive') {
+      if (anchorDist > 4.0) {
+        u.targetId = null;
+        target = undefined;
+      }
+    } else {
+      if (anchorDist > def.aggro + LEASH_EXTRA) {
+        u.targetId = null;
+        target = undefined;
+      }
+    }
   }
 
   if (!target) {
     u.targetId = null;
-    target = scanForEnemy(world, u, def.aggro);
+    const scanRadius = u.stance === 'standground' ? effectiveRange(world, u) : def.aggro;
+    target = scanForEnemy(world, u, scanRadius);
     if (target) u.targetId = target.id;
   }
 
@@ -263,6 +285,13 @@ function engage(world: World, u: Unit, target: Unit): void {
       u.attackAnimTimer = ATTACK_ANIM;
       performAttack(world, u, target);
     }
+    return;
+  }
+
+  // Stand ground never chases / paths unless explicitly ordered to attack.
+  if (u.stance === 'standground' && u.order !== 'attack') {
+    u.targetId = null;
+    u.path = null;
     return;
   }
 

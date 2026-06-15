@@ -4,12 +4,12 @@
 
 import { Camera, TILE } from '../engine/camera';
 import { Terrain, TileMap } from '../engine/grid';
-import { TEAM_COLORS } from '../data/units';
+import { TEAM_COLORS, UNITS } from '../data/units';
 import { BUILDINGS, type BuildingKind } from '../data/buildings';
 import type { CivId } from '../data/civs';
 import type { SelectRect } from '../engine/input';
 import type { Building, Projectile, RockEntity, Unit, World } from '../game/world';
-import { isHiddenFrom } from '../game/combat';
+import { isHiddenFrom, effectiveRange } from '../game/combat';
 import { FOG_EXPLORED, FOG_UNEXPLORED, type FogOfWar } from '../game/fog';
 import { drawFigure } from './figures';
 import { drawStructure } from './buildings';
@@ -645,6 +645,24 @@ export class Renderer {
       ctx.fillRect(p0.x + pad, p0.y - 7, (wpx - pad * 2) * frac, 5);
     }
 
+    // Range circle (if selected and ranged)
+    if (isSelected) {
+      const def = BUILDINGS[b.kind];
+      const range = def.range;
+      if (range && range > 2.0) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(212, 175, 55, 0.55)';
+        ctx.lineWidth = 1.8;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        const cx = p0.x + wpx / 2;
+        const cy = p0.y + hpx / 2;
+        ctx.arc(cx, cy, range * camera.scale, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
     // Rally flag for the selected building
     if (isSelected && b.rallyX !== null && b.rallyY !== null) {
       const rp = camera.worldToScreen(b.rallyX, b.rallyY);
@@ -885,6 +903,22 @@ export class Renderer {
       ctx.fillRect(p.x - bw / 2, p.y - s * 1.45, bw, 4);
       ctx.fillStyle = frac > 0.6 ? '#32cd32' : frac > 0.3 ? '#ffa500' : '#ff4444';
       ctx.fillRect(p.x - bw / 2, p.y - s * 1.45, bw * frac, 4);
+    }
+
+    // Range circle (if selected and ranged)
+    if (isSelected) {
+      const def = UNITS[u.kind];
+      const r = world ? effectiveRange(world, u) : def.range;
+      if (r > 2.0) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(212, 175, 55, 0.55)';
+        ctx.lineWidth = 1.8;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y + s * 0.88, r * camera.scale, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
     }
   }
 }

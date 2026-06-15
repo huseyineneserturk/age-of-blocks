@@ -57,6 +57,8 @@ const UI: Record<Lang, Record<string, string>> = {
 
     // HUD
     'hud.buildings': 'BİNALAR',
+    'hud.formation': 'Formasyon',
+    'hud.stance': 'Tutum',
     'hud.noSelection': 'Birim seçilmedi',
     'hud.selected': 'Seçili: {x}',
     'hud.selectedBuilding': 'Seçili: {x}',
@@ -207,6 +209,8 @@ const UI: Record<Lang, Record<string, string>> = {
 
     // HUD
     'hud.buildings': 'BUILDINGS',
+    'hud.formation': 'Formation',
+    'hud.stance': 'Stance',
     'hud.noSelection': 'No units selected',
     'hud.selected': 'Selected: {x}',
     'hud.selectedBuilding': 'Selected: {x}',
