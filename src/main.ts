@@ -376,3 +376,4 @@ document.getElementById('join-confirm')!.addEventListener('click', () => {
 refreshLang();
 showScreen('landing');
 connectLobby();
+tryPlayMusic();

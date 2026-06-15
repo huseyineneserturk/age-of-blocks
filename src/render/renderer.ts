@@ -20,6 +20,7 @@ export interface PlacementGhost {
   tileX: number;
   tileY: number;
   valid: boolean;
+  extraWalls?: { tileX: number; tileY: number; valid: boolean }[];
 }
 
 interface MoveMarker {
@@ -537,20 +538,28 @@ export class Renderer {
     // --- Placement ghost ---
     if (ghost) {
       const def = BUILDINGS[ghost.kind];
-      const p0 = camera.worldToScreen(ghost.tileX, ghost.tileY);
-      const wpx = def.w * camera.scale;
-      const hpx = def.h * camera.scale;
-      ctx.globalAlpha = 0.55;
-      ctx.fillStyle = ghost.valid ? '#5fe07a' : '#ff6a6a';
-      ctx.fillRect(p0.x, p0.y, wpx, hpx);
-      ctx.globalAlpha = 1;
-      ctx.strokeStyle = ghost.valid ? '#2bd47a' : '#ff4a4a';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(p0.x, p0.y, wpx, hpx);
-      ctx.font = `${camera.scale * 0.8}px serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(def.icon, p0.x + wpx / 2, p0.y + hpx / 2);
+      const ghostsToDraw = [{ tileX: ghost.tileX, tileY: ghost.tileY, valid: ghost.valid }];
+      if (ghost.extraWalls) {
+        for (const extra of ghost.extraWalls) {
+          ghostsToDraw.push({ tileX: extra.tileX, tileY: extra.tileY, valid: extra.valid });
+        }
+      }
+      for (const g of ghostsToDraw) {
+        const p0 = camera.worldToScreen(g.tileX, g.tileY);
+        const wpx = def.w * camera.scale;
+        const hpx = def.h * camera.scale;
+        ctx.globalAlpha = 0.55;
+        ctx.fillStyle = g.valid ? '#5fe07a' : '#ff6a6a';
+        ctx.fillRect(p0.x, p0.y, wpx, hpx);
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = g.valid ? '#2bd47a' : '#ff4a4a';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(p0.x, p0.y, wpx, hpx);
+        ctx.font = `${camera.scale * 0.8}px serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(def.icon, p0.x + wpx / 2, p0.y + hpx / 2);
+      }
     }
 
     // --- Units (y-sorted for painter's order) ---

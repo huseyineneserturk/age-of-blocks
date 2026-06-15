@@ -298,6 +298,77 @@ export class Game {
     if (kind !== 'wall') this.stopPlacement();
   }
 
+  private tryPlaceWallLine(): void {
+    if (!this.placing || this.placing !== 'wall') return;
+    if (!this.input.leftDownAt) return;
+
+    const startW = this.camera.screenToWorld(this.input.leftDownAt.x, this.input.leftDownAt.y);
+    const endW = this.camera.screenToWorld(this.input.mouseX, this.input.mouseY);
+    const def = BUILDINGS['wall'];
+
+    const startTx = Math.round(startW.x - def.w / 2);
+    const startTy = Math.round(startW.y - def.h / 2);
+    const endTx = Math.round(endW.x - def.w / 2);
+    const endTy = Math.round(endW.y - def.h / 2);
+
+    const dx = Math.abs(endTx - startTx);
+    const dy = Math.abs(endTy - startTy);
+    const points: { x: number; y: number }[] = [];
+
+    if (dx >= dy) {
+      const step = startTx <= endTx ? 1 : -1;
+      for (let x = startTx; x !== endTx + step; x += step) {
+        points.push({ x, y: startTy });
+      }
+    } else {
+      const step = startTy <= endTy ? 1 : -1;
+      for (let y = startTy; y !== endTy + step; y += step) {
+        points.push({ x: startTx, y });
+      }
+    }
+
+    let gold = this.me().gold;
+    const selectedVillagers = this.world.units.filter((u) => this.selected.has(u.id) && u.kind === 'villager' && u.alive);
+    
+    let builtAny = false;
+    let lastX = startTx;
+    let lastY = startTy;
+
+    for (const pt of points) {
+      if (gold < def.cost) break;
+      if (!this.isPlacementValid('wall', pt.x, pt.y)) continue;
+
+      if (this.net) {
+        this.net.send({ t: 'build', kind: 'wall', x: pt.x, y: pt.y });
+      } else {
+        gold -= def.cost;
+        this.world.placeBuilding(this.myTeam, 'wall', pt.x, pt.y);
+        this.world.events.push({ type: 'build_placed', x: pt.x + def.w / 2, y: pt.y + def.h / 2, team: this.myTeam });
+      }
+      builtAny = true;
+      lastX = pt.x;
+      lastY = pt.y;
+    }
+
+    if (!this.net) {
+      this.me().gold = gold;
+    }
+
+    if (builtAny) {
+      if (this.net) {
+        if (selectedVillagers.length > 0) {
+          this.net.send({ t: 'move', ids: selectedVillagers.map((v) => v.id), x: lastX + def.w / 2, y: lastY + def.h / 2 });
+        }
+        this.sound.play('build');
+      } else {
+        if (selectedVillagers.length > 0) {
+          issueMove(this.world, selectedVillagers, lastX + def.w / 2, lastY + def.h / 2);
+        }
+        this.sound.play('build');
+      }
+    }
+  }
+
   // --- Selection & commands ---
 
   private selectPoint(sx: number, sy: number, additive: boolean): void {
@@ -355,7 +426,11 @@ export class Game {
 
   private selectRect(rect: { x0: number; y0: number; x1: number; y1: number }, additive: boolean): void {
     if (this.placing) {
-      this.stopPlacement();
+      if (this.placing === 'wall') {
+        this.tryPlaceWallLine();
+      } else {
+        this.stopPlacement();
+      }
       return;
     }
     if (this.attackMoveArmed) this.disarmAttackMove();
@@ -850,12 +925,66 @@ export class Game {
       const def = BUILDINGS[this.placing];
       const tx = Math.round(w.x - def.w / 2);
       const ty = Math.round(w.y - def.h / 2);
-      ghost = {
-        kind: this.placing,
-        tileX: tx,
-        tileY: ty,
-        valid: this.isPlacementValid(this.placing, tx, ty) && this.me().gold >= def.cost,
-      };
+
+      if (this.placing === 'wall' && this.input.dragRect && this.input.leftDownAt) {
+        const startW = this.camera.screenToWorld(this.input.leftDownAt.x, this.input.leftDownAt.y);
+        const startTx = Math.round(startW.x - def.w / 2);
+        const startTy = Math.round(startW.y - def.h / 2);
+        const dx = Math.abs(tx - startTx);
+        const dy = Math.abs(ty - startTy);
+        const extraWalls: { tileX: number; tileY: number; valid: boolean }[] = [];
+
+        const points: { x: number; y: number }[] = [];
+        if (dx >= dy) {
+          const step = startTx <= tx ? 1 : -1;
+          for (let x = startTx; x !== tx + step; x += step) {
+            points.push({ x, y: startTy });
+          }
+        } else {
+          const step = startTy <= ty ? 1 : -1;
+          for (let y = startTy; y !== ty + step; y += step) {
+            points.push({ x: startTx, y });
+          }
+        }
+
+        let baseTx = startTx;
+        let baseTy = startTy;
+        let baseValid = false;
+        let gold = this.me().gold;
+
+        if (points.length > 0) {
+          baseTx = points[0].x;
+          baseTy = points[0].y;
+          baseValid = this.isPlacementValid('wall', baseTx, baseTy) && gold >= def.cost;
+          if (baseValid) gold -= def.cost;
+
+          for (let i = 1; i < points.length; i++) {
+            const pt = points[i];
+            const isValid = this.isPlacementValid('wall', pt.x, pt.y) && gold >= def.cost;
+            if (isValid) gold -= def.cost;
+            extraWalls.push({
+              tileX: pt.x,
+              tileY: pt.y,
+              valid: isValid,
+            });
+          }
+        }
+
+        ghost = {
+          kind: 'wall',
+          tileX: baseTx,
+          tileY: baseTy,
+          valid: baseValid,
+          extraWalls,
+        };
+      } else {
+        ghost = {
+          kind: this.placing,
+          tileX: tx,
+          tileY: ty,
+          valid: this.isPlacementValid(this.placing, tx, ty) && this.me().gold >= def.cost,
+        };
+      }
     }
 
     this.renderer.render(
@@ -864,7 +993,7 @@ export class Game {
       this.selected,
       this.selectedBuildingId,
       ghost,
-      this.input.dragRect,
+      this.placing ? null : this.input.dragRect,
       alpha,
       elapsed,
       this.effects,

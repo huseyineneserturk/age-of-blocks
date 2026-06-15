@@ -27,7 +27,7 @@ export class Input {
   /** Active left-drag selection box (screen px), for the renderer. */
   dragRect: SelectRect | null = null;
 
-  private leftDownAt: { x: number; y: number } | null = null;
+  leftDownAt: { x: number; y: number } | null = null;
   private middleDownAt: { x: number; y: number } | null = null;
 
   attach(canvas: HTMLCanvasElement, cb: InputCallbacks): void {
