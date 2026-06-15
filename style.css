@@ -115,7 +115,7 @@ html, body, #app {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
   pointer-events: auto;
   overflow: hidden;
-  max-height: 36px;
+  max-height: 44px;
   width: auto;
   transition: max-height 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
@@ -125,27 +125,28 @@ html, body, #app {
 }
 
 #build-menu-trigger {
-  height: 36px;
+  height: 44px;
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 0 14px;
   font-family: 'Cinzel', Georgia, serif;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: 1.5px;
+  letter-spacing: 2px;
   color: #f7ecd3;
   cursor: pointer;
   user-select: none;
-  background: linear-gradient(to bottom, #54371a 0%, #35200c 100%);
-  border-left: 8px solid #8b5a2b;
-  border-right: 8px solid #8b5a2b;
+  background: linear-gradient(to bottom, #302010 0%, #5c3e21 30%, #3d2712 80%, #20140a 100%);
+  border-left: 12px solid #8b5a2b;
+  border-right: 12px solid #8b5a2b;
+  border-top: 2px solid #8b5a2b;
   border-bottom: 2px solid #8b5a2b;
   text-shadow: 1px 1px 2px #000;
 }
 
 #build-menu-trigger:hover {
-  background: linear-gradient(to bottom, #634322 0%, #422811 100%);
+  background: linear-gradient(to bottom, #3f2a15 0%, #6d4a27 30%, #4c3116 80%, #2b1c0e 100%);
 }
 
 .bm-trigger-arrow {

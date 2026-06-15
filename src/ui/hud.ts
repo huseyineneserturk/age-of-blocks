@@ -351,7 +351,9 @@ export class Hud {
       nameEl.textContent = kind === 'commander' ? t(`comm.${civ}`) : unitLabel(kind);
 
       const hpEl = document.getElementById('sel-hp')!;
-      hpEl.textContent = `${Math.floor(u.hp)}/${u.maxHp}`;
+      const currentHp = u.hp > 0 && u.hp < 1 ? 1 : Math.round(u.hp);
+      const maxHp = Math.round(u.maxHp);
+      hpEl.textContent = `${Math.min(maxHp, currentHp)}/${maxHp}`;
 
       // Get stats
       const def = UNITS[kind];
