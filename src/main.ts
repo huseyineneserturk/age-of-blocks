@@ -1,3 +1,38 @@
+window.addEventListener('error', (event) => {
+  const errDiv = document.createElement('div');
+  errDiv.style.position = 'fixed';
+  errDiv.style.top = '0';
+  errDiv.style.left = '0';
+  errDiv.style.width = '100vw';
+  errDiv.style.height = '100vh';
+  errDiv.style.backgroundColor = 'rgba(255, 0, 0, 0.9)';
+  errDiv.style.color = '#fff';
+  errDiv.style.fontFamily = 'monospace';
+  errDiv.style.padding = '20px';
+  errDiv.style.zIndex = '999999';
+  errDiv.style.overflow = 'auto';
+  errDiv.style.whiteSpace = 'pre-wrap';
+  errDiv.innerHTML = `<h1>Browser Runtime Error Detected!</h1><p>${event.message}</p><pre>${event.error ? event.error.stack : ''}</pre>`;
+  document.body.appendChild(errDiv);
+});
+window.addEventListener('unhandledrejection', (event) => {
+  const errDiv = document.createElement('div');
+  errDiv.style.position = 'fixed';
+  errDiv.style.top = '0';
+  errDiv.style.left = '0';
+  errDiv.style.width = '100vw';
+  errDiv.style.height = '100vh';
+  errDiv.style.backgroundColor = 'rgba(255, 0, 0, 0.9)';
+  errDiv.style.color = '#fff';
+  errDiv.style.fontFamily = 'monospace';
+  errDiv.style.padding = '20px';
+  errDiv.style.zIndex = '999999';
+  errDiv.style.overflow = 'auto';
+  errDiv.style.whiteSpace = 'pre-wrap';
+  errDiv.innerHTML = `<h1>Browser Unhandled Rejection!</h1><p>${event.reason}</p><pre>${event.reason && event.reason.stack ? event.reason.stack : ''}</pre>`;
+  document.body.appendChild(errDiv);
+});
+
 import { Game } from './game/game';
 import type { Difficulty } from './game/ai';
 import { NetConnection } from './net/client';

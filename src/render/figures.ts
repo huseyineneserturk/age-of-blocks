@@ -418,7 +418,7 @@ function drawCivShield(ctx: Ctx, s: number, x: number, y: number, civ: CivId, te
       ctx.strokeStyle = '#ffd700';
       ctx.lineWidth = s * 0.035;
       ctx.beginPath();
-      ctx.ellipse(0, 0, (w / 2) - 1, (h / 2) - 1, 0, 0, Math.PI * 2);
+      ctx.ellipse(0, 0, Math.max(0.1, (w / 2) - 1), Math.max(0.1, (h / 2) - 1), 0, 0, Math.PI * 2);
       ctx.stroke();
       ctx.fillStyle = '#e63946';
       ctx.beginPath();
@@ -445,7 +445,7 @@ function drawCivShield(ctx: Ctx, s: number, x: number, y: number, civ: CivId, te
       ctx.strokeStyle = teamCol;
       ctx.lineWidth = s * 0.05;
       ctx.beginPath();
-      ctx.arc(0, 0, radius - 1, 0, Math.PI * 2);
+      ctx.arc(0, 0, Math.max(0.1, radius - 1), 0, Math.PI * 2);
       ctx.stroke();
       ctx.fillStyle = metalGrad(ctx, 0, 0, radius * 0.3);
       ctx.beginPath();
@@ -464,7 +464,7 @@ function drawCivShield(ctx: Ctx, s: number, x: number, y: number, civ: CivId, te
       ctx.strokeStyle = '#e9c46a';
       ctx.lineWidth = s * 0.035;
       ctx.beginPath();
-      ctx.ellipse(0, 0, (w / 2) - 1.5, (h / 2) - 1.5, 0, 0, Math.PI * 2);
+      ctx.ellipse(0, 0, Math.max(0.1, (w / 2) - 1.5), Math.max(0.1, (h / 2) - 1.5), 0, 0, Math.PI * 2);
       ctx.stroke();
       ctx.fillStyle = goldGrad(ctx, 0, 0, r * 0.28);
       ctx.beginPath();
