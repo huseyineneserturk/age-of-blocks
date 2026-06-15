@@ -60,9 +60,13 @@ function goldGrad(ctx: Ctx, x: number, y: number, r: number): CanvasGradient {
 }
 
 function lighten(hex: string, amt: number): string {
-  let r = parseInt(hex.slice(1, 3), 16);
-  let g = parseInt(hex.slice(3, 5), 16);
-  let b = parseInt(hex.slice(5, 7), 16);
+  let color = hex.startsWith('#') ? hex.slice(1) : hex;
+  if (color.length === 3) {
+    color = color[0] + color[0] + color[1] + color[1] + color[2] + color[2];
+  }
+  let r = parseInt(color.slice(0, 2), 16);
+  let g = parseInt(color.slice(2, 4), 16);
+  let b = parseInt(color.slice(4, 6), 16);
   r = Math.min(255, r + amt);
   g = Math.min(255, g + amt);
   b = Math.min(255, b + amt);
@@ -70,9 +74,13 @@ function lighten(hex: string, amt: number): string {
 }
 
 function darken(hex: string, amt: number): string {
-  let r = parseInt(hex.slice(1, 3), 16);
-  let g = parseInt(hex.slice(3, 5), 16);
-  let b = parseInt(hex.slice(5, 7), 16);
+  let color = hex.startsWith('#') ? hex.slice(1) : hex;
+  if (color.length === 3) {
+    color = color[0] + color[0] + color[1] + color[1] + color[2] + color[2];
+  }
+  let r = parseInt(color.slice(0, 2), 16);
+  let g = parseInt(color.slice(2, 4), 16);
+  let b = parseInt(color.slice(4, 6), 16);
   r = Math.max(0, r - amt);
   g = Math.max(0, g - amt);
   b = Math.max(0, b - amt);
@@ -1797,7 +1805,7 @@ function figCatapult(ctx: Ctx, s: number, col: string, atk: number): void {
   ctx.lineTo(0, -s * 0.7);
   ctx.stroke();
   // Boulder/payload — 3D
-  ctx.fillStyle = bodyGrad(ctx, 0, -s * 0.72, s * 0.16, '#888', '#444');
+  ctx.fillStyle = bodyGrad(ctx, 0, -s * 0.72, s * 0.16, '#888888', '#444444');
   ctx.beginPath();
   ctx.arc(0, -s * 0.72, s * 0.16, 0, Math.PI * 2);
   ctx.fill();
