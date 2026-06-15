@@ -51,7 +51,7 @@ export function drawStructure(
   // Ground shadow
   ctx.fillStyle = 'rgba(0,0,0,0.32)';
   ctx.beginPath();
-  ctx.ellipse(w / 2, h * 0.96, w * 0.5, h * 0.16, 0, 0, Math.PI * 2);
+  ctx.ellipse(w / 2, h * 0.96, Math.max(0.1, w * 0.5), Math.max(0.1, h * 0.16), 0, 0, Math.PI * 2);
   ctx.fill();
 
   if (opts.constructing) {
@@ -191,7 +191,7 @@ function roof(ctx: CanvasRenderingContext2D, w: number, top: number, pal: CivPal
 
   switch (pal.roofStyle) {
     case 'dome': {
-      const r = rw / 2;
+      const r = Math.max(0.1, rw / 2);
 
       // 3D Dome side cap/slope (covers the 3D side wall top to prevent exposed flat tops)
       ctx.fillStyle = pal.roofDark || '#aab2c0';
@@ -227,7 +227,7 @@ function roof(ctx: CanvasRenderingContext2D, w: number, top: number, pal: CivPal
       ctx.strokeStyle = pal.trim;
       ctx.lineWidth = Math.max(1.5, scale * 0.05);
       ctx.beginPath();
-      ctx.arc(cx, top - r - scale * 0.16, scale * 0.12, Math.PI * 0.4, Math.PI * 1.6);
+      ctx.arc(cx, top - r - scale * 0.16, Math.max(0.1, scale * 0.12), Math.PI * 0.4, Math.PI * 1.6);
       ctx.stroke();
       break;
     }
@@ -699,7 +699,7 @@ function drawColosseum(ctx: CanvasRenderingContext2D, w: number, h: number, pal:
   // Oval base shadow
   ctx.fillStyle = 'rgba(0,0,0,0.2)';
   ctx.beginPath();
-  ctx.ellipse(w / 2, h * 0.95, w * 0.45, h * 0.1, 0, 0, Math.PI * 2);
+  ctx.ellipse(w / 2, h * 0.95, Math.max(0.1, w * 0.45), Math.max(0.1, h * 0.1), 0, 0, Math.PI * 2);
   ctx.fill();
 
   const top = h * 0.4;
@@ -794,8 +794,8 @@ function drawMosque(ctx: CanvasRenderingContext2D, w: number, h: number, pal: Ci
   // 1. Right Side Dome (drawn first so center dome overlaps it, covers right side wall)
   const cx2 = w * 0.72;
   const cy2 = h * 0.48;
-  const rx2 = w * 0.15;
-  const ry2 = h * 0.12;
+  const rx2 = Math.max(0.1, w * 0.15);
+  const ry2 = Math.max(0.1, h * 0.12);
 
   // Side-dome 3D side cover
   ctx.fillStyle = pal.roofDark || '#9c2f24';
@@ -818,8 +818,8 @@ function drawMosque(ctx: CanvasRenderingContext2D, w: number, h: number, pal: Ci
   ctx.fill();
 
   // 2. Center Dome
-  const rx = w * 0.28;
-  const ry = h * 0.22;
+  const rx = Math.max(0.1, w * 0.28);
+  const ry = Math.max(0.1, h * 0.22);
   const cx = w * 0.43;
   const cy = h * 0.48;
 
@@ -1116,7 +1116,7 @@ function drawShrine(ctx: CanvasRenderingContext2D, w: number, h: number, pal: Ci
   for (const sx of [px1 + pw / 2, px2 + pw / 2]) {
     ctx.fillStyle = pal.roof;
     ctx.beginPath();
-    ctx.arc(sx, h * 0.52, scale * 0.18, 0, Math.PI * 2);
+    ctx.arc(sx, h * 0.52, Math.max(0.1, scale * 0.18), 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = pal.trim;
     ctx.lineWidth = 2;
@@ -1124,20 +1124,20 @@ function drawShrine(ctx: CanvasRenderingContext2D, w: number, h: number, pal: Ci
     // shield boss
     ctx.fillStyle = pal.metal || '#aaa';
     ctx.beginPath();
-    ctx.arc(sx, h * 0.52, scale * 0.06, 0, Math.PI * 2);
+    ctx.arc(sx, h * 0.52, Math.max(0.1, scale * 0.06), 0, Math.PI * 2);
     ctx.fill();
   }
 
   // Central Fire Pit
   ctx.fillStyle = '#1c1c1c';
   ctx.beginPath();
-  ctx.ellipse(w / 2, h * 0.84, w * 0.16, h * 0.06, 0, 0, Math.PI * 2);
+  ctx.ellipse(w / 2, h * 0.84, Math.max(0.1, w * 0.16), Math.max(0.1, h * 0.06), 0, 0, Math.PI * 2);
   ctx.fill();
 
   // Bonfire flames
   const time = Date.now() * 0.015;
   for (let i = 0; i < 3; i++) {
-    const fR = scale * (0.12 + Math.sin(time + i) * 0.03);
+    const fR = Math.max(0.1, scale * (0.12 + Math.sin(time + i) * 0.03));
     const fx = w / 2 + Math.sin(time + i * 2) * scale * 0.08;
     const fy = h * 0.74 + Math.cos(time + i) * scale * 0.04;
     ctx.fillStyle = i === 0 ? '#ff4500' : i === 1 ? '#ff8c00' : '#ffd700';
@@ -1188,7 +1188,7 @@ function drawStoneCircle(ctx: CanvasRenderingContext2D, w: number, h: number, pa
   // Earth mound base
   ctx.fillStyle = '#485e3d';
   ctx.beginPath();
-  ctx.ellipse(w / 2, h * 0.94, w * 0.45, h * 0.1, 0, 0, Math.PI * 2);
+  ctx.ellipse(w / 2, h * 0.94, Math.max(0.1, w * 0.45), Math.max(0.1, h * 0.1), 0, 0, Math.PI * 2);
   ctx.fill();
 
   // Arranged 3D stone monoliths

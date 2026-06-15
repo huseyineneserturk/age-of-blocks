@@ -28,23 +28,24 @@ export function updateEconomy(world: World, dt: number): void {
     // --- Construction ---
     if (b.buildProgress < 1) {
       const isAI = (b.team === 1 && world.isSinglePlayer);
-      let canProgress = false;
+      let builderCount = 0;
       if (isAI) {
-        canProgress = true;
+        builderCount = 1;
       } else {
         const c = world.buildingCenter(b);
-        canProgress = world.units.some(
+        builderCount = world.units.filter(
           (u) =>
             u.team === b.team &&
             u.kind === 'villager' &&
             u.alive &&
             u.targetBuildingId === b.id &&
             Math.hypot(u.x - c.x, u.y - c.y) < 3.0,
-        );
+        ).length;
       }
 
-      if (canProgress) {
-        const step = def.buildTime > 0 ? dt / def.buildTime : 1;
+      if (builderCount > 0) {
+        const speedMultiplier = 1 + (builderCount - 1) * 0.5;
+        const step = def.buildTime > 0 ? (dt * speedMultiplier) / def.buildTime : 1;
         b.buildProgress = Math.min(1, b.buildProgress + step);
         // HP scales 10% → 100% while building.
         b.hp = Math.min(b.maxHp, b.hp + b.maxHp * 0.9 * step);

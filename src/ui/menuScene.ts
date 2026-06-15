@@ -2,7 +2,7 @@
 // — Celt, Ottoman, Chinese, Roman, Viking — each with their waving banner on
 // a stone pedestal, under a moonlit sky with drifting embers.
 
-import { civLabel } from '../i18n';
+import { civLabel, getLang } from '../i18n';
 import type { CivId } from '../data/civs';
 
 type Ctx = CanvasRenderingContext2D;
@@ -113,7 +113,7 @@ export class MenuScene {
       ctx.beginPath();
       ctx.ellipse(cx, groundY + s * 0.05, s * 0.8, s * 0.18, 0, 0, Math.PI * 2);
       ctx.fill();
-      this.drawPedestal(ctx, cx, groundY, s, civLabel(civs[i].id).toLocaleUpperCase('tr'));
+      this.drawPedestal(ctx, cx, groundY, s, civLabel(civs[i].id).toLocaleUpperCase(getLang()));
       this.drawFlag(ctx, cx - s * 1.5, groundY, s, t, i, civs[i].flag);
       ctx.save();
       ctx.translate(cx, groundY - s * 1.05 + bob);
