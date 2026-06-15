@@ -106,6 +106,15 @@ function showScreen(name: Screen): void {
     s.classList.toggle('active', s.dataset.screen === name),
   );
   if (name !== 'waiting') status(null);
+
+  if (name === 'lobby') {
+    renderRooms();
+    if (connected && lobby) {
+      lobby.requestLobby();
+    } else if (!connecting) {
+      connectLobby();
+    }
+  }
 }
 
 // --- Language ---
