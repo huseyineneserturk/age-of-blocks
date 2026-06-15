@@ -16,6 +16,22 @@ interface Opts {
 
 const GOLD = '#e8c54a';
 
+function lighten(hex: string, percent: number): string {
+  let color = hex.startsWith('#') ? hex.slice(1) : hex;
+  if (color.length === 3) {
+    color = color[0] + color[0] + color[1] + color[1] + color[2] + color[2];
+  }
+  const num = parseInt(color, 16);
+  const amt = Math.round(2.55 * percent);
+  let r = (num >> 16) + amt;
+  let g = (num >> 8 & 0x00ff) + amt;
+  let b = (num & 0x0000ff) + amt;
+  r = Math.min(255, Math.max(0, r));
+  g = Math.min(255, Math.max(0, g));
+  b = Math.min(255, Math.max(0, b));
+  return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
+
 export function drawStructure(
   ctx: CanvasRenderingContext2D,
   kind: BuildingKind,
@@ -177,19 +193,24 @@ function roof(ctx: CanvasRenderingContext2D, w: number, top: number, pal: CivPal
     case 'dome': {
       const r = rw / 2;
       
-      // 3D Dome shadow side (right)
+      // 3D Dome shadow side (right) - Top-right quadrant only to prevent overlapping walls
       ctx.fillStyle = pal.roofDark || '#aab2c0';
       ctx.beginPath();
-      ctx.arc(cx, top, r, -Math.PI * 0.5, Math.PI * 0.5);
+      ctx.moveTo(cx, top);
+      ctx.arc(cx, top, r, -Math.PI * 0.5, 0);
+      ctx.closePath();
       ctx.fill();
 
-      // 3D Dome light side (left)
+      // 3D Dome light side (left) - Top-left quadrant only to prevent overlapping walls
+      const lightColor = lighten(pal.roof, 25);
       const g = ctx.createLinearGradient(cx - r, top - r, cx, top);
-      g.addColorStop(0, '#e6e9ef');
-      g.addColorStop(1, '#c2cbd9');
+      g.addColorStop(0, lightColor);
+      g.addColorStop(1, pal.roof);
       ctx.fillStyle = g;
       ctx.beginPath();
-      ctx.arc(cx, top, r, Math.PI * 0.5, Math.PI * 1.5);
+      ctx.moveTo(cx, top);
+      ctx.arc(cx, top, r, Math.PI, -Math.PI * 0.5);
+      ctx.closePath();
       ctx.fill();
 
       // crescent finial
@@ -752,24 +773,46 @@ function drawMosque(ctx: CanvasRenderingContext2D, w: number, h: number, pal: Ci
   ctx.lineTo(cx, cy - ry - scale * 0.16);
   ctx.stroke();
 
-  // Pencil Minarets on the sides
-  for (const mx of [w * 0.08, w * 0.78]) {
-    // 3D Minaret column
-    ctx.fillStyle = pal.wall;
-    ctx.fillRect(mx, h * 0.22, w * 0.08, h * 0.76);
-    ctx.fillStyle = pal.wallDark;
-    ctx.fillRect(mx + w * 0.05, h * 0.22, w * 0.03, h * 0.76);
-    // Balcony
-    ctx.fillStyle = pal.trim;
-    ctx.fillRect(mx - w * 0.02, h * 0.28, w * 0.12, h * 0.05);
-    // Conical roof cap
-    ctx.fillStyle = pal.roof;
+  // Pencil Minarets on the sides (slender, 3D cylindrical, with spires)
+  const mw = w * 0.05; // slender width
+  for (const ccx of [w * 0.06, w * 0.80]) {
+    const mx = ccx - mw / 2;
+    // 3D Minaret column (cylindrical linear gradient shading)
+    const colGrad = ctx.createLinearGradient(mx, 0, mx + mw, 0);
+    colGrad.addColorStop(0, lighten(pal.wall, 15));
+    colGrad.addColorStop(0.3, pal.wall);
+    colGrad.addColorStop(1, pal.wallDark);
+    ctx.fillStyle = colGrad;
+    ctx.fillRect(mx, h * 0.22, mw, h * 0.76);
+
+    // Balcony (rendered as a small projecting 3D block/cylinder near the top)
+    const balGrad = ctx.createLinearGradient(mx - mw * 0.25, 0, mx + mw * 1.25, 0);
+    balGrad.addColorStop(0, '#f2d982'); // lighter gold
+    balGrad.addColorStop(0.5, pal.trim); // gold
+    balGrad.addColorStop(1, '#a6821e'); // darker gold
+    ctx.fillStyle = balGrad;
+    ctx.fillRect(mx - mw * 0.25, h * 0.32, mw * 1.5, h * 0.045);
+
+    // Conical roof cap (cylindrical linear gradient shading)
+    const capGrad = ctx.createLinearGradient(mx, 0, mx + mw, 0);
+    capGrad.addColorStop(0, lighten(pal.roof, 20));
+    capGrad.addColorStop(0.4, pal.roof);
+    capGrad.addColorStop(1, pal.roofDark);
+    ctx.fillStyle = capGrad;
     ctx.beginPath();
     ctx.moveTo(mx, h * 0.22);
-    ctx.lineTo(mx + w * 0.04, h * 0.06);
-    ctx.lineTo(mx + w * 0.08, h * 0.22);
+    ctx.lineTo(ccx, h * 0.06);
+    ctx.lineTo(mx + mw, h * 0.22);
     ctx.closePath();
     ctx.fill();
+
+    // Golden crescent spike/finial on top of minaret cap
+    ctx.strokeStyle = GOLD;
+    ctx.lineWidth = scale * 0.03;
+    ctx.beginPath();
+    ctx.moveTo(ccx, h * 0.06);
+    ctx.lineTo(ccx, h * 0.015);
+    ctx.stroke();
   }
 }
 
