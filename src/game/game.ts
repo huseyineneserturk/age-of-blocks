@@ -566,7 +566,7 @@ export class Game {
     const k = e.key.toLowerCase();
 
     // 1. Cycle villagers shortcut
-    if (k === '.') {
+    if (k === '"') {
       const villagers = this.world.units.filter((u) => u.team === this.myTeam && u.kind === 'villager' && u.alive);
       if (villagers.length > 0) {
         const currentSelectedId = Array.from(this.selected).find(id => {
